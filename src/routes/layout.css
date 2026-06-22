@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+@import '../styles/tokens.css';
+
+/* Mappe les design tokens (tokens.css) sur le thème Tailwind v4.
+   → permet bg-brand-primary, text-ink-muted, border-border, etc. */
+@theme {
+	--color-brand-primary: var(--brand-primary);
+	--color-brand-primary-700: var(--brand-primary-700);
+	--color-brand-secondary: var(--brand-secondary);
+	--color-brand-tertiary: var(--brand-tertiary);
+	--color-brand-cyan: var(--brand-cyan);
+
+	--color-surface: var(--surface-bg);
+	--color-surface-subtle: var(--surface-subtle);
+	--color-surface-muted: var(--surface-muted);
+	--color-border: var(--border);
+
+	--color-ink-strong: var(--ink-strong);
+	--color-ink: var(--ink);
+	--color-ink-muted: var(--ink-muted);
+
+	--color-success: var(--success);
+	--color-warning: var(--warning);
+	--color-error: var(--error);
+	--color-info: var(--info);
+
+	--font-sans: var(--font-sans);
+
+	--radius-sm: var(--radius-sm);
+	--radius: var(--radius);
+	--radius-lg: var(--radius-lg);
+}
+
+@layer base {
+	body {
+		background-color: var(--surface-bg);
+		color: var(--ink);
+		font-family: var(--font-sans);
+		line-height: var(--lh-base);
+		-webkit-font-smoothing: antialiased;
+	}
+}

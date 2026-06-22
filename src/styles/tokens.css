@@ -1,0 +1,95 @@
+/* tokens.css — Bénévoles ACGB
+ * Source de vérité des design tokens. Charte dérivée de acgb.ch.
+ * Aucune valeur en dur dans les composants : utiliser ces variables.
+ * Lors du scaffold SvelteKit + Tailwind v4, mapper ces tokens via @theme.
+ */
+
+:root {
+	/* ---------- Marque ---------- */
+	--brand-primary: #020e71; /* marine ACGB */
+	--brand-primary-700: #0a1a8c; /* hover */
+	--brand-secondary: #2ac5a1; /* teal */
+	--brand-tertiary: #6f76de; /* périwinkle */
+	--brand-cyan: #40d9f1; /* cyan accent */
+
+	/* ---------- Surfaces & lignes ---------- */
+	--surface-bg: #ffffff;
+	--surface-subtle: #f5f7fa;
+	--surface-muted: #eceff4;
+	--border: #e2e6ec;
+
+	/* ---------- Ink (texte) ---------- */
+	--ink-strong: #0a1230;
+	--ink: #1e2433;
+	--ink-muted: #5b6273;
+	--ink-on-primary: #ffffff;
+
+	/* ---------- Sémantiques ---------- */
+	--success: #2ac5a1; /* disponible */
+	--warning: #e0a21e; /* peut-être */
+	--error: #e2342b; /* complet / désinscription */
+	--info: #6f76de;
+
+	/* ---------- Typographie ---------- */
+	--font-sans: 'Euclid Flex', 'Manrope', 'Inter', system-ui, -apple-system, sans-serif;
+	--fw-regular: 400;
+	--fw-medium: 500;
+	--fw-semibold: 600;
+	--fw-bold: 700;
+
+	/* échelle de tailles */
+	--fs-display: 2rem;
+	--fs-h1: 1.5rem;
+	--fs-h2: 1.25rem;
+	--fs-h3: 1.0625rem;
+	--fs-body: 1rem;
+	--fs-small: 0.875rem;
+	--lh-tight: 1.2;
+	--lh-base: 1.55;
+
+	/* ---------- Espacement ---------- */
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-6: 24px;
+	--space-8: 32px;
+	--space-12: 48px;
+	--gutter: 16px;
+	--tap-min: 44px; /* cible tactile minimale */
+	--content-narrow: 640px;
+	--content-wide: 960px;
+
+	/* ---------- Radius ---------- */
+	--radius-sm: 6px;
+	--radius: 8px;
+	--radius-lg: 14px;
+	--radius-full: 999px;
+
+	/* ---------- Ombres ---------- */
+	--shadow-sm: 0 1px 2px rgba(10, 18, 48, 0.06), 0 1px 3px rgba(10, 18, 48, 0.08);
+	--shadow-md: 0 6px 16px rgba(10, 18, 48, 0.1), 0 2px 6px rgba(10, 18, 48, 0.08);
+
+	/* ---------- Breakpoints (référence) ---------- */
+	--bp-sm: 640px;
+	--bp-md: 768px;
+	--bp-lg: 1024px;
+
+	/* ---------- Motion (intensité 5/10) ---------- */
+	--dur-fast: 150ms;
+	--dur-base: 250ms;
+	--dur-slow: 450ms;
+	--dur-reveal: 600ms;
+	--ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+	--ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+	--ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--dur-fast: 0ms;
+		--dur-base: 0ms;
+		--dur-slow: 0ms;
+		--dur-reveal: 0ms;
+	}
+}
