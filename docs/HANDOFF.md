@@ -15,4 +15,4 @@ Epic 1 (socle technique & design) : **DONE** → docs/features/01-socle.md.
 ## Reprendre ici
 
 Epic 2 — Auth magic link : configurer Better Auth (plugin magic link) + Resend, générer les tables auth via le CLI Better Auth (la table `user` existe déjà comme ancre des FK).
-Commit : 00a5cdf chore: init projet Bénévoles ACGB + Epic 1 socle technique & design
+Commit : f01c9d1 chore: init projet Bénévoles ACGB + Epic 1 socle technique & design

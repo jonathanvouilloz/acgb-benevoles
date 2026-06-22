@@ -8,7 +8,7 @@
 **Fait :** Scaffold SvelteKit 5 + Tailwind v4 + ESLint/Prettier · DB Drizzle/Neon avec schéma complet 6 tables, migration générée ET appliquée sur Neon (vérifiée) · PWA native (manifest + service worker avec stubs push) · design system câblé (tokens ACGB réels scrapés d'acgb.ch → `@theme`, primitives Button/StatusBadge, page `/styleguide`) · `check` + `build` verts.
 **Prochain :** Démarrer l'Epic 2 — Auth magic link (Better Auth + Resend). Fichier : `docs/features/02-auth.md`. Better Auth générera les tables `session`/`account`/`verification` + colonnes user via son CLI ; la table `user` existante est l'ancre des FK.
 **Pieges :** `@vite-pwa/sveltekit` incompatible avec ce SvelteKit récent (config dans `vite.config.ts`, pas de `svelte.config.js`) → pivot vers SW natif. Le CLI `sv create` coerce `docker:no/none` de l'add-on drizzle en `false` → drizzle installé manuellement. `DATABASE_URL` partagée en clair dans le chat (à régénérer côté Neon si rigueur souhaitée).
-**Commit :** 00a5cdf chore: init projet Bénévoles ACGB + Epic 1 socle technique & design
+**Commit :** f01c9d1 chore: init projet Bénévoles ACGB + Epic 1 socle technique & design
 
 ---
 
