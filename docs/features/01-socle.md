@@ -16,21 +16,22 @@
 
 > Mise à jour : 2026-06-22
 
-| Fichier | Rôle |
-|---------|------|
-| `src/lib/server/db/schema.ts` | Schéma Drizzle des 6 tables + enum `signup_status` + types inférés |
-| `src/lib/server/db/index.ts` | Client Drizzle sur Neon HTTP (`$env/dynamic/private`) |
-| `drizzle.config.ts` | Config drizzle-kit (migrations `./drizzle`) |
-| `src/styles/tokens.css` | Design tokens ACGB (couleurs, typo, espacement, motion) |
-| `src/routes/layout.css` | Import Tailwind v4 + mapping tokens → `@theme` |
-| `src/routes/+layout.svelte` | Shell mobile-first + fonte Manrope Variable |
-| `src/service-worker.ts` | SW PWA natif : precache + stubs push/notificationclick (Epic 6) |
-| `static/manifest.webmanifest` | Manifest PWA (theme marine, icône) |
-| `src/lib/components/ui/button/Button.svelte` | Primitive bouton (4 variantes + états) |
-| `src/lib/components/ui/status-badge/StatusBadge.svelte` | Badge statut inscription (dispo/peut-être/complet) |
-| `src/routes/styleguide/+page.svelte` | Styleguide live noindex (palette, typo, primitives, motion) |
+| Fichier                                                 | Rôle                                                               |
+| ------------------------------------------------------- | ------------------------------------------------------------------ |
+| `src/lib/server/db/schema.ts`                           | Schéma Drizzle des 6 tables + enum `signup_status` + types inférés |
+| `src/lib/server/db/index.ts`                            | Client Drizzle sur Neon HTTP (`$env/dynamic/private`)              |
+| `drizzle.config.ts`                                     | Config drizzle-kit (migrations `./drizzle`)                        |
+| `src/styles/tokens.css`                                 | Design tokens ACGB (couleurs, typo, espacement, motion)            |
+| `src/routes/layout.css`                                 | Import Tailwind v4 + mapping tokens → `@theme`                     |
+| `src/routes/+layout.svelte`                             | Shell mobile-first + fonte Manrope Variable                        |
+| `src/service-worker.ts`                                 | SW PWA natif : precache + stubs push/notificationclick (Epic 6)    |
+| `static/manifest.webmanifest`                           | Manifest PWA (theme marine, icône)                                 |
+| `src/lib/components/ui/button/Button.svelte`            | Primitive bouton (4 variantes + états)                             |
+| `src/lib/components/ui/status-badge/StatusBadge.svelte` | Badge statut inscription (dispo/peut-être/complet)                 |
+| `src/routes/styleguide/+page.svelte`                    | Styleguide live noindex (palette, typo, primitives, motion)        |
 
 ### Décisions clés
+
 - PWA = service worker **natif SvelteKit**, pas `@vite-pwa/sveltekit` (incompat config-in-vite).
 - PK domaine en `uuid`, `user.id` en `text` pour compat Better Auth (Epic 2) — ne pas créer ici `session`/`account`/`verification`.
 - Pas de shadcn-svelte : primitives en Svelte 5 pur + tokens.

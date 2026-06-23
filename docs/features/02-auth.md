@@ -13,23 +13,25 @@
 ---
 
 ## Carte du code
+
 > Mise a jour : 2026-06-23
 
-| Fichier | Role |
-|---------|------|
-| `src/lib/server/auth.ts` | Instance Better Auth : drizzleAdapter, plugin magic link, session 30 j, `isOrganizer` en `input:false`. Log le lien en dev. |
-| `src/lib/server/services/email.ts` | Envoi du magic link via Resend (client instancié à la demande, email HTML FR). |
-| `src/hooks.server.ts` | Peuple `locals.session`/`locals.user` + `svelteKitHandler` (intercepte `/api/auth/*`). |
-| `src/lib/auth-client.ts` | Client Better Auth navigateur (déconnexion). |
-| `src/lib/schemas/auth.ts` | Validation Zod prénom/nom/email + `fullName()`. |
-| `src/routes/login/+page.server.ts` | Action : valide via Zod → `auth.api.signInMagicLink` → redirige vers `/login/sent`. |
-| `src/routes/login/+page.svelte` | Formulaire prénom/nom/email, gestion `?error=expired`. |
-| `src/routes/login/sent/+page.svelte` | Confirmation « lien envoyé » + renvoi. |
-| `src/routes/+layout.server.ts` / `+layout.svelte` | Expose `locals.user` ; header état connecté + bouton déconnexion. |
-| `src/lib/server/db/schema.ts` | Ajout `user.image` + tables `session`/`account`/`verification`. |
-| `drizzle/0001_wakeful_johnny_storm.sql` | Migration appliquée (colonne image + 3 tables auth). |
+| Fichier                                           | Role                                                                                                                        |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/server/auth.ts`                          | Instance Better Auth : drizzleAdapter, plugin magic link, session 30 j, `isOrganizer` en `input:false`. Log le lien en dev. |
+| `src/lib/server/services/email.ts`                | Envoi du magic link via Resend (client instancié à la demande, email HTML FR).                                              |
+| `src/hooks.server.ts`                             | Peuple `locals.session`/`locals.user` + `svelteKitHandler` (intercepte `/api/auth/*`).                                      |
+| `src/lib/auth-client.ts`                          | Client Better Auth navigateur (déconnexion).                                                                                |
+| `src/lib/schemas/auth.ts`                         | Validation Zod prénom/nom/email + `fullName()`.                                                                             |
+| `src/routes/login/+page.server.ts`                | Action : valide via Zod → `auth.api.signInMagicLink` → redirige vers `/login/sent`.                                         |
+| `src/routes/login/+page.svelte`                   | Formulaire prénom/nom/email, gestion `?error=expired`.                                                                      |
+| `src/routes/login/sent/+page.svelte`              | Confirmation « lien envoyé » + renvoi.                                                                                      |
+| `src/routes/+layout.server.ts` / `+layout.svelte` | Expose `locals.user` ; header état connecté + bouton déconnexion.                                                           |
+| `src/lib/server/db/schema.ts`                     | Ajout `user.image` + tables `session`/`account`/`verification`.                                                             |
+| `drizzle/0001_wakeful_johnny_storm.sql`           | Migration appliquée (colonne image + 3 tables auth).                                                                        |
 
 ### Decisions cles
+
 - `is_organizer` promu **manuellement en DB** (`input:false` côté client, non falsifiable).
 - Prénom + nom saisis au login → `user.name`. Connexion = action serveur (Zod), déconnexion = client (`authClient.signOut()` pour gérer le cookie via `svelteKitHandler`).
 - `BETTER_AUTH_URL` couplé au port du serveur dev → garder synchro (5174 actuellement).
@@ -49,6 +51,7 @@ Authentification sans mot de passe via magic link (Better Auth + Resend). Compte
 - [x] Page de connexion + page « lien envoyé » + gestion lien expiré (`errorCallbackURL` → `/login?error=expired`).
 
 **Reste à faire avant DONE** (hors code) :
+
 - [x] Migration `drizzle/0001_wakeful_johnny_storm.sql` appliquée sur Neon.
 - [x] `RESEND_API_KEY` renseignée (domaine non encore vérifié → lien loggé en console en dev).
 - [x] Flow de connexion testé OK (login → lien console → session).
