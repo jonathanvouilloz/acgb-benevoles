@@ -27,6 +27,11 @@
 		<a href={resolve('/')} class="text-sm font-semibold text-brand-primary">Bénévoles ACGB</a>
 		{#if data.user}
 			<div class="flex items-center gap-3 text-sm">
+				{#if data.user.isOrganizer}
+					<a href={resolve('/tournois')} class="font-medium text-brand-primary hover:underline"
+						>Mes tournois</a
+					>
+				{/if}
 				<span class="text-ink-muted">{data.user.name}</span>
 				<button
 					type="button"
