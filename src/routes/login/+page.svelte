@@ -2,9 +2,9 @@
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
-	import type { ActionData } from './$types';
+	import type { ActionData, PageData } from './$types';
 
-	let { form }: { form: ActionData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let submitting = $state(false);
 
@@ -41,6 +41,8 @@
 		};
 	}}
 >
+	<input type="hidden" name="redirect" value={data.redirect ?? ''} />
+
 	<label class="flex flex-col gap-1 text-sm font-medium text-ink">
 		Prénom
 		<input

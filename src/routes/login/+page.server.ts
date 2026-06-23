@@ -1,11 +1,14 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { auth } from '$lib/server/auth';
 import { loginSchema, fullName } from '$lib/schemas/auth';
+import { safeRedirect } from '$lib/server/auth-guard';
 import type { Actions, PageServerLoad } from './$types';
 
-/** Déjà connecté → pas de raison de rester sur /login. */
-export const load: PageServerLoad = async ({ locals }) => {
-	if (locals.user) throw redirect(303, '/');
+/** Déjà connecté → pas de raison de rester sur /login (on rejoint la cible éventuelle). */
+export const load: PageServerLoad = async ({ locals, url }) => {
+	const redirectTo = safeRedirect(url.searchParams.get('redirect'));
+	if (locals.user) throw redirect(303, redirectTo ?? '/');
+	return { redirect: redirectTo };
 };
 
 export const actions: Actions = {
@@ -31,13 +34,16 @@ export const actions: Actions = {
 
 		const { email } = parsed.data;
 
+		// Cible interne à rejoindre après le clic sur le lien magique (sinon accueil).
+		const redirectTo = safeRedirect(form.get('redirect')) ?? '/';
+
 		try {
 			await auth.api.signInMagicLink({
 				body: {
 					email,
 					name: fullName(parsed.data),
-					callbackURL: '/',
-					errorCallbackURL: '/login?error=expired'
+					callbackURL: redirectTo,
+					errorCallbackURL: `/login?error=expired&redirect=${encodeURIComponent(redirectTo)}`
 				},
 				headers: request.headers
 			});
