@@ -1,3 +1,4 @@
+import { relations } from 'drizzle-orm';
 import {
 	pgTable,
 	pgEnum,
@@ -138,6 +139,42 @@ export const pushSubscription = pgTable('push_subscription', {
 	auth: text('auth').notNull(),
 	createdAt: timestamp('created_at').notNull().defaultNow()
 });
+
+/**
+ * Relations (niveau applicatif — aucune migration). Permettent les requêtes imbriquées
+ * `db.query.tournament.findFirst({ with: { positions: { with: { shifts: true } } } })`
+ * utilisées par la page de gestion organisateur (Epic 3).
+ */
+export const tournamentRelations = relations(tournament, ({ many }) => ({
+	positions: many(position)
+}));
+
+export const positionRelations = relations(position, ({ one, many }) => ({
+	tournament: one(tournament, {
+		fields: [position.tournamentId],
+		references: [tournament.id]
+	}),
+	shifts: many(shift)
+}));
+
+export const shiftRelations = relations(shift, ({ one, many }) => ({
+	position: one(position, {
+		fields: [shift.positionId],
+		references: [position.id]
+	}),
+	signups: many(signup)
+}));
+
+export const signupRelations = relations(signup, ({ one }) => ({
+	shift: one(shift, {
+		fields: [signup.shiftId],
+		references: [shift.id]
+	}),
+	user: one(user, {
+		fields: [signup.userId],
+		references: [user.id]
+	})
+}));
 
 export type User = typeof user.$inferSelect;
 export type Session = typeof session.$inferSelect;
