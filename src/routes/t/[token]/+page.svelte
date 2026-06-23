@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import VolunteerShiftRow from '$lib/components/tournament/VolunteerShiftRow.svelte';
+	import EnableNotifications from '$lib/components/push/EnableNotifications.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { formatDateRange } from '$lib/format';
 	import { CalendarDays, MapPin, LogIn } from 'lucide-svelte';
@@ -36,6 +37,10 @@
 		<a href={loginHref}>
 			<Button class="w-full sm:w-auto"><LogIn size={16} /> Se connecter</Button>
 		</a>
+	</div>
+{:else}
+	<div class="mt-4">
+		<EnableNotifications />
 	</div>
 {/if}
 

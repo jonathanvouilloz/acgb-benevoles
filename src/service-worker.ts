@@ -38,26 +38,45 @@ sw.addEventListener('fetch', (event) => {
 });
 
 /* --------------------------------------------------------------------------
- * Push notifications — branché en Epic 6 (cf. docs/features/06-notifications.md)
- * Squelette prêt : décommenter et compléter avec le payload des rappels.
- * --------------------------------------------------------------------------
- *
- * sw.addEventListener('push', (event) => {
- *   const data = event.data?.json() ?? {};
- *   event.waitUntil(
- *     sw.registration.showNotification(data.title ?? 'ACGB', {
- *       body: data.body,
- *       icon: '/icon.svg',
- *       data: { url: data.url ?? '/' }
- *     })
- *   );
- * });
- *
- * sw.addEventListener('notificationclick', (event) => {
- *   event.notification.close();
- *   const url = event.notification.data?.url ?? '/';
- *   event.waitUntil(sw.clients.openWindow(url));
- * });
- */
+ * Push notifications — rappels de créneau (Epic 6, cf. reminder-service.ts).
+ * Payload attendu : { title, body, url } (cf. PushPayload côté serveur).
+ * -------------------------------------------------------------------------- */
+
+sw.addEventListener('push', (event) => {
+	const data = (() => {
+		try {
+			return event.data?.json() ?? {};
+		} catch {
+			return {};
+		}
+	})();
+	event.waitUntil(
+		sw.registration.showNotification(data.title ?? 'Bénévoles ACGB', {
+			body: data.body,
+			icon: '/icon.svg',
+			badge: '/icon.svg',
+			data: { url: data.url ?? '/' }
+		})
+	);
+});
+
+sw.addEventListener('notificationclick', (event) => {
+	event.notification.close();
+	const url = event.notification.data?.url ?? '/';
+	event.waitUntil(
+		(async () => {
+			// Focalise un onglet déjà ouvert sur l'app si possible, sinon en ouvre un.
+			const all = await sw.clients.matchAll({ type: 'window', includeUncontrolled: true });
+			for (const client of all) {
+				if ('focus' in client) {
+					await client.focus();
+					if ('navigate' in client) await client.navigate(url);
+					return;
+				}
+			}
+			await sw.clients.openWindow(url);
+		})()
+	);
+});
 
 export {};

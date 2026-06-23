@@ -124,21 +124,30 @@ export const signup = pgTable(
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),
 		status: signupStatus('status').notNull(),
+		// Rappels push (Epic 6) — horodatage du dernier envoi, garantit l'idempotence du cron
+		// indépendamment de sa fréquence (cf. reminder-service). `null` = pas encore envoyé.
+		reminder24SentAt: timestamp('reminder_24_sent_at'),
+		reminder2SentAt: timestamp('reminder_2_sent_at'),
 		createdAt: timestamp('created_at').notNull().defaultNow()
 	},
 	(t) => [unique('signup_shift_user_unique').on(t.shiftId, t.userId)]
 );
 
-export const pushSubscription = pgTable('push_subscription', {
-	id: uuid('id').primaryKey().defaultRandom(),
-	userId: text('user_id')
-		.notNull()
-		.references(() => user.id, { onDelete: 'cascade' }),
-	endpoint: text('endpoint').notNull(),
-	p256dh: text('p256dh').notNull(),
-	auth: text('auth').notNull(),
-	createdAt: timestamp('created_at').notNull().defaultNow()
-});
+export const pushSubscription = pgTable(
+	'push_subscription',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		endpoint: text('endpoint').notNull(),
+		p256dh: text('p256dh').notNull(),
+		auth: text('auth').notNull(),
+		createdAt: timestamp('created_at').notNull().defaultNow()
+	},
+	// `endpoint` unique : permet l'upsert d'une re-souscription (même appareil) sans doublon.
+	(t) => [unique('push_subscription_endpoint_unique').on(t.endpoint)]
+);
 
 /**
  * Relations (niveau applicatif — aucune migration). Permettent les requêtes imbriquées

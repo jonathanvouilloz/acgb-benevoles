@@ -2,15 +2,14 @@
 
 ## Features actives
 
-| Feature              | Fichier                           | Statut                                |
-| -------------------- | --------------------------------- | ------------------------------------- |
-| Suivi du remplissage | docs/features/05-suivi.md         | **EN COURS** (code complet, à tester) |
-| Push notifications   | docs/features/06-notifications.md | EN ATTENTE                            |
-| Auth magic link      | docs/features/02-auth.md          | EN COURS (prod : domaine Resend)      |
+| Feature               | Fichier                           | Statut                              |
+| --------------------- | --------------------------------- | ----------------------------------- |
+| Auth magic link       | docs/features/02-auth.md          | EN COURS (prod : domaine Resend)    |
+| Suivi du remplissage  | docs/features/05-suivi.md         | EN COURS (test manuel orga)         |
 
-Epics DONE : 1 (socle) · 3 (tournois/postes/créneaux) · 4 (inscription bénévole).
+Epics DONE : 1 (socle) · 3 (tournois/postes/créneaux) · 4 (inscription) · 6 (push notifications). **MVP fonctionnellement complet.**
 
 ## Reprendre ici
 
-Epic 5 — Suivi du remplissage : **code livré** (route lecture seule `/tournois/[id]/suivi`, service gardé ownership, bandeau de synthèse). Prochaine étape = test manuel du parcours orga ; si OK → Epic 5 DONE puis démarrer Epic 6 (Push notifications & rappels).
-Commit : feat(tracking): add organizer fill-tracking view
+Plus d'epic de dev actif : les 7 features du MVP sont codées. Restent deux finitions non bloquantes — Epic 2 (vérifier un domaine Resend pour la prod) et Epic 5 (valider le parcours suivi orga). Sinon : préparer le déploiement Vercel (vars VAPID + `CRON_SECRET`, onboarding « installer la PWA » iOS).
+Commit : feat(push) — notifications & rappels (Epic 6)
