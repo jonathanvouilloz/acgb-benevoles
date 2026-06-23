@@ -14,9 +14,9 @@ import {
  *
  * Conventions :
  * - PK domaine en `uuid` (defaultRandom) : non énumérable, sûr pour les liens publics.
- * - `user.id` en `text` pour rester compatible avec Better Auth (Epic 2), qui en sera
- *   le propriétaire. Les tables `session` / `account` / `verification` seront générées
- *   par le CLI Better Auth en Epic 2 — NE PAS les ajouter ici.
+ * - `user.id` en `text` pour rester compatible avec Better Auth (Epic 2), qui en est
+ *   le propriétaire. Les tables `session` / `account` / `verification` sont alignées sur
+ *   le schéma Drizzle de Better Auth (cf. docs/features/02-auth.md).
  */
 
 export const signupStatus = pgEnum('signup_status', ['available', 'maybe']);
@@ -26,7 +26,53 @@ export const user = pgTable('user', {
 	email: text('email').notNull().unique(),
 	name: text('name').notNull(),
 	emailVerified: boolean('email_verified').notNull().default(false),
+	image: text('image'),
 	isOrganizer: boolean('is_organizer').notNull().default(false),
+	createdAt: timestamp('created_at').notNull().defaultNow(),
+	updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+/**
+ * Tables Better Auth (magic link). Noms et colonnes alignés sur le schéma Drizzle
+ * attendu par l'adapter. `verification` stocke les tokens de magic link.
+ */
+
+export const session = pgTable('session', {
+	id: text('id').primaryKey(),
+	expiresAt: timestamp('expires_at').notNull(),
+	token: text('token').notNull().unique(),
+	ipAddress: text('ip_address'),
+	userAgent: text('user_agent'),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	createdAt: timestamp('created_at').notNull().defaultNow(),
+	updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+export const account = pgTable('account', {
+	id: text('id').primaryKey(),
+	accountId: text('account_id').notNull(),
+	providerId: text('provider_id').notNull(),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	accessToken: text('access_token'),
+	refreshToken: text('refresh_token'),
+	idToken: text('id_token'),
+	accessTokenExpiresAt: timestamp('access_token_expires_at'),
+	refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
+	scope: text('scope'),
+	password: text('password'),
+	createdAt: timestamp('created_at').notNull().defaultNow(),
+	updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+export const verification = pgTable('verification', {
+	id: text('id').primaryKey(),
+	identifier: text('identifier').notNull(),
+	value: text('value').notNull(),
+	expiresAt: timestamp('expires_at').notNull(),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
@@ -94,6 +140,9 @@ export const pushSubscription = pgTable('push_subscription', {
 });
 
 export type User = typeof user.$inferSelect;
+export type Session = typeof session.$inferSelect;
+export type Account = typeof account.$inferSelect;
+export type Verification = typeof verification.$inferSelect;
 export type Tournament = typeof tournament.$inferSelect;
 export type Position = typeof position.$inferSelect;
 export type Shift = typeof shift.$inferSelect;
