@@ -1,7 +1,7 @@
 # Epic 3 — Tournois, postes & créneaux (orga)
 
 **Complexité** : L
-**Statut** : EN COURS (code complet — reste validation manuelle)
+**Statut** : **DONE** (parcours orga validé manuellement le 2026-06-23)
 
 ## Etat session 2026-06-23
 
@@ -48,8 +48,8 @@ Côté organisateur : créer un tournoi (multi-jours), y ajouter des postes (cou
 
 **Reste avant DONE** (hors code) :
 
-- [ ] Validation manuelle du parcours complet (création → postes → créneaux → édition → suppression → 403).
-- [ ] `is_organizer = true` sur le compte de test (`npm run db:studio`).
+- [x] Validation manuelle du parcours complet (création → postes → créneaux → édition → suppression → 403). **Validé le 2026-06-23.**
+- [x] `is_organizer = true` sur le compte de test (`npm run db:studio`).
 
 ## Décisions techniques
 
