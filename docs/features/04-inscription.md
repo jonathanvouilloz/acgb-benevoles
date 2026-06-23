@@ -1,7 +1,7 @@
 # Epic 4 — Inscription bénévole
 
 **Complexité** : M
-**Statut** : EN COURS (code complet — prêt à tester)
+**Statut** : DONE (testé et validé 2026-06-23)
 
 ## Etat session 2026-06-23
 

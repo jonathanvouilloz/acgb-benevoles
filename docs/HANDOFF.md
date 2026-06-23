@@ -4,14 +4,13 @@
 
 | Feature              | Fichier                           | Statut                                |
 | -------------------- | --------------------------------- | ------------------------------------- |
-| Inscription bénévole | docs/features/04-inscription.md   | **EN COURS** (code complet, à tester) |
-| Suivi du remplissage | docs/features/05-suivi.md         | EN ATTENTE                            |
+| Suivi du remplissage | docs/features/05-suivi.md         | **EN COURS** (code complet, à tester) |
 | Push notifications   | docs/features/06-notifications.md | EN ATTENTE                            |
 | Auth magic link      | docs/features/02-auth.md          | EN COURS (prod : domaine Resend)      |
 
-Epics DONE : 1 (socle) · 3 (tournois/postes/créneaux).
+Epics DONE : 1 (socle) · 3 (tournois/postes/créneaux) · 4 (inscription bénévole).
 
 ## Reprendre ici
 
-Epic 4 — Inscription bénévole : **code livré** (`/t/[token]`, services, capacité atomique). Prochaine étape = test manuel du parcours bénévole de bout en bout ; si OK → Epic 4 DONE puis démarrer Epic 5 (Suivi orga).
-Commit : [b9bd87f] docs: Epic 4 — code complet, prêt à tester
+Epic 5 — Suivi du remplissage : **code livré** (route lecture seule `/tournois/[id]/suivi`, service gardé ownership, bandeau de synthèse). Prochaine étape = test manuel du parcours orga ; si OK → Epic 5 DONE puis démarrer Epic 6 (Push notifications & rappels).
+Commit : feat(tracking): add organizer fill-tracking view

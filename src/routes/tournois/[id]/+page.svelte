@@ -14,7 +14,8 @@
 		Plus,
 		Check,
 		X,
-		Link2
+		Link2,
+		ClipboardList
 	} from 'lucide-svelte';
 	import type { PageData, ActionData } from './$types';
 
@@ -139,15 +140,24 @@
 		</div>
 	</div>
 
-	<!-- Lien de partage -->
-	<button
-		type="button"
-		onclick={copyShareLink}
-		class="mt-3 inline-flex items-center gap-1.5 rounded border border-border bg-surface px-3 py-2 text-sm text-ink-muted hover:border-brand-primary hover:text-ink"
-	>
-		<Link2 size={15} />
-		{copied ? 'Lien copié !' : 'Copier le lien de partage'}
-	</button>
+	<!-- Lien de partage + accès au suivi -->
+	<div class="mt-3 flex flex-wrap gap-2">
+		<button
+			type="button"
+			onclick={copyShareLink}
+			class="inline-flex items-center gap-1.5 rounded border border-border bg-surface px-3 py-2 text-sm text-ink-muted hover:border-brand-primary hover:text-ink"
+		>
+			<Link2 size={15} />
+			{copied ? 'Lien copié !' : 'Copier le lien de partage'}
+		</button>
+		<a
+			href={resolve('/tournois/[id]/suivi', { id: t.id })}
+			class="inline-flex items-center gap-1.5 rounded border border-border bg-surface px-3 py-2 text-sm text-ink-muted hover:border-brand-primary hover:text-ink"
+		>
+			<ClipboardList size={15} />
+			Voir le suivi
+		</a>
+	</div>
 {/if}
 
 <!-- Postes -->

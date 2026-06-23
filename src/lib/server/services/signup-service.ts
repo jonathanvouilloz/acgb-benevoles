@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, sql, type SQL } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { shift, position, tournament, signup } from '$lib/server/db/schema';
 import type { SignupStatus } from '$lib/schemas/signup';
@@ -56,16 +56,12 @@ function isUniqueViolation(err: unknown): boolean {
 }
 
 /**
- * Lecture publique d'un tournoi via son `share_token`, avec postes, créneaux et inscrits.
- * Calcule par créneau les compteurs (available/maybe/remaining/isFull) et le statut de
- * l'utilisateur courant (`myStatus`). Retourne `null` si le token est inconnu (→ 404).
+ * Charge un tournoi (postes → créneaux → inscrits) selon une condition arbitraire.
+ * Centralise l'arborescence `with` et son type de retour (cf. `TournamentRow`).
  */
-export async function getTournamentByShareToken(
-	shareToken: string,
-	userId: string | null
-): Promise<VolunteerTournament | null> {
-	const row = await db.query.tournament.findFirst({
-		where: eq(tournament.shareToken, shareToken),
+function findTournamentRow(where: SQL) {
+	return db.query.tournament.findFirst({
+		where,
 		with: {
 			positions: {
 				orderBy: (p, { asc }) => [asc(p.createdAt)],
@@ -83,9 +79,17 @@ export async function getTournamentByShareToken(
 			}
 		}
 	});
+}
 
-	if (!row) return null;
+/** Type du `row` retourné par `findTournamentRow` (entièrement inféré par Drizzle). */
+type TournamentRow = NonNullable<Awaited<ReturnType<typeof findTournamentRow>>>;
 
+/**
+ * Mappe une ligne tournoi (postes → créneaux → inscrits) vers `VolunteerTournament`.
+ * Calcule par créneau les compteurs (available/maybe/remaining/isFull) et le statut de
+ * `userId` (`myStatus`, `null` si non fourni — ex. vue organisateur).
+ */
+function mapTournamentRow(row: TournamentRow, userId: string | null): VolunteerTournament {
 	return {
 		id: row.id,
 		name: row.name,
@@ -122,6 +126,35 @@ export async function getTournamentByShareToken(
 			})
 		}))
 	};
+}
+
+/**
+ * Lecture publique d'un tournoi via son `share_token`, avec postes, créneaux et inscrits.
+ * Calcule par créneau les compteurs (available/maybe/remaining/isFull) et le statut de
+ * l'utilisateur courant (`myStatus`). Retourne `null` si le token est inconnu (→ 404).
+ */
+export async function getTournamentByShareToken(
+	shareToken: string,
+	userId: string | null
+): Promise<VolunteerTournament | null> {
+	const row = await findTournamentRow(eq(tournament.shareToken, shareToken));
+	return row ? mapTournamentRow(row, userId) : null;
+}
+
+/**
+ * Lecture du suivi d'un tournoi côté **organisateur** (vue lecture seule `/tournois/[id]/suivi`).
+ * Même structure que la lecture publique mais gardée par l'ownership : retourne `null` si le
+ * tournoi est inconnu **ou** n'appartient pas à `organizerId`. `myStatus` est toujours `null`
+ * (l'organisateur n'est pas un bénévole sur cette vue).
+ */
+export async function getTournamentSignupsForOrganizer(
+	tournamentId: string,
+	organizerId: string
+): Promise<VolunteerTournament | null> {
+	const row = await findTournamentRow(
+		and(eq(tournament.id, tournamentId), eq(tournament.organizerId, organizerId))!
+	);
+	return row ? mapTournamentRow(row, null) : null;
 }
 
 /** Charge un créneau + sa capacité (existence). Retourne `null` si introuvable. */
