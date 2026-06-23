@@ -15,4 +15,4 @@ Epic 1 (socle technique & design) : **DONE** → docs/features/01-socle.md.
 ## Reprendre ici
 
 Epic 2 — Auth magic link : flow de connexion testé OK. Reste à vérifier la déconnexion + le passage `is_organizer = true` en DB, puis enchaîner sur l'Epic 3.
-Commit : feat(auth): magic link login (Better Auth + Resend)
+Commit : [36ebdfe] feat(auth): magic link login (Better Auth + Resend)

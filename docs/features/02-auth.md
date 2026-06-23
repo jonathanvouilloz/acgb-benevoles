@@ -8,7 +8,7 @@
 **Fait :** Better Auth + plugin magic link configurés (`src/lib/server/auth.ts`) ; service email Resend (client lazy) ; tables `session`/`account`/`verification` + colonne `user.image` migrées sur Neon ; routes `/login`, `/login/sent`, header connecté/déconnexion ; flow magic link **testé OK** (login → lien → session).
 **Prochain :** Vérifier déconnexion + passage `is_organizer = true` en DB (`npm run db:studio`). Côté prod : vérifier un domaine sur Resend pour envoyer à tout email. Puis attaquer Epic 3 (tournois/postes/créneaux).
 **Pieges :** En dev, le magic link est loggé dans la **console serveur** (domaine Resend non vérifié). `BETTER_AUTH_URL` doit correspondre au port réel du serveur dev (actuellement **5174**) sinon `INVALID_TOKEN`. Le `.env` n'est relu qu'au **redémarrage** du serveur.
-**Commit :** feat(auth): magic link login (Better Auth + Resend)
+**Commit :** [36ebdfe] feat(auth): magic link login (Better Auth + Resend)
 
 ---
 
