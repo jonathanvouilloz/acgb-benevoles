@@ -1,8 +1,9 @@
 <script lang="ts">
+	import { Popover } from 'bits-ui';
 	import { formatDay, formatTime } from '$lib/format';
 	import type { VolunteerTournament } from '$lib/server/services/signup-service';
 	import type { AssignRequest, CellRef, ShiftRef } from './assignment-types';
-	import { Check, CircleHelp, Pencil } from 'lucide-svelte';
+	import { Check, CircleHelp, Pencil, Phone, ArrowLeftRight, X, Eye } from 'lucide-svelte';
 
 	let {
 		tournament,
@@ -26,6 +27,16 @@
 	} = $props();
 
 	type Cell = 'available' | 'maybe' | null;
+	/** Un créneau du bénévole (pour la carte « infos bénévole » au clic sur son nom). */
+	type Assignment = {
+		positionName: string;
+		color: string;
+		dayLabel: string;
+		timeLabel: string;
+		status: 'available' | 'maybe';
+		note: string | null;
+	};
+	type Volunteer = { id: string; name: string; phone: string | null; assignments: Assignment[] };
 	type MatrixShift = {
 		id: string;
 		startsAt: Date;
@@ -43,10 +54,21 @@
 
 	let selected = $state<CellRef | null>(null);
 
-	// Réinitialise la sélection si la matrice change de contenu (filtres, données).
+	// Popover de consultation, ancré sur la cellule cliquée. Deux contenus :
+	//  - 'cell'      : clic sur une cellule occupée → statut/créneau/note + action d'échange.
+	//  - 'volunteer' : clic sur le nom (en-tête de ligne) → carte contact (tél + ses créneaux).
+	type Inspect =
+		| { kind: 'cell'; ref: CellRef; phone: string | null; note: string | null }
+		| { kind: 'volunteer'; name: string; phone: string | null; assignments: Assignment[] };
+	let inspect = $state<Inspect | null>(null);
+	let inspectAnchor = $state<HTMLElement | null>(null);
+	let inspectOpen = $state(false);
+
+	// Réinitialise sélection et popover si la matrice change de contenu (filtres, données).
 	$effect(() => {
 		void matrix;
 		selected = null;
+		inspectOpen = false;
 	});
 
 	function timeLabel(s: MatrixShift): string {
@@ -80,42 +102,74 @@
 		return !!selected && selected.userId === v.id && selected.shiftId === s.id;
 	}
 
-	function clickCell(v: { id: string; name: string }, g: Group, s: MatrixShift, status: Cell) {
-		if (!editable) return;
-		if (!selected) {
-			if (status) selected = makeCellRef(v, g, s, status);
-			return;
-		}
-		if (selected.userId === v.id && selected.shiftId === s.id) {
-			selected = null;
-			return;
-		}
-		if (status) {
-			// Cellule occupée. Même bénévole, ou même créneau (échange sans effet) → re-sélection.
-			if (v.id === selected.userId || s.id === selected.shiftId) {
-				selected = makeCellRef(v, g, s, status);
-				return;
-			}
-			const req: AssignRequest = { type: 'swap', a: selected, b: makeCellRef(v, g, s, status) };
-			selected = null;
-			onAssign?.(req);
-		} else {
-			// Cellule vide : déplacement du bénévole sélectionné vers ce créneau.
-			const alreadyHere =
-				s.id === selected.shiftId || matrix.lookup.has(`${selected.userId}:${s.id}`);
-			if (alreadyHere) {
+	function clickCell(e: MouseEvent, v: Volunteer, g: Group, s: MatrixShift, status: Cell) {
+		if (!interactive) return;
+
+		// Mode édition ARMÉ (une cellule a été sélectionnée via le popover) : le clic exécute
+		// l'échange / le déplacement. Le popover ne s'ouvre pas dans ce mode.
+		if (selected) {
+			if (selected.userId === v.id && selected.shiftId === s.id) {
 				selected = null;
 				return;
 			}
-			const req: AssignRequest = { type: 'move', from: selected, target: makeShiftRef(g, s) };
-			selected = null;
-			onAssign?.(req);
+			if (status) {
+				// Cellule occupée. Même bénévole, ou même créneau (échange sans effet) → re-sélection.
+				if (v.id === selected.userId || s.id === selected.shiftId) {
+					selected = makeCellRef(v, g, s, status);
+					return;
+				}
+				const req: AssignRequest = { type: 'swap', a: selected, b: makeCellRef(v, g, s, status) };
+				selected = null;
+				onAssign?.(req);
+			} else {
+				// Cellule vide : déplacement du bénévole sélectionné vers ce créneau.
+				const alreadyHere =
+					s.id === selected.shiftId || matrix.lookup.has(`${selected.userId}:${s.id}`);
+				if (alreadyHere) {
+					selected = null;
+					return;
+				}
+				const req: AssignRequest = { type: 'move', from: selected, target: makeShiftRef(g, s) };
+				selected = null;
+				onAssign?.(req);
+			}
+			return;
 		}
+
+		// Rien d'armé : clic sur une cellule OCCUPÉE → popover de consultation (tél, note, action).
+		if (status) {
+			inspect = {
+				kind: 'cell',
+				ref: makeCellRef(v, g, s, status),
+				phone: v.phone,
+				note: matrix.notes.get(`${v.id}:${s.id}`) ?? null
+			};
+			inspectAnchor = e.currentTarget as HTMLElement;
+			inspectOpen = true;
+		}
+	}
+
+	/** Clic sur le nom (en-tête de ligne) → carte contact du bénévole (tél + ses créneaux). */
+	function clickName(e: MouseEvent, v: Volunteer) {
+		if (!interactive) return;
+		inspect = { kind: 'volunteer', name: v.name, phone: v.phone, assignments: v.assignments };
+		inspectAnchor = e.currentTarget as HTMLElement;
+		inspectOpen = true;
+	}
+
+	/** Depuis le popover de cellule : arme la sélection pour échanger / déplacer ce bénévole. */
+	function armFromInspect() {
+		if (inspect?.kind !== 'cell') return;
+		selected = inspect.ref;
+		inspectOpen = false;
 	}
 
 	const matrix = $derived.by(() => {
 		// Bénévoles uniques (ordre d'apparition), colonnes = créneaux groupés par poste.
-		const volunteers = new Map<string, string>();
+		const volunteers = new Map<
+			string,
+			{ name: string; phone: string | null; assignments: Assignment[] }
+		>();
 		const lookup = new Map<string, Cell>();
 		const notes = new Map<string, string>();
 		const groups: { name: string; color: string; shifts: MatrixShift[] }[] = [];
@@ -136,7 +190,16 @@
 				});
 				for (const su of s.signups) {
 					if (volunteerIds && !volunteerIds.has(su.userId)) continue;
-					if (!volunteers.has(su.userId)) volunteers.set(su.userId, su.name);
+					if (!volunteers.has(su.userId))
+						volunteers.set(su.userId, { name: su.name, phone: su.phone, assignments: [] });
+					volunteers.get(su.userId)!.assignments.push({
+						positionName: p.name,
+						color: p.color,
+						dayLabel: formatDay(s.startsAt),
+						timeLabel: `${formatTime(s.startsAt)}–${formatTime(s.endsAt)}`,
+						status: su.status,
+						note: su.note
+					});
 					lookup.set(`${su.userId}:${s.id}`, su.status);
 					if (su.note) notes.set(`${su.userId}:${s.id}`, su.note);
 				}
@@ -144,7 +207,7 @@
 			if (shifts.length > 0) groups.push({ name: p.name, color: p.color, shifts });
 		}
 		return {
-			volunteers: [...volunteers.entries()].map(([id, name]) => ({ id, name })),
+			volunteers: [...volunteers.entries()].map(([id, val]) => ({ id, ...val })) as Volunteer[],
 			groups,
 			lookup,
 			notes
@@ -183,7 +246,7 @@
 			places pourvues
 		</span>
 		<span class="inline-flex items-center gap-1.5">
-			<span class="size-1.5 rounded-full bg-warning"></span> note (survol)
+			<span class="size-1.5 rounded-full bg-warning"></span> note (clic ou survol)
 		</span>
 	</div>
 
@@ -198,7 +261,8 @@
 					ou une cellule vide pour déplacer. <kbd>Échap</kbd> pour annuler.</span
 				>
 			{:else}
-				Cliquez la cellule d'un bénévole pour l'échanger ou le déplacer.
+				Cliquez une cellule pour voir le bénévole (tél, note) et, si besoin, l'échanger ou le
+				déplacer.
 			{/if}
 		</div>
 	{/if}
@@ -281,9 +345,23 @@
 				{#each matrix.volunteers as v (v.id)}
 					<tr class="hover:bg-surface-subtle">
 						<th
-							class="sticky left-0 z-10 border-b border-r border-border bg-surface px-3 py-2 text-left font-medium text-ink-strong"
+							class="sticky left-0 z-10 border-b border-r border-border bg-surface text-left font-medium text-ink-strong"
 						>
-							{v.name}
+							{#if interactive}
+								<button
+									type="button"
+									onclick={(e) => clickName(e, v)}
+									class="group flex w-full items-center gap-1.5 px-3 py-2 text-left transition-colors hover:bg-surface-muted"
+								>
+									<span class="truncate">{v.name}</span>
+									<Eye
+										size={13}
+										class="ml-auto shrink-0 text-ink-muted opacity-0 transition-opacity group-hover:opacity-100"
+									/>
+								</button>
+							{:else}
+								<span class="block px-3 py-2">{v.name}</span>
+							{/if}
 						</th>
 						{#each matrix.groups as g (g.name)}
 							{#each g.shifts as s (s.id)}
@@ -295,14 +373,14 @@
 								{@const noteText = matrix.notes.get(`${v.id}:${s.id}`)}
 								<td
 									title={noteText ?? undefined}
-									class="relative border-b border-r border-border/60 text-center {editable
+									class="relative border-b border-r border-border/60 text-center {interactive
 										? 'p-0'
 										: 'px-2 py-1.5'}"
 								>
-									{#if editable}
+									{#if interactive}
 										<button
 											type="button"
-											onclick={() => clickCell(v, g, s, cell)}
+											onclick={(e) => clickCell(e, v, g, s, cell)}
 											class="flex w-full items-center justify-center px-2 py-1.5 transition-colors {isSelected(
 												v,
 												s
@@ -333,4 +411,101 @@
 			</tbody>
 		</table>
 	</div>
+
+	<!-- Popover de consultation : ancré sur la cellule cliquée, portalé (échappe au clip du
+	     conteneur scrollable). Affiche tél + note + l'action d'échange. -->
+	<Popover.Root bind:open={inspectOpen}>
+		<Popover.Portal>
+			{#if inspect}
+				<Popover.Content
+					customAnchor={inspectAnchor}
+					side="bottom"
+					align="start"
+					sideOffset={6}
+					class="z-50 w-64 rounded-lg border border-border bg-surface p-3 text-sm"
+					style="box-shadow: var(--shadow-md)"
+				>
+					<div class="flex items-start justify-between gap-2">
+						<p class="font-semibold text-ink-strong">
+							{inspect.kind === 'cell' ? inspect.ref.name : inspect.name}
+						</p>
+						<Popover.Close
+							aria-label="Fermer"
+							class="-mr-1 -mt-1 rounded p-1 text-ink-muted hover:bg-surface-muted hover:text-ink"
+						>
+							<X size={15} />
+						</Popover.Close>
+					</div>
+
+					{#if inspect.phone}
+						<a
+							href="tel:{inspect.phone}"
+							class="mt-1 inline-flex items-center gap-1.5 font-medium text-ink hover:text-brand-primary"
+						>
+							<Phone size={14} class="shrink-0" />
+							{inspect.phone}
+						</a>
+					{:else}
+						<p class="mt-1 text-xs text-ink-muted/70">Pas de téléphone renseigné</p>
+					{/if}
+
+					{#if inspect.kind === 'cell'}
+						<!-- Consultation d'un créneau précis (clic cellule) -->
+						<p class="mt-2 flex items-center gap-1.5 text-ink-muted">
+							{#if inspect.ref.status === 'available'}
+								<Check size={14} class="text-success" /> Disponible
+							{:else}
+								<CircleHelp size={14} class="text-warning" /> Peut-être
+							{/if}
+						</p>
+						<p class="text-ink-muted">
+							{inspect.ref.positionName} · {inspect.ref.dayLabel}, {inspect.ref.timeLabel}
+						</p>
+						{#if inspect.note}
+							<p class="mt-1.5 text-ink-muted italic">« {inspect.note} »</p>
+						{/if}
+						{#if editable}
+							<button
+								type="button"
+								onclick={armFromInspect}
+								class="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded border border-brand-primary/40 bg-brand-primary/5 px-3 py-1.5 text-sm font-medium text-brand-primary hover:bg-brand-primary/10"
+							>
+								<ArrowLeftRight size={14} /> Déplacer / échanger…
+							</button>
+						{/if}
+					{:else}
+						<!-- Carte contact : tous les créneaux du bénévole -->
+						<ul class="mt-2 flex max-h-64 flex-col gap-2 overflow-auto border-t border-border pt-2">
+							{#each inspect.assignments as a, i (i)}
+								<li class="flex flex-col gap-0.5">
+									<div class="flex items-center justify-between gap-2">
+										<span class="flex min-w-0 items-center gap-1.5">
+											<span
+												class="size-2.5 shrink-0 rounded-full"
+												style="background-color: {a.color}"
+											></span>
+											<span class="truncate text-ink">{a.positionName}</span>
+										</span>
+										<span class="flex shrink-0 items-center gap-1.5">
+											<span class="whitespace-nowrap text-ink-muted"
+												>{a.dayLabel}, {a.timeLabel}</span
+											>
+											{#if a.status === 'available'}
+												<Check size={14} class="shrink-0 text-success" />
+											{:else}
+												<CircleHelp size={14} class="shrink-0 text-warning" />
+											{/if}
+										</span>
+									</div>
+									{#if a.note}
+										<p class="pl-4 text-xs text-ink-muted italic">« {a.note} »</p>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</Popover.Content>
+			{/if}
+		</Popover.Portal>
+	</Popover.Root>
 {/if}
