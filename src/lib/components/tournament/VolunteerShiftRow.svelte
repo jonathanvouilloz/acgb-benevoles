@@ -36,7 +36,7 @@
 	 * enhance + toast de succès. Le bouton « Me retirer » (formaction=?/unregister)
 	 * partage le formulaire d'un changeStatus : on distingue via l'action soumise.
 	 */
-	function signupEnhance(defaultMsg: string, unregisterMsg?: string): SubmitFunction {
+	function signupEnhance(defaultMsg: string, unregisterMsg = ''): SubmitFunction {
 		return ({ action }) =>
 			async ({ update, result }) => {
 				await update({ reset: false });
