@@ -1,11 +1,16 @@
 /**
- * Helpers côté bénévole : mise à plat chronologique des créneaux d'un tournoi
- * (tous postes confondus), séparation passé / à venir, et repérage du prochain
- * créneau de l'utilisateur. Le poste devient une étiquette portée par chaque créneau.
+ * Helpers côté bénévole : mise à plat des créneaux d'un tournoi (tous postes confondus),
+ * séparation passé / à venir, filtrage (jour / tranche horaire / poste / dispo / mes
+ * inscriptions) et regroupement pour l'affichage (par temps ou par poste).
+ *
+ * Le poste devient une étiquette portée par chaque créneau. Toutes les dates sont des heures
+ * « murales » en UTC-naïf (cf. format.ts) : on lit donc les heures en UTC pour rester cohérent.
  */
+import { formatDay, toDateInputValue } from '$lib/format';
 import type { VolunteerShift, VolunteerTournament } from '$lib/server/services/signup-service';
 
 export type FlatShift = VolunteerShift & {
+	positionId: string;
 	positionName: string;
 	positionColor: string;
 };
@@ -15,7 +20,7 @@ export function flattenShifts(t: VolunteerTournament): FlatShift[] {
 	const out: FlatShift[] = [];
 	for (const p of t.positions) {
 		for (const s of p.shifts) {
-			out.push({ ...s, positionName: p.name, positionColor: p.color });
+			out.push({ ...s, positionId: p.id, positionName: p.name, positionColor: p.color });
 		}
 	}
 	out.sort(
@@ -41,4 +46,159 @@ export function splitByTime(
 /** Le 1ᵉʳ créneau à venir où le bénévole est inscrit (« Ton prochain créneau »), ou null. */
 export function nextOwnShift(upcoming: FlatShift[]): FlatShift | null {
 	return upcoming.find((s) => s.myStatus !== null) ?? null;
+}
+
+/* ------------------------------------------------------------------ *
+ * Tranches horaires — presets simples (couvrent l'écrasante majorité
+ * des cas « je suis dispo le matin / l'après-midi / le soir »).
+ * ------------------------------------------------------------------ */
+
+export type TimeSlot = 'morning' | 'afternoon' | 'evening';
+
+export const SLOT_LABELS: Record<TimeSlot, string> = {
+	morning: 'Matin',
+	afternoon: 'Après-midi',
+	evening: 'Soir'
+};
+
+/** Ordre d'affichage des tranches (chronologique). */
+export const SLOT_ORDER: TimeSlot[] = ['morning', 'afternoon', 'evening'];
+
+/** Tranche d'un créneau d'après son heure de début : matin < 12 h ≤ après-midi < 18 h ≤ soir. */
+export function timeSlotOf(d: Date): TimeSlot {
+	const h = d.getUTCHours();
+	if (h < 12) return 'morning';
+	if (h < 18) return 'afternoon';
+	return 'evening';
+}
+
+/** Clé de jour "YYYY-MM-DD" (UTC-naïf), pour grouper/filtrer par journée. */
+export function dayKeyOf(d: Date): string {
+	return toDateInputValue(d);
+}
+
+/* ------------------------------------------------------------------ *
+ * Filtrage
+ * ------------------------------------------------------------------ */
+
+export type ShiftFilters = {
+	/** Jour "YYYY-MM-DD", ou null = tous les jours. */
+	day: string | null;
+	/** Tranche horaire, ou null = toutes. */
+	slot: TimeSlot | null;
+	/** Id de poste, ou null = tous les postes. */
+	positionId: string | null;
+	/** Ne garder que les créneaux avec au moins une place libre. */
+	onlyAvailable: boolean;
+	/** Ne garder que les créneaux où le bénévole est inscrit. */
+	onlyMine: boolean;
+};
+
+export function filterShifts(shifts: FlatShift[], f: ShiftFilters): FlatShift[] {
+	return shifts.filter((s) => {
+		if (f.day && dayKeyOf(s.startsAt) !== f.day) return false;
+		if (f.slot && timeSlotOf(s.startsAt) !== f.slot) return false;
+		if (f.positionId && s.positionId !== f.positionId) return false;
+		if (f.onlyAvailable && s.isFull) return false;
+		if (f.onlyMine && s.myStatus === null) return false;
+		return true;
+	});
+}
+
+/* ------------------------------------------------------------------ *
+ * Options des filtres — calculées d'après les créneaux réellement
+ * présents (on n'affiche pas un jour / une tranche / un poste vide).
+ * ------------------------------------------------------------------ */
+
+export type Option = { value: string; label: string };
+
+/** Jours distincts présents dans la liste (chronologique). */
+export function distinctDays(shifts: FlatShift[]): Option[] {
+	const seen = new Map<string, string>();
+	for (const s of shifts) {
+		const key = dayKeyOf(s.startsAt);
+		if (!seen.has(key)) seen.set(key, formatDay(s.startsAt));
+	}
+	return [...seen].map(([value, label]) => ({ value, label }));
+}
+
+/** Tranches horaires distinctes présentes (dans l'ordre matin → soir). */
+export function distinctSlots(shifts: FlatShift[]): TimeSlot[] {
+	const present = new Set(shifts.map((s) => timeSlotOf(s.startsAt)));
+	return SLOT_ORDER.filter((s) => present.has(s));
+}
+
+/** Ids de postes présents dans la liste (pour filtrer les chips de poste). */
+export function presentPositionIds(shifts: FlatShift[]): Set<string> {
+	return new Set(shifts.map((s) => s.positionId));
+}
+
+/** Somme des places encore à pourvoir sur une liste de créneaux. */
+export function totalRemaining(shifts: FlatShift[]): number {
+	return shifts.reduce((sum, s) => sum + s.remaining, 0);
+}
+
+/* ------------------------------------------------------------------ *
+ * Regroupement pour l'affichage
+ * ------------------------------------------------------------------ */
+
+/** Un groupe « par temps » : une journée × une tranche. */
+export type TimeGroup = {
+	key: string;
+	dayLabel: string;
+	slotLabel: string;
+	shifts: FlatShift[];
+};
+
+/**
+ * Regroupe par (jour, tranche) en conservant l'ordre chronologique.
+ * Suppose `shifts` déjà trié par heure de début (cf. flattenShifts).
+ */
+export function groupByTime(shifts: FlatShift[]): TimeGroup[] {
+	const groups: TimeGroup[] = [];
+	const index = new Map<string, TimeGroup>();
+	for (const s of shifts) {
+		const slot = timeSlotOf(s.startsAt);
+		const key = `${dayKeyOf(s.startsAt)}|${slot}`;
+		let g = index.get(key);
+		if (!g) {
+			g = { key, dayLabel: formatDay(s.startsAt), slotLabel: SLOT_LABELS[slot], shifts: [] };
+			index.set(key, g);
+			groups.push(g);
+		}
+		g.shifts.push(s);
+	}
+	return groups;
+}
+
+/** Un groupe « par poste » : un poste et ses créneaux (filtrés). */
+export type PositionGroup = {
+	id: string;
+	name: string;
+	color: string;
+	remaining: number;
+	shifts: FlatShift[];
+};
+
+/**
+ * Regroupe par poste, dans l'ordre des postes du tournoi. N'inclut que les postes ayant
+ * au moins un créneau après filtrage.
+ */
+export function groupByPosition(
+	shifts: FlatShift[],
+	positions: { id: string; name: string; color: string }[]
+): PositionGroup[] {
+	const byPos = new Map<string, FlatShift[]>();
+	for (const s of shifts) {
+		const arr = byPos.get(s.positionId);
+		if (arr) arr.push(s);
+		else byPos.set(s.positionId, [s]);
+	}
+	const out: PositionGroup[] = [];
+	for (const p of positions) {
+		const ps = byPos.get(p.id);
+		if (!ps || ps.length === 0) continue;
+		out.push({ id: p.id, name: p.name, color: p.color, remaining: totalRemaining(ps), shifts: ps });
+	}
+	return out;
 }
