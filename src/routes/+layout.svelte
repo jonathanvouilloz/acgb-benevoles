@@ -8,6 +8,7 @@
 	import { authClient } from '$lib/auth-client';
 	import { Toaster } from '$lib/components/ui/toast';
 	import { ConfirmDialog } from '$lib/components/ui/confirm';
+	import { User } from 'lucide-svelte';
 	import type { LayoutData } from './$types';
 
 	let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
@@ -48,9 +49,10 @@
 				{/if}
 				<a
 					href={resolve('/compte')}
-					class="text-ink-muted underline-offset-2 hover:text-ink hover:underline"
-					>{data.user.name}</a
+					class="flex items-center gap-1 font-medium text-brand-primary hover:underline"
 				>
+					<User size={15} class="shrink-0" /> Mon compte
+				</a>
 				<button
 					type="button"
 					onclick={logout}
