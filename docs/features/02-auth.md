@@ -3,6 +3,22 @@
 **Complexité** : M
 **Statut** : EN COURS
 
+## Etat session 2026-06-24 (déconnexion serveur + dev port-agnostique)
+
+**Fait :**
+
+- **Déconnexion côté serveur** : `POST /logout` (`src/routes/logout/+server.ts`) via `auth.api.signOut` (en-têtes d'effacement cookie → 303). Fiable même si l'origine diffère de `BETTER_AUTH_URL` (preview Vercel). `lib/auth-client.ts` supprimé (plus aucun import).
+- **Connexion locale port-agnostique** : en dev, `baseURL` est **déduit de la requête** (Host) → le port (5173/5174/…) n'impacte plus les liens magic-link ni les redirections. `trustedOrigins` = localhost 5173–5176.
+- **Mode prototype en local** : `PROTOTYPE_MODE=1` dans `.env` (connexion instantanée sans email) ; la redirection de vérification est rendue **relative** (same-origin) pour passer quel que soit le port.
+
+**Prochain :** inchangé côté prod — vérifier un domaine sur Resend pour envoyer à tout email.
+
+**Pièges :** le correctif port a remplacé l'ancien piège « `BETTER_AUTH_URL` doit matcher le port » (ci-dessous, **obsolète en dev**). `.env` relu au redémarrage du serveur uniquement.
+
+**Commit :** [cf7a943] fix(auth): déconnexion côté serveur + connexion locale port-agnostique
+
+---
+
 ## Etat session 2026-06-23
 
 **Fait :** Better Auth + plugin magic link configurés (`src/lib/server/auth.ts`) ; service email Resend (client lazy) ; tables `session`/`account`/`verification` + colonne `user.image` migrées sur Neon ; routes `/login`, `/login/sent`, header connecté/déconnexion ; flow magic link **testé OK** (login → lien → session).

@@ -3,6 +3,25 @@
 **Complexité** : S → M (élargi : édition orga, contacts, export xlsx, notes)
 **Statut** : EN COURS (code complet — prêt à tester)
 
+## Etat session 2026-06-24 (matrice UX : popovers + largeur)
+
+**Fait :**
+
+- **Matrice consultable** (`RecapMatrix.svelte`) : clic sur une cellule occupée → **popover ancré** (bits-ui, portalé) avec statut, créneau, **téléphone cliquable**, note, et bouton explicite « Déplacer / échanger… » qui arme la sélection → **sépare consulter / éditer** (fin du clic surchargé qui partait directement en swap).
+- **Carte contact bénévole** : clic sur le **nom** (en-tête de ligne, icône œil au survol) → popover listant le tél + **tous ses créneaux** (poste, jour/heure, statut, note). Popover généralisé en union `cell` | `volunteer` ; créneaux collectés dans la map `volunteers` (pas de `Map` en plus).
+- **Largeur** (`+layout.svelte`) : la navbar ne s'étire plus sur `/suivi` (chrome contraint `max-w-5xl`, contenu dans un wrapper séparé) ; matrice ramenée de pleine largeur → **`~90vw`** (un peu d'air). Grille bornée (`max-h-[78vh]` + `thead sticky top` + colonne noms figée + `border-separate` anti-bug bordures) conservée.
+- **Sélection bénévole `/t/[token]`** refondue (Epic 4, commit séparé) : barre de filtres collante (jour, tranche matin/aprem/soir, poste, places dispo, mes créneaux), bascule regroupement Temps↔Poste, lignes compactes dépliables, helpers purs `volunteer-shifts.ts`.
+- **Auth** (Epic 2, commit séparé) : déconnexion côté serveur (`/logout`), `baseURL` déduit de la requête en dev (port-agnostique 5173–5176) + redirection prototype relative ; `PROTOTYPE_MODE=1` activé en `.env` local.
+- `npm run check` vert ; lint = uniquement les 3 `prefer-svelte-reactivity` préexistantes.
+
+**Prochain :** Validation manuelle Jonathan (popovers cellule + nom, navbar contrainte + matrice 90vw, sélection filtrable sur `/t/[token]`). Une fois confirmé → Epic 5 DONE.
+
+**Pièges :** la matrice est en `overflow:auto` → tout popover **doit être portalé** (`Popover.Portal` + `customAnchor`) sinon il est clipé. Le popover de cellule ne s'ouvre **que hors mode armé** (sinon le clic exécute l'échange). Sticky `thead` viable car desktop-only (`lg:`).
+
+**Commit :** [9088805] feat(suivi): popover de consultation (cellule + carte bénévole) et largeur matrice
+
+---
+
 ## Etat session 2026-06-24 (suivi v2 + v2.1)
 
 **Fait :**
@@ -83,26 +102,27 @@ Vue organisateur : voir qui s'est inscrit où, avec quel statut, et repérer d'u
 
 ## Carte du code
 
-> Mise à jour : 2026-06-24
+> Mise à jour : 2026-06-24 (popovers + largeur)
 
-| Fichier                                                | Rôle                                                                                                                          |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `src/lib/server/services/signup-service.ts`            | Lecture (`findTournamentRow`/`mapTournamentRow` + flag `organizerView` pour tel & notes) ; mutations orga `moveSignup`/`swapSignups` ; note `setSignupNote` + `note` dans create/change. |
-| `src/routes/tournois/[id]/suivi/+page.server.ts`       | `load` gardé `requireOrganizer` + actions `move`/`swap`.                                                                     |
-| `src/routes/tournois/[id]/suivi/+page.svelte`          | Orchestration : filtres, 3 vues desktop, `visibleVolunteerIds`, modales swap (`AssignmentDialog`) et export (`ExportDialog`). |
-| `src/routes/t/[token]/+page.server.ts` · `+page.svelte`| Actions `signup`/`changeStatus`/`setNote` (note) + garde-fou tel ; carte contact orga + bandeau « compléter tel ».           |
-| `src/lib/recap.ts`                                     | `flattenTournament` (RecapRow + `note`) ; `planningByPoste` (inscrits = `{name, note}`).                                     |
-| `src/lib/export-xlsx.ts`                              | Export `.xlsx` `exceljs` (4 formats), import dynamique client, « nom (note) ».                                                |
-| `src/lib/components/tracking/RecapToolbar.svelte`      | Recherche, filtres, sélecteur 3 vues, `Excel` + `Imprimer ▾` (bits-ui DropdownMenu).                                          |
-| `src/lib/components/tracking/RecapMatrix.svelte`       | Matrice interactive (clic→clic swap/move), icônes voyants, pastille+tooltip note.                                            |
-| `src/lib/components/tracking/RecapByVolunteer.svelte`  | 3e vue : carte par bénévole (tel + affectations + note).                                                                     |
-| `src/lib/components/tracking/AssignmentDialog.svelte`  | Modale récap échange/déplacement → POST `?/swap`/`?/move`.                                                                   |
-| `src/lib/components/tracking/ExportDialog.svelte`      | Modale choix de format d'export Excel.                                                                                       |
-| `src/lib/components/tracking/PrintPlanning.svelte`     | Impression A4 paysage : par-poste sécable + matrice **par jour** + en-tête orga + annexe contacts.                          |
-| `src/lib/components/tournament/VolunteerShiftRow.svelte`| Inscription + textarea note (hidden inputs) + bouton « Enregistrer la note ».                                                |
-| `src/lib/schemas/{signup,assignment}.ts`               | `noteSchema`/`noteUpdateSchema` ; `moveSchema`/`swapSchema`.                                                                 |
-| `src/lib/server/db/schema.ts`                          | `signup.note` (migration `0004`) + relation `tournament.organizer`.                                                          |
-| `scripts/seed-demo.ts`                                 | Seed démo (3 j, 9 postes, 43 créneaux, 56 bénévoles, notes) — `npx tsx`.                                                     |
+| Fichier                                                  | Rôle                                                                                                                                                                                     |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/routes/+layout.svelte`                              | Largeur `/suivi` : chrome (navbar) `max-w-5xl`, contenu matrice `~90vw` — wrappers de largeur séparés.                                                                                   |
+| `src/lib/server/services/signup-service.ts`              | Lecture (`findTournamentRow`/`mapTournamentRow` + flag `organizerView` pour tel & notes) ; mutations orga `moveSignup`/`swapSignups` ; note `setSignupNote` + `note` dans create/change. |
+| `src/routes/tournois/[id]/suivi/+page.server.ts`         | `load` gardé `requireOrganizer` + actions `move`/`swap`.                                                                                                                                 |
+| `src/routes/tournois/[id]/suivi/+page.svelte`            | Orchestration : filtres, 3 vues desktop, `visibleVolunteerIds`, modales swap (`AssignmentDialog`) et export (`ExportDialog`).                                                            |
+| `src/routes/t/[token]/+page.server.ts` · `+page.svelte`  | Actions `signup`/`changeStatus`/`setNote` (note) + garde-fou tel ; carte contact orga + bandeau « compléter tel ».                                                                       |
+| `src/lib/recap.ts`                                       | `flattenTournament` (RecapRow + `note`) ; `planningByPoste` (inscrits = `{name, note}`).                                                                                                 |
+| `src/lib/export-xlsx.ts`                                 | Export `.xlsx` `exceljs` (4 formats), import dynamique client, « nom (note) ».                                                                                                           |
+| `src/lib/components/tracking/RecapToolbar.svelte`        | Recherche, filtres, sélecteur 3 vues, `Excel` + `Imprimer ▾` (bits-ui DropdownMenu).                                                                                                     |
+| `src/lib/components/tracking/RecapMatrix.svelte`         | Matrice : grille bornée (en-têtes/noms figés), édition clic→clic swap/move, **popover portalé** de consultation (cellule : statut/tél/note + échange ; nom : carte contact + créneaux).  |
+| `src/lib/components/tracking/RecapByVolunteer.svelte`    | 3e vue : carte par bénévole (tel + affectations + note).                                                                                                                                 |
+| `src/lib/components/tracking/AssignmentDialog.svelte`    | Modale récap échange/déplacement → POST `?/swap`/`?/move`.                                                                                                                               |
+| `src/lib/components/tracking/ExportDialog.svelte`        | Modale choix de format d'export Excel.                                                                                                                                                   |
+| `src/lib/components/tracking/PrintPlanning.svelte`       | Impression A4 paysage : par-poste sécable + matrice **par jour** + en-tête orga + annexe contacts.                                                                                       |
+| `src/lib/components/tournament/VolunteerShiftRow.svelte` | Inscription + textarea note (hidden inputs) + bouton « Enregistrer la note ».                                                                                                            |
+| `src/lib/schemas/{signup,assignment}.ts`                 | `noteSchema`/`noteUpdateSchema` ; `moveSchema`/`swapSchema`.                                                                                                                             |
+| `src/lib/server/db/schema.ts`                            | `signup.note` (migration `0004`) + relation `tournament.organizer`.                                                                                                                      |
+| `scripts/seed-demo.ts`                                   | Seed démo (3 j, 9 postes, 43 créneaux, 56 bénévoles, notes) — `npx tsx`.                                                                                                                 |
 
 ### Décisions clés
 
@@ -111,6 +131,7 @@ Vue organisateur : voir qui s'est inscrit où, avec quel statut, et repérer d'u
 - **Pas de TanStack** (la matrice est un cross-tab bespoke avec interaction ; à notre échelle TanStack n'apporte rien). **`exceljs`** plutôt que SheetJS (styles de cellules).
 - Téléphone obligatoire **en validation** (pas de `NOT NULL` DB → garde-fou applicatif pour les comptes existants).
 - Impression : matrice **par jour** (sinon crop horizontal sur beaucoup de créneaux) ; par-poste sécable (thead répété).
+- Matrice **consulter vs éditer** séparés : clic cellule = popover info, échange via bouton explicite. Popover **portalé** obligatoire (grille en `overflow:auto` → un popover `absolute` serait clipé).
 
 ## Notes & edge cases
 

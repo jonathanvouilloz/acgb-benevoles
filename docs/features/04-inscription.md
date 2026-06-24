@@ -1,7 +1,24 @@
 # Epic 4 — Inscription bénévole
 
 **Complexité** : M
-**Statut** : DONE (testé et validé 2026-06-23)
+**Statut** : DONE (testé et validé 2026-06-23) — sélection refondue 2026-06-24 (prêt à tester)
+
+## Etat session 2026-06-24 (sélection filtrable & compacte)
+
+**Fait :**
+
+- Refonte de `/t/[token]/+page.svelte` pour tenir le **volume** (postes × créneaux × jours) : barre de filtres collante (jour, tranche **matin/après-midi/soir**, poste color-codé, « places dispo », « mes créneaux ») + compteur de places à pourvoir.
+- Bascule de **regroupement Temps ↔ Poste** (même surface, deux modèles mentaux) ; lignes compactes **dépliables** (`VolunteerShiftRow`) avec action « Dispo » en un tap, détail au dépliage.
+- Helpers purs `src/lib/volunteer-shifts.ts` : `filterShifts`, `groupByTime`/`groupByPosition`, `timeSlotOf`, `distinctDays/Slots`, `presentPositionIds`.
+- Intro guidée (« soft-chatbot ») **reportée** : ce sera juste un preset des filtres existants.
+
+**Prochain :** Validation Jonathan sur le tournoi démo (filtres + dépliage). RAS sinon.
+
+**Pièges :** `FlatShift` porte désormais `positionId` (filtre poste). Tranches = presets simples (start < 12h / < 18h / ≥ 18h en UTC mural), pas de slider.
+
+**Commit :** [205e103] feat(benevole): sélection des créneaux filtrable et compacte
+
+---
 
 ## Etat session 2026-06-23
 
