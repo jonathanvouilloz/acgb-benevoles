@@ -1,7 +1,7 @@
 # Epic 5 — Suivi du remplissage (orga)
 
 **Complexité** : S → M (élargi : édition orga, contacts, export xlsx, notes)
-**Statut** : EN COURS (code complet — prêt à tester)
+**Statut** : DONE (validé par Jonathan le 2026-06-24)
 
 ## Etat session 2026-06-24 (matrice UX : popovers + largeur)
 
