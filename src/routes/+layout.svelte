@@ -11,7 +11,8 @@
 
 	let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
 
-	/** Le suivi organisateur (tableau récap) a besoin de toute la largeur ; le reste reste étroit. */
+	/** Le suivi organisateur (matrice récap) exploite toute la largeur écran ; le reste reste étroit.
+	    La page centre elle-même son chrome (en-tête/synthèse/toolbar), seule la matrice déborde. */
 	const wide = $derived(page.url.pathname.endsWith('/suivi'));
 </script>
 
@@ -19,7 +20,7 @@
 
 <div
 	class="mx-auto min-h-dvh w-full px-4 py-6 print:max-w-none print:p-0 {wide
-		? 'max-w-6xl'
+		? 'max-w-none'
 		: 'max-w-[640px]'}"
 >
 	{#if data.prototype}

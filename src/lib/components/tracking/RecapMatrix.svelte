@@ -221,14 +221,18 @@
 		{/if}
 	{/snippet}
 
-	<div class="overflow-x-auto rounded-lg border border-border">
-		<table class="border-collapse text-sm">
-			<thead>
+	<!-- Grille bornée (modèle tableur) : scroll des deux axes À L'INTÉRIEUR du conteneur, donc les
+	     barres restent aux bords de l'écran. En-têtes figés en haut, colonne « Bénévole » figée à
+	     gauche. `border-separate` : les bordures sont portées par chaque cellule → elles ne
+	     disparaissent pas sur les éléments collants (bug connu de `border-collapse` + sticky). -->
+	<div class="max-h-[78vh] overflow-auto rounded-lg border border-border">
+		<table class="border-separate border-spacing-0 text-sm">
+			<thead class="sticky top-0 z-20 bg-surface-subtle">
 				<!-- Bandeau postes -->
 				<tr class="bg-surface-subtle">
 					<th
 						rowspan="3"
-						class="sticky left-0 z-10 border-b border-r border-border bg-surface-subtle px-3 py-2 text-left font-semibold text-ink-strong"
+						class="sticky left-0 z-30 border-b border-r border-border bg-surface-subtle px-3 py-2 text-left font-semibold text-ink-strong"
 					>
 						Bénévole
 					</th>

@@ -95,79 +95,91 @@
 
 <svelte:head><title>Suivi — {t.name} — Bénévoles ACGB</title></svelte:head>
 
-<a
-	href={resolve('/tournois/[id]', { id: t.id })}
-	class="inline-flex items-center gap-1 text-sm text-ink-muted transition-colors hover:text-ink print:hidden"
->
-	<ArrowLeft size={16} /> Gestion du tournoi
-</a>
+<!-- Chrome de page centré (la matrice, elle, exploite toute la largeur écran) -->
+<div class="mx-auto w-full max-w-5xl">
+	<a
+		href={resolve('/tournois/[id]', { id: t.id })}
+		class="inline-flex items-center gap-1 text-sm text-ink-muted transition-colors hover:text-ink print:hidden"
+	>
+		<ArrowLeft size={16} /> Gestion du tournoi
+	</a>
 
-<!-- En-tête -->
-<div class="mt-3 print:hidden">
-	<h1 class="text-2xl font-bold text-ink-strong">{t.name}</h1>
-	<p class="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
-		<CalendarDays size={15} />
-		{formatDateRange(t.startDate, t.endDate)}
-	</p>
-	{#if t.location}
-		<p class="mt-0.5 flex items-center gap-1.5 text-sm text-ink-muted">
-			<MapPin size={15} />
-			{t.location}
+	<!-- En-tête -->
+	<div class="mt-3 print:hidden">
+		<h1 class="text-2xl font-bold text-ink-strong">{t.name}</h1>
+		<p class="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
+			<CalendarDays size={15} />
+			{formatDateRange(t.startDate, t.endDate)}
 		</p>
-	{/if}
-</div>
-
-<!-- Synthèse -->
-<div
-	class="mt-4 flex flex-wrap gap-3 rounded-lg border border-border bg-surface-subtle p-4 print:hidden"
->
-	<div class="flex-1">
-		<p class="text-2xl font-bold text-ink-strong">{summary.filled}/{summary.capacity}</p>
-		<p class="text-sm text-ink-muted">places pourvues</p>
+		{#if t.location}
+			<p class="mt-0.5 flex items-center gap-1.5 text-sm text-ink-muted">
+				<MapPin size={15} />
+				{t.location}
+			</p>
+		{/if}
 	</div>
-	<div class="flex-1">
-		<p
-			class="text-2xl font-bold"
-			class:text-success={summary.unfilled === 0}
-			class:text-warning={summary.unfilled > 0}
-		>
-			{summary.unfilled}
-		</p>
-		<p class="text-sm text-ink-muted">
-			créneau{summary.unfilled > 1 ? 'x' : ''} à compléter
-			<span class="text-ink-muted/70">/ {summary.shifts}</span>
-		</p>
+
+	<!-- Synthèse -->
+	<div
+		class="mt-4 flex flex-wrap gap-3 rounded-lg border border-border bg-surface-subtle p-4 print:hidden"
+	>
+		<div class="flex-1">
+			<p class="text-2xl font-bold text-ink-strong">{summary.filled}/{summary.capacity}</p>
+			<p class="text-sm text-ink-muted">places pourvues</p>
+		</div>
+		<div class="flex-1">
+			<p
+				class="text-2xl font-bold"
+				class:text-success={summary.unfilled === 0}
+				class:text-warning={summary.unfilled > 0}
+			>
+				{summary.unfilled}
+			</p>
+			<p class="text-sm text-ink-muted">
+				créneau{summary.unfilled > 1 ? 'x' : ''} à compléter
+				<span class="text-ink-muted/70">/ {summary.shifts}</span>
+			</p>
+		</div>
 	</div>
 </div>
 
 <!-- Récap -->
 {#if t.positions.length === 0}
-	<p class="mt-8 text-sm text-ink-muted print:hidden">Aucun poste pour ce tournoi.</p>
+	<p class="mx-auto mt-8 w-full max-w-5xl text-sm text-ink-muted print:hidden">
+		Aucun poste pour ce tournoi.
+	</p>
 {:else}
 	<div class="fade-up mt-6 flex flex-col gap-4 print:hidden">
-		<RecapToolbar
-			bind:search
-			bind:positionFilter
-			bind:dayFilter
-			bind:statusFilter
-			bind:view
-			{positionOptions}
-			{dayFilterOptions}
-			onExport={() => (exportOpen = true)}
-			onPrint={print}
-		/>
+		<!-- Toolbar + vue mobile : centrées avec le chrome -->
+		<div class="mx-auto w-full max-w-5xl">
+			<RecapToolbar
+				bind:search
+				bind:positionFilter
+				bind:dayFilter
+				bind:statusFilter
+				bind:view
+				{positionOptions}
+				{dayFilterOptions}
+				onExport={() => (exportOpen = true)}
+				onPrint={print}
+			/>
+		</div>
 
 		<!-- Mobile : vue empilée par créneau (lecture verticale, aucun scroll horizontal) -->
-		<div class="lg:hidden">
+		<div class="mx-auto w-full max-w-5xl lg:hidden">
 			<PlanningList {postes} />
 		</div>
 
-		<!-- Desktop : tableau triable, matrice plein écran, ou cartes par bénévole -->
+		<!-- Desktop : pleine largeur. Matrice = grille bornée (en-têtes + noms figés). -->
 		<div class="hidden lg:block">
 			{#if view === 'table'}
-				<RecapTable rows={filtered} />
+				<div class="mx-auto w-full max-w-5xl">
+					<RecapTable rows={filtered} />
+				</div>
 			{:else if view === 'byVolunteer'}
-				<RecapByVolunteer rows={filtered} />
+				<div class="mx-auto w-full max-w-5xl">
+					<RecapByVolunteer rows={filtered} />
+				</div>
 			{:else}
 				<RecapMatrix
 					tournament={t}
