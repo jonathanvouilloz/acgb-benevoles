@@ -4,13 +4,26 @@
 	import EnableNotifications from '$lib/components/push/EnableNotifications.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { formatDateRange } from '$lib/format';
-	import { CalendarDays, MapPin, LogIn } from 'lucide-svelte';
+	import { flattenShifts, splitByTime, nextOwnShift } from '$lib/volunteer-shifts';
+	import { CalendarDays, MapPin, LogIn, Star, ChevronDown } from 'lucide-svelte';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	const t = $derived(data.tournament);
 	const loginHref = $derived(`/login?redirect=${encodeURIComponent(page.url.pathname)}`);
+	const myId = $derived(data.me?.id ?? null);
+
+	// `now` côté client : on l'initialise au montage pour éviter tout décalage SSR.
+	let now = $state(Date.now());
+
+	const all = $derived(flattenShifts(t));
+	const split = $derived(splitByTime(all, now));
+	const next = $derived(nextOwnShift(split.upcoming));
+	/** Les créneaux à venir hors celui mis en avant (évite le doublon). */
+	const upcomingRest = $derived(split.upcoming.filter((s) => s.id !== next?.id));
+
+	let showPast = $state(false);
 </script>
 
 <svelte:head><title>{t.name} — Bénévoles ACGB</title></svelte:head>
@@ -35,7 +48,7 @@
 	>
 		<p class="text-sm text-ink">Connecte-toi pour t'inscrire sur un créneau.</p>
 		<a href={loginHref}>
-			<Button class="w-full sm:w-auto"><LogIn size={16} /> Se connecter</Button>
+			<Button size="sm" class="w-full sm:w-auto"><LogIn size={16} /> Se connecter</Button>
 		</a>
 	</div>
 {:else}
@@ -44,38 +57,74 @@
 	</div>
 {/if}
 
-<div class="mt-6 flex flex-col gap-6">
-	{#if t.positions.length === 0}
-		<p class="text-ink-muted">Aucun poste n'a encore été défini pour ce tournoi.</p>
-	{:else}
-		{#each t.positions as position (position.id)}
-			<section class="flex flex-col gap-3">
-				<div class="flex items-center gap-2">
-					<span class="size-3.5 shrink-0 rounded-full" style="background-color: {position.color}"
-					></span>
-					<div class="min-w-0">
-						<h2 class="font-semibold text-ink-strong">{position.name}</h2>
-						{#if position.description}
-							<p class="text-sm text-ink-muted">{position.description}</p>
-						{/if}
-					</div>
-				</div>
-
-				{#if position.shifts.length === 0}
-					<p class="text-sm text-ink-muted">Aucun créneau pour ce poste.</p>
-				{:else}
-					<div class="flex flex-col gap-2">
-						{#each position.shifts as shift (shift.id)}
-							<VolunteerShiftRow
-								{shift}
-								isLoggedIn={data.isLoggedIn}
-								myId={data.me?.id ?? null}
-								{form}
-							/>
-						{/each}
-					</div>
-				{/if}
-			</section>
-		{/each}
+{#if t.positions.length === 0 || all.length === 0}
+	<p class="mt-6 text-ink-muted">Aucun créneau n'a encore été défini pour ce tournoi.</p>
+{:else}
+	<!-- Ton prochain créneau -->
+	{#if next}
+		<section class="mt-6">
+			<h2 class="mb-2 flex items-center gap-1.5 text-sm font-semibold text-brand-primary">
+				<Star size={15} /> Ton prochain créneau
+			</h2>
+			<VolunteerShiftRow
+				shift={next}
+				isLoggedIn={data.isLoggedIn}
+				{myId}
+				{form}
+				positionName={next.positionName}
+				positionColor={next.positionColor}
+				featured
+			/>
+		</section>
 	{/if}
-</div>
+
+	<!-- Créneaux à venir (chronologique, tous postes) -->
+	<section class="mt-6 flex flex-col gap-2">
+		{#if upcomingRest.length > 0}
+			<h2 class="text-sm font-semibold text-ink-strong">
+				{next ? 'Autres créneaux' : 'Créneaux'}
+			</h2>
+			{#each upcomingRest as shift (shift.id)}
+				<VolunteerShiftRow
+					{shift}
+					isLoggedIn={data.isLoggedIn}
+					{myId}
+					{form}
+					positionName={shift.positionName}
+					positionColor={shift.positionColor}
+				/>
+			{/each}
+		{:else if !next}
+			<p class="text-sm text-ink-muted">Aucun créneau à venir.</p>
+		{/if}
+	</section>
+
+	<!-- Créneaux passés (masqués par défaut) -->
+	{#if split.past.length > 0}
+		<section class="mt-6">
+			<button
+				type="button"
+				onclick={() => (showPast = !showPast)}
+				class="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted hover:text-ink"
+			>
+				<ChevronDown size={16} class="transition-transform {showPast ? 'rotate-180' : ''}" />
+				{showPast ? 'Masquer' : 'Afficher'} les créneaux passés ({split.past.length})
+			</button>
+			{#if showPast}
+				<div class="mt-2 flex flex-col gap-2">
+					{#each split.past as shift (shift.id)}
+						<VolunteerShiftRow
+							{shift}
+							isLoggedIn={data.isLoggedIn}
+							{myId}
+							{form}
+							positionName={shift.positionName}
+							positionColor={shift.positionColor}
+							past
+						/>
+					{/each}
+				</div>
+			{/if}
+		</section>
+	{/if}
+{/if}

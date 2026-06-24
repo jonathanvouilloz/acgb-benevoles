@@ -13,7 +13,7 @@
 <div class="flex items-center justify-between gap-3">
 	<h1 class="text-2xl font-bold text-ink-strong">Mes tournois</h1>
 	<a href={resolve('/tournois/nouveau')}>
-		<Button>
+		<Button size="sm">
 			<Plus size={18} /> Nouveau
 		</Button>
 	</a>
@@ -26,7 +26,7 @@
 		<CalendarDays size={32} class="text-ink-muted" />
 		<p class="text-ink-muted">Aucun tournoi pour l'instant.</p>
 		<a href={resolve('/tournois/nouveau')}>
-			<Button>Créer mon premier tournoi</Button>
+			<Button size="sm">Créer mon premier tournoi</Button>
 		</a>
 	</div>
 {:else}

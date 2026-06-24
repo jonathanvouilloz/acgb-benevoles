@@ -29,7 +29,8 @@ Light only. Aucune couleur en dur dans les composants — **tokens uniquement**.
 | `--brand-tertiary`    | `#6F76DE` | Périwinkle — accents secondaires, tags              |
 | `--brand-cyan`        | `#40D9F1` | Cyan — highlights ponctuels (parcimonie)            |
 | **Surfaces**          |           |                                                     |
-| `--surface-bg`        | `#FFFFFF` | Fond principal                                      |
+| `--surface-page`      | `#FDFDFC` | Fond de page (blanc cassé)                          |
+| `--surface-bg`        | `#FFFFFF` | Cards & surfaces pures (blanc pur)                  |
 | `--surface-subtle`    | `#F5F7FA` | Cartes, zones secondaires                           |
 | `--surface-muted`     | `#ECEFF4` | Fonds désactivés, séparateurs doux                  |
 | `--border`            | `#E2E6EC` | Bordures, lignes                                    |
@@ -63,7 +64,9 @@ Light only. Aucune couleur en dur dans les composants — **tokens uniquement**.
 ## 5. Spacing, radius, ombres, breakpoints
 
 - **Espacement** (sparse, mobile-first) : échelle 4 → 8 → 12 → 16 → 24 → 32 → 48. Gutter mobile 16px, section-y 24–32px.
-- **Cibles tactiles** : min 44px de hauteur sur tout élément cliquable.
+- **Densité compacte** (norme actuelle) : contrôles à **32px** de hauteur — boutons `size="sm"` (défaut de fait) et champs `Input`/`Select` (`min-h-8`, `text-sm`, `rounded` 8px). Cohérence bouton ↔ champ.
+  - ⚠️ Sous la cible tactile historique de 44px : réserver aux écrans denses orga ; surveiller le confort tactile mobile.
+  - ⚠️ Champs en `text-sm` (14px) : iOS Safari peut zoomer au focus (police < 16px). À arbitrer si gênant.
 - **Radius** : `--radius-sm 6px` · `--radius 8px` (défaut) · `--radius-lg 14px` · `--radius-full 999px`.
 - **Ombres** : `--shadow-sm` (cartes), `--shadow-md` (modals/menus). Discrètes.
 - **Breakpoints** : `sm 640` · `md 768` · `lg 1024`. Le design part du mobile.
@@ -99,9 +102,18 @@ Section vivante — chaque composant signature s'y ajoute + sa démo sur `/style
 | Composant             | Variantes                                                                                | Styleguide |
 | --------------------- | ---------------------------------------------------------------------------------------- | ---------- |
 | Button                | primary (marine) · secondary (teal) · ghost · danger · états hover/active/focus/disabled | à créer    |
+
+**Style bouton « glossy »** (inspiré des boutons d'animations.dev, couleurs ACGB conservées) : les variantes colorées (`primary`, `secondary`, `danger`) utilisent une skin réutilisable `.skin-glossy` + `.skin-{variant}` (cf. `src/routes/layout.css`) :
+
+- **Dégradé vertical** `linear-gradient(top → base)` — stop haut éclairci par variante (`--btn-*-top` dans `tokens.css`), base = couleur de marque.
+- **Box-shadow 4 couches** : sheen blanc interne + hairline sombre + ombre douce + anneau 1px de la couleur du bouton (`--btn-*-ring`).
+- **Hover** : `filter: brightness(1.07)` · **active** : `brightness(0.96)` (+ `scale(.98)` sur le gros bouton) · **disabled** : `filter: none`.
+- `ghost` reste plat (transparent, hover `bg-surface-muted`). Skin découplée de la taille.
+- **Tailles** (prop `size`) : `md` (défaut) `rounded-lg`/44px · `sm` `rounded`/32px (≈ `buy-button-small`). Les boutons compacts en ligne (`min-h-9`/36px) gardent leur classe inline.
 | StatusBadge           | disponible (teal) · peut-être (ambre) · complet (rouge)                                  | à créer    |
 | ShiftCard (créneau)   | places restantes, capacité, statut, action d'inscription                                 | à créer    |
 | PositionGroup (poste) | en-tête couleur auto + liste de créneaux                                                 | à créer    |
 | EmptyState            | générique                                                                                | à créer    |
+| Modal                 | backdrop + panneau centré · `bind:open` · Échap/clic backdrop pour fermer · scroll lock  | à créer    |
 
 > `/styleguide` (page live noindex) à créer pendant l'Epic 1, une fois SvelteKit scaffold.

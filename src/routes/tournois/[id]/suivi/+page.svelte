@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import TrackingShiftRow from '$lib/components/tournament/TrackingShiftRow.svelte';
-	import { formatDateRange } from '$lib/format';
+	import RecapToolbar from '$lib/components/tracking/RecapToolbar.svelte';
+	import RecapTable from '$lib/components/tracking/RecapTable.svelte';
+	import RecapMatrix from '$lib/components/tracking/RecapMatrix.svelte';
+	import { formatDateRange, toDateInputValue } from '$lib/format';
+	import { flattenTournament, toCsv } from '$lib/recap';
+	import { dayOptions } from '$lib/time-options';
 	import { ArrowLeft, MapPin, CalendarDays } from 'lucide-svelte';
 	import type { PageData } from './$types';
 
@@ -25,13 +29,57 @@
 		}
 		return { filled, capacity, shifts, unfilled };
 	});
+
+	// --- Vue récap ---
+	const rows = $derived(flattenTournament(t));
+
+	let search = $state('');
+	let positionFilter = $state('all');
+	let dayFilter = $state('all');
+	let statusFilter = $state('all');
+	let view = $state<'table' | 'matrix'>('table');
+
+	const positionOptions = $derived([
+		{ value: 'all', label: 'Tous les postes' },
+		...t.positions.map((p) => ({ value: p.id, label: p.name }))
+	]);
+	const dayFilterOptions = $derived([
+		{ value: 'all', label: 'Tous les jours' },
+		...dayOptions(t.startDate, t.endDate)
+	]);
+
+	const filtered = $derived.by(() => {
+		const q = search.trim().toLowerCase();
+		return rows.filter((r) => {
+			if (q && !r.volunteerName.toLowerCase().includes(q)) return false;
+			if (positionFilter !== 'all' && r.positionId !== positionFilter) return false;
+			if (dayFilter !== 'all' && toDateInputValue(r.day) !== dayFilter) return false;
+			if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+			return true;
+		});
+	});
+
+	function exportCsv() {
+		// BOM UTF-8 en tête pour qu'Excel (FR) lise correctement les accents.
+		const blob = new Blob(['﻿', toCsv(filtered)], { type: 'text/csv;charset=utf-8' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		const slug = t.name
+			.replace(/[^a-z0-9]+/gi, '-')
+			.replace(/^-+|-+$/g, '')
+			.toLowerCase();
+		a.href = url;
+		a.download = `suivi-${slug || 'tournoi'}.csv`;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
 </script>
 
 <svelte:head><title>Suivi — {t.name} — Bénévoles ACGB</title></svelte:head>
 
 <a
 	href={resolve('/tournois/[id]', { id: t.id })}
-	class="inline-flex items-center gap-1 text-sm text-ink-muted hover:text-ink"
+	class="inline-flex items-center gap-1 text-sm text-ink-muted transition-colors hover:text-ink"
 >
 	<ArrowLeft size={16} /> Gestion du tournoi
 </a>
@@ -72,31 +120,26 @@
 	</div>
 </div>
 
-<!-- Postes -->
+<!-- Récap -->
 {#if t.positions.length === 0}
 	<p class="mt-8 text-sm text-ink-muted">Aucun poste pour ce tournoi.</p>
 {:else}
-	<div class="mt-8 flex flex-col gap-6">
-		{#each t.positions as position (position.id)}
-			<section>
-				<div class="flex items-center gap-2">
-					<span class="size-3 shrink-0 rounded-full" style="background-color: {position.color}"></span>
-					<h2 class="text-lg font-semibold text-ink-strong">{position.name}</h2>
-				</div>
-				{#if position.description}
-					<p class="mt-0.5 text-sm text-ink-muted">{position.description}</p>
-				{/if}
+	<div class="fade-up mt-6 flex flex-col gap-4">
+		<RecapToolbar
+			bind:search
+			bind:positionFilter
+			bind:dayFilter
+			bind:statusFilter
+			bind:view
+			{positionOptions}
+			{dayFilterOptions}
+			onExport={exportCsv}
+		/>
 
-				{#if position.shifts.length === 0}
-					<p class="mt-2 text-sm text-ink-muted">Aucun créneau.</p>
-				{:else}
-					<div class="mt-3 flex flex-col gap-2">
-						{#each position.shifts as shift (shift.id)}
-							<TrackingShiftRow {shift} />
-						{/each}
-					</div>
-				{/if}
-			</section>
-		{/each}
+		{#if view === 'table'}
+			<RecapTable rows={filtered} />
+		{:else}
+			<RecapMatrix tournament={t} />
+		{/if}
 	</div>
 {/if}

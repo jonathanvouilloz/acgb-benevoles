@@ -33,10 +33,75 @@
 
 @layer base {
 	body {
-		background-color: var(--surface-bg);
+		background-color: var(--surface-page);
 		color: var(--ink);
 		font-family: var(--font-sans);
 		line-height: var(--lh-base);
 		-webkit-font-smoothing: antialiased;
+	}
+}
+
+/* Boutons « glossy » (inspiré buy-button animations.dev, couleurs ACGB).
+   Skin découplée de la taille : applicable au gros bouton (radius-lg, 44px)
+   comme aux boutons compacts en ligne (rounded 8px, 36px). */
+@layer components {
+	.skin-glossy {
+		color: #fff;
+		background: linear-gradient(var(--btn-grad-top) 0%, var(--btn-grad-bottom) 100%);
+		box-shadow:
+			inset 0 0 1px 1px rgba(255, 255, 255, 0.16),
+			/* sheen interne (≈ #ffffff24) */ 0 0 0 1px rgba(0, 0, 0, 0.08),
+			/* hairline sombre */ 0 2px 2px rgba(10, 18, 48, 0.05),
+			/* ombre douce */ 0 0 0 1px var(--btn-ring); /* anneau couleur du bouton */
+		transition: filter var(--dur-base);
+	}
+	.skin-glossy:hover {
+		filter: brightness(1.07);
+	}
+	.skin-glossy:active {
+		filter: brightness(0.96);
+	}
+	.skin-glossy:disabled {
+		filter: none;
+	}
+
+	.skin-primary {
+		--btn-grad-top: var(--btn-primary-top);
+		--btn-grad-bottom: var(--brand-primary);
+		--btn-ring: var(--btn-primary-ring);
+	}
+	.skin-secondary {
+		--btn-grad-top: var(--btn-secondary-top);
+		--btn-grad-bottom: var(--brand-secondary);
+		--btn-ring: var(--btn-secondary-ring);
+	}
+	.skin-danger {
+		--btn-grad-top: var(--btn-danger-top);
+		--btn-grad-bottom: var(--error);
+		--btn-ring: var(--btn-danger-ring);
+	}
+}
+
+/* Motion (5/10) — reveal d'entrée réutilisable.
+   Utiliser `class="fade-up"` + `style="animation-delay: …ms"` pour le stagger.
+   Neutralisé par prefers-reduced-motion (cf. tokens.css passe les durées à 0). */
+@layer utilities {
+	.fade-up {
+		animation: fade-up var(--dur-reveal) var(--ease-out-strong) both;
+	}
+	@keyframes fade-up {
+		from {
+			opacity: 0;
+			transform: translateY(12px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.fade-up {
+			animation: none;
+		}
 	}
 }

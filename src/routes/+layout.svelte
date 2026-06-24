@@ -4,12 +4,18 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { authClient } from '$lib/auth-client';
+	import { Toaster } from '$lib/components/ui/toast';
+	import { ConfirmDialog } from '$lib/components/ui/confirm';
 	import type { LayoutData } from './$types';
 
 	let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
 
 	let signingOut = $state(false);
+
+	/** Le suivi organisateur (tableau récap) a besoin de toute la largeur ; le reste reste étroit. */
+	const wide = $derived(page.url.pathname.endsWith('/suivi'));
 
 	async function logout() {
 		signingOut = true;
@@ -22,7 +28,15 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
-<div class="mx-auto min-h-dvh w-full max-w-[640px] px-4 py-6">
+<div class="mx-auto min-h-dvh w-full px-4 py-6 {wide ? 'max-w-6xl' : 'max-w-[640px]'}">
+	{#if data.prototype}
+		<p
+			class="mb-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-1.5 text-center text-xs font-medium text-ink-muted"
+		>
+			Mode démo — connexion sans email, données de test
+		</p>
+	{/if}
+
 	<header class="mb-6 flex items-center justify-between gap-3">
 		<a href={resolve('/')} class="text-sm font-semibold text-brand-primary">Bénévoles ACGB</a>
 		{#if data.user}
@@ -32,7 +46,11 @@
 						>Mes tournois</a
 					>
 				{/if}
-				<span class="text-ink-muted">{data.user.name}</span>
+				<a
+					href={resolve('/compte')}
+					class="text-ink-muted underline-offset-2 hover:text-ink hover:underline"
+					>{data.user.name}</a
+				>
 				<button
 					type="button"
 					onclick={logout}
@@ -51,3 +69,7 @@
 
 	{@render children()}
 </div>
+
+<!-- Singletons globaux : feedback transitoire + confirmations -->
+<Toaster />
+<ConfirmDialog />

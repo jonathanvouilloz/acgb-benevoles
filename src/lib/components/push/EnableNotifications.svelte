@@ -107,7 +107,7 @@
 				{/if}
 			</div>
 		</div>
-		<Button class="w-full sm:w-auto" onclick={enable} disabled={state === 'working'}>
+		<Button size="sm" class="w-full sm:w-auto" onclick={enable} disabled={state === 'working'}>
 			<BellRing size={16} />
 			{state === 'working' ? 'Activation…' : 'Activer'}
 		</Button>

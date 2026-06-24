@@ -1,6 +1,14 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { StatusBadge } from '$lib/components/ui/status-badge';
+	import { Select } from '$lib/components/ui/select';
+
+	const posteOptions = [
+		{ value: 'buvette', label: 'Buvette' },
+		{ value: 'arbitre', label: 'Arbitrage' },
+		{ value: 'accueil', label: 'Accueil' }
+	];
+	let posteValue = $state('buvette');
 
 	const swatches = [
 		{ name: 'brand-primary', var: '--brand-primary' },
@@ -51,12 +59,20 @@
 	<!-- Boutons -->
 	<section class="space-y-3">
 		<h2 class="text-lg font-semibold text-ink-strong">Boutons</h2>
-		<div class="flex flex-wrap gap-3">
+		<div class="flex flex-wrap items-center gap-3">
 			<Button variant="primary">Créer un tournoi</Button>
 			<Button variant="secondary">Je suis dispo</Button>
 			<Button variant="ghost">Annuler</Button>
 			<Button variant="danger">Me désinscrire</Button>
 			<Button variant="primary" disabled>Désactivé</Button>
+		</div>
+		<p class="text-sm text-ink-muted">Taille small</p>
+		<div class="flex flex-wrap items-center gap-3">
+			<Button variant="primary" size="sm">Créer un tournoi</Button>
+			<Button variant="secondary" size="sm">Je suis dispo</Button>
+			<Button variant="ghost" size="sm">Annuler</Button>
+			<Button variant="danger" size="sm">Me désinscrire</Button>
+			<Button variant="primary" size="sm" disabled>Désactivé</Button>
 		</div>
 	</section>
 
@@ -67,6 +83,49 @@
 			<StatusBadge status="available" />
 			<StatusBadge status="maybe" />
 			<StatusBadge status="full" />
+		</div>
+	</section>
+
+	<!-- Select -->
+	<section class="space-y-3">
+		<h2 class="text-lg font-semibold text-ink-strong">Select</h2>
+		<div class="max-w-xs">
+			<Select bind:value={posteValue} options={posteOptions} />
+		</div>
+		<p class="text-sm text-ink-muted">Valeur : {posteValue}</p>
+	</section>
+
+	<!-- Tableau récap -->
+	<section class="space-y-3">
+		<h2 class="text-lg font-semibold text-ink-strong">Tableau récap</h2>
+		<div class="overflow-x-auto rounded-lg border border-border">
+			<table class="w-full border-collapse text-sm">
+				<thead>
+					<tr class="border-b border-border bg-surface-subtle text-left">
+						<th class="px-3 py-2.5 font-semibold text-ink-strong">Bénévole</th>
+						<th class="px-3 py-2.5 font-semibold text-ink-strong">Poste</th>
+						<th class="px-3 py-2.5 font-semibold text-ink-strong">Statut</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr class="border-b border-border/60 hover:bg-surface-subtle">
+						<td class="px-3 py-2.5 text-ink-strong">Alice</td>
+						<td class="px-3 py-2.5 text-ink">Buvette</td>
+						<td class="px-3 py-2.5"><StatusBadge status="available" /></td>
+					</tr>
+					<tr class="hover:bg-surface-subtle">
+						<td class="px-3 py-2.5 text-ink-muted">—</td>
+						<td class="px-3 py-2.5 text-ink">Arbitrage</td>
+						<td class="px-3 py-2.5">
+							<span
+								class="inline-flex items-center rounded-full bg-surface-muted px-2.5 py-1 text-sm font-medium text-ink-muted"
+							>
+								À pourvoir
+							</span>
+						</td>
+					</tr>
+				</tbody>
+			</table>
 		</div>
 	</section>
 
@@ -85,24 +144,3 @@
 		</div>
 	</section>
 </div>
-
-<style>
-	.fade-up {
-		animation: fade-up var(--dur-reveal) var(--ease-out-strong) both;
-	}
-	@keyframes fade-up {
-		from {
-			opacity: 0;
-			transform: translateY(12px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
-	}
-	@media (prefers-reduced-motion: reduce) {
-		.fade-up {
-			animation: none;
-		}
-	}
-</style>

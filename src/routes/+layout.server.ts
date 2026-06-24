@@ -1,6 +1,7 @@
+import { isPrototype } from '$lib/server/prototype';
 import type { LayoutServerLoad } from './$types';
 
-/** Expose l'utilisateur courant au shell (état connecté / déconnexion). */
+/** Expose l'utilisateur courant au shell (état connecté / déconnexion) + le flag prototype. */
 export const load: LayoutServerLoad = async ({ locals }) => {
-	return { user: locals.user };
+	return { user: locals.user, prototype: isPrototype };
 };

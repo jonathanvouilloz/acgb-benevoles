@@ -157,6 +157,77 @@ export async function getTournamentSignupsForOrganizer(
 	return row ? mapTournamentRow(row, null) : null;
 }
 
+/** Une carte « Mes inscriptions » : un tournoi où le bénévole est inscrit + son prochain créneau. */
+export type MyTournamentCard = {
+	id: string;
+	name: string;
+	location: string | null;
+	startDate: Date;
+	endDate: Date;
+	shareToken: string;
+	signupCount: number;
+	nextShift: {
+		startsAt: Date;
+		endsAt: Date;
+		positionName: string;
+		positionColor: string;
+		status: SignupStatus;
+	} | null;
+};
+
+/**
+ * Tournois auxquels l'utilisateur s'est inscrit (accueil bénévole « Mes inscriptions »).
+ * Regroupe ses inscriptions par tournoi et calcule, par tournoi, le prochain créneau à venir.
+ * Tri : tournois avec un créneau à venir en premier (par proximité), puis les autres par date.
+ */
+export async function getMyTournaments(userId: string): Promise<MyTournamentCard[]> {
+	const rows = await db.query.signup.findMany({
+		where: eq(signup.userId, userId),
+		with: { shift: { with: { position: { with: { tournament: true } } } } }
+	});
+
+	const now = Date.now();
+	const byTournament = new Map<string, MyTournamentCard>();
+
+	for (const su of rows) {
+		const sh = su.shift;
+		const pos = sh.position;
+		const tour = pos.tournament;
+		let card = byTournament.get(tour.id);
+		if (!card) {
+			card = {
+				id: tour.id,
+				name: tour.name,
+				location: tour.location,
+				startDate: tour.startDate,
+				endDate: tour.endDate,
+				shareToken: tour.shareToken,
+				signupCount: 0,
+				nextShift: null
+			};
+			byTournament.set(tour.id, card);
+		}
+		card.signupCount += 1;
+		if (sh.startsAt.getTime() > now) {
+			if (!card.nextShift || sh.startsAt.getTime() < card.nextShift.startsAt.getTime()) {
+				card.nextShift = {
+					startsAt: sh.startsAt,
+					endsAt: sh.endsAt,
+					positionName: pos.name,
+					positionColor: pos.color,
+					status: su.status
+				};
+			}
+		}
+	}
+
+	return [...byTournament.values()].sort((a, b) => {
+		const an = a.nextShift?.startsAt.getTime() ?? Infinity;
+		const bn = b.nextShift?.startsAt.getTime() ?? Infinity;
+		return an - bn || a.startDate.getTime() - b.startDate.getTime();
+	});
+}
+
 /** Charge un créneau + sa capacité (existence). Retourne `null` si introuvable. */
 async function getShift(shiftId: string): Promise<{ capacity: number } | null> {
 	const rows = await db

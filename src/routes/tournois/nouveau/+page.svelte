@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import { toast } from '$lib/toast.svelte';
 	import { ArrowLeft } from 'lucide-svelte';
 	import type { ActionData } from './$types';
 
@@ -27,7 +28,8 @@
 	class="mt-6 flex flex-col gap-4"
 	use:enhance={() => {
 		submitting = true;
-		return async ({ update }) => {
+		return async ({ update, result }) => {
+			if (result.type === 'redirect') toast.success('Tournoi créé');
 			await update();
 			submitting = false;
 		};
@@ -71,7 +73,7 @@
 		</label>
 	</div>
 
-	<Button type="submit" disabled={submitting} class="mt-2">
+	<Button type="submit" size="sm" disabled={submitting} class="mt-2">
 		{submitting ? 'Création…' : 'Créer le tournoi'}
 	</Button>
 </form>

@@ -5,10 +5,11 @@
 		class?: string;
 	}
 
-	let { class: className = '', ...rest }: Props = $props();
+	let { class: className = '', value = $bindable(), ...rest }: Props = $props();
 </script>
 
 <input
-	class="min-h-11 w-full rounded border border-border bg-surface px-3 text-base text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary {className}"
+	bind:value
+	class="min-h-8 w-full rounded border border-border bg-surface px-3 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary {className}"
 	{...rest}
 />

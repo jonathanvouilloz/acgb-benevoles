@@ -3,6 +3,9 @@
 	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import { Modal } from '$lib/components/ui/modal';
+	import { confirmAction } from '$lib/confirm.svelte';
+	import { toast } from '$lib/toast.svelte';
 	import PositionCard from '$lib/components/tournament/PositionCard.svelte';
 	import { formatDateRange, toDateInputValue } from '$lib/format';
 	import {
@@ -24,6 +27,7 @@
 	const t = $derived(data.tournament);
 
 	let editingTournament = $state(false);
+	let creatingPosition = $state(false);
 	let copied = $state(false);
 
 	async function copyShareLink() {
@@ -64,7 +68,10 @@
 		use:enhance={() =>
 			async ({ update, result }) => {
 				await update({ reset: false });
-				if (result.type === 'success') editingTournament = false;
+				if (result.type === 'success') {
+					editingTournament = false;
+					toast.success('Tournoi mis à jour');
+				}
 			}}
 	>
 		<label class="flex flex-col gap-1 text-sm font-medium text-ink">
@@ -88,8 +95,8 @@
 			</label>
 		</div>
 		<div class="flex gap-2">
-			<Button type="submit"><Check size={16} /> Enregistrer</Button>
-			<Button type="button" variant="ghost" onclick={() => (editingTournament = false)}>
+			<Button type="submit" size="sm"><Check size={16} /> Enregistrer</Button>
+			<Button type="button" size="sm" variant="ghost" onclick={() => (editingTournament = false)}>
 				<X size={16} /> Annuler
 			</Button>
 		</div>
@@ -122,15 +129,24 @@
 				method="POST"
 				action="?/deleteTournament"
 				use:enhance={() =>
-					async ({ update }) =>
-						update()}
+					async ({ update, result }) => {
+						if (result.type === 'redirect') toast.success('Tournoi supprimé');
+						await update();
+					}}
 			>
 				<button
 					type="submit"
 					title="Supprimer le tournoi"
-					onclick={(e) => {
-						if (!confirm(`Supprimer le tournoi « ${t.name} » et tout son contenu ?`))
-							e.preventDefault();
+					onclick={async (e) => {
+						e.preventDefault();
+						const f = e.currentTarget.form;
+						const ok = await confirmAction({
+							title: 'Supprimer le tournoi',
+							message: `« ${t.name} » et tout son contenu (postes, créneaux, inscriptions) seront supprimés définitivement.`,
+							confirmLabel: 'Supprimer',
+							variant: 'danger'
+						});
+						if (ok) f?.requestSubmit();
 					}}
 					class="inline-flex size-9 items-center justify-center rounded text-ink-muted hover:bg-error/10 hover:text-error"
 				>
@@ -161,33 +177,50 @@
 {/if}
 
 <!-- Postes -->
-<h2 class="mt-8 text-lg font-semibold text-ink-strong">Postes</h2>
+<div class="mt-8 flex items-center justify-between gap-3">
+	<h2 class="text-lg font-semibold text-ink-strong">Postes</h2>
+	<Button type="button" size="sm" onclick={() => (creatingPosition = true)}>
+		<Plus size={16} /> Ajouter
+	</Button>
+</div>
 
 {#if t.positions.length === 0}
-	<p class="mt-2 text-sm text-ink-muted">Aucun poste. Ajoute le premier ci-dessous.</p>
+	<p class="mt-2 text-sm text-ink-muted">Aucun poste. Ajoute le premier avec « Ajouter ».</p>
 {:else}
 	<div class="mt-3 flex flex-col gap-4">
-		{#each t.positions as position (position.id)}
-			<PositionCard {position} tournament={t} {form} />
+		{#each t.positions as position, i (position.id)}
+			<div class="fade-up" style="animation-delay: {i * 60}ms">
+				<PositionCard {position} tournament={t} {form} />
+			</div>
 		{/each}
 	</div>
 {/if}
 
-<!-- Ajout de poste -->
-<form
-	method="POST"
-	action="?/createPosition"
-	class="mt-4 flex flex-col gap-2 rounded-lg border border-dashed border-border p-3"
-	use:enhance={() =>
-		async ({ update }) =>
-			update()}
->
-	<div class="flex flex-wrap items-end gap-2">
-		<label class="flex flex-1 flex-col gap-0.5 text-xs font-medium text-ink-muted">
-			Nouveau poste
-			<Input name="name" type="text" placeholder="Buvette, Accueil, Arbitre…" class="text-sm" />
+<!-- Ajout de poste (modale) -->
+<Modal bind:open={creatingPosition} title="Nouveau poste">
+	<form
+		method="POST"
+		action="?/createPosition"
+		class="flex flex-col gap-3"
+		use:enhance={() =>
+			async ({ update, result }) => {
+				await update();
+				if (result.type === 'success') {
+					creatingPosition = false;
+					toast.success('Poste ajouté');
+				}
+			}}
+	>
+		<label class="flex flex-col gap-1 text-sm font-medium text-ink">
+			Nom du poste
+			<Input name="name" type="text" placeholder="Buvette, Accueil, Arbitre…" />
+			{#if posErrors?.name}<span class="text-xs text-error">{posErrors.name[0]}</span>{/if}
 		</label>
-		<Button type="submit" class="min-h-11 px-3"><Plus size={16} /> Ajouter</Button>
-	</div>
-	{#if posErrors?.name}<span class="text-xs text-error">{posErrors.name[0]}</span>{/if}
-</form>
+		<div class="flex justify-end gap-2">
+			<Button type="button" size="sm" variant="ghost" onclick={() => (creatingPosition = false)}>
+				Annuler
+			</Button>
+			<Button type="submit" size="sm"><Plus size={16} /> Ajouter</Button>
+		</div>
+	</form>
+</Modal>

@@ -6,6 +6,7 @@ import { env } from '$env/dynamic/private';
 import { db } from './db';
 import * as schema from './db/schema';
 import { sendMagicLinkEmail } from './services/email';
+import { isPrototype, stashPrototypeLink } from './prototype';
 
 /**
  * Instance Better Auth — auth sans mot de passe par magic link (cf. docs/features/02-auth.md).
@@ -20,7 +21,9 @@ export const auth = betterAuth({
 	baseURL: env.BETTER_AUTH_URL,
 	user: {
 		additionalFields: {
-			isOrganizer: { type: 'boolean', defaultValue: false, input: false }
+			isOrganizer: { type: 'boolean', defaultValue: false, input: false },
+			// Téléphone optionnel : saisi (facultatif) à la création via le magic link, éditable dans /compte.
+			phone: { type: 'string', required: false, input: true }
 		}
 	},
 	session: {
@@ -31,6 +34,12 @@ export const auth = betterAuth({
 		magicLink({
 			expiresIn: 60 * 15, // lien valable 15 min
 			sendMagicLink: async ({ email, url }) => {
+				// Mode prototype : on n'envoie aucun email, on capture le lien pour le suivre
+				// immédiatement côté serveur (connexion instantanée). Voir lib/server/prototype.ts.
+				if (isPrototype) {
+					stashPrototypeLink(email, url);
+					return;
+				}
 				// En dev : log le lien dans la console pour tester sans domaine Resend vérifié,
 				// et on tolère un échec d'envoi (Resend n'autorise que l'email du compte).
 				if (dev) {

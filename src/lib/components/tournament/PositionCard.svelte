@@ -1,9 +1,13 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { slide } from 'svelte/transition';
+	import { slideDuration } from '$lib/motion';
+	import { confirmAction } from '$lib/confirm.svelte';
+	import { toast } from '$lib/toast.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import ShiftRow from './ShiftRow.svelte';
-	import { toDateInputValue } from '$lib/format';
+	import ShiftFields from './ShiftFields.svelte';
 	import { Pencil, Trash2, Plus, Check, X } from 'lucide-svelte';
 	import type { Position, Shift, Tournament } from '$lib/server/db/schema';
 
@@ -19,9 +23,6 @@
 	} = $props();
 
 	let editing = $state(false);
-
-	const dayMin = $derived(toDateInputValue(tournament.startDate));
-	const dayMax = $derived(toDateInputValue(tournament.endDate));
 
 	const renameErrors = $derived(
 		form?.action === 'updatePosition' && form?.positionId === position.id ? form.errors : undefined
@@ -39,14 +40,18 @@
 				method="POST"
 				action="?/updatePosition"
 				class="flex flex-1 flex-col gap-2"
+				transition:slide={{ duration: slideDuration }}
 				use:enhance={() =>
 					async ({ update, result }) => {
 						await update({ reset: false });
-						if (result.type === 'success') editing = false;
+						if (result.type === 'success') {
+							editing = false;
+							toast.success('Poste modifié');
+						}
 					}}
 			>
 				<input type="hidden" name="positionId" value={position.id} />
-				<Input name="name" type="text" value={position.name} class="text-sm" />
+				<Input name="name" type="text" value={position.name} />
 				<Input
 					name="description"
 					type="text"
@@ -63,7 +68,7 @@
 					<button
 						type="submit"
 						title="Enregistrer"
-						class="inline-flex min-h-9 items-center gap-1 rounded bg-brand-primary px-2 text-sm text-white hover:bg-brand-primary-700"
+						class="skin-glossy skin-primary inline-flex min-h-9 items-center gap-1 rounded px-2 text-sm text-white"
 					>
 						<Check size={16} /> Enregistrer
 					</button>
@@ -100,16 +105,25 @@
 					method="POST"
 					action="?/deletePosition"
 					use:enhance={() =>
-						async ({ update }) =>
-							update({ reset: false })}
+						async ({ update, result }) => {
+							await update({ reset: false });
+							if (result.type === 'success') toast.success('Poste supprimé');
+						}}
 				>
 					<input type="hidden" name="positionId" value={position.id} />
 					<button
 						type="submit"
 						title="Supprimer le poste"
-						onclick={(e) => {
-							if (!confirm(`Supprimer le poste « ${position.name} » et ses créneaux ?`))
-								e.preventDefault();
+						onclick={async (e) => {
+							e.preventDefault();
+							const f = e.currentTarget.form;
+							const ok = await confirmAction({
+								title: 'Supprimer le poste',
+								message: `Le poste « ${position.name} » et tous ses créneaux seront supprimés.`,
+								confirmLabel: 'Supprimer',
+								variant: 'danger'
+							});
+							if (ok) f?.requestSubmit();
 						}}
 						class="inline-flex size-8 items-center justify-center rounded text-ink-muted hover:bg-error/10 hover:text-error"
 					>
@@ -136,27 +150,14 @@
 			action="?/createShift"
 			class="mt-2 flex flex-wrap items-end gap-2 border-t border-border pt-3"
 			use:enhance={() =>
-				async ({ update }) =>
-					update({ reset: false })}
+				async ({ update, result }) => {
+					await update({ reset: false });
+					if (result.type === 'success') toast.success('Créneau ajouté');
+				}}
 		>
 			<input type="hidden" name="positionId" value={position.id} />
-			<label class="flex flex-col gap-0.5 text-xs font-medium text-ink-muted">
-				Jour
-				<Input name="day" type="date" min={dayMin} max={dayMax} value={dayMin} class="text-sm" />
-			</label>
-			<label class="flex flex-col gap-0.5 text-xs font-medium text-ink-muted">
-				Début
-				<Input name="startTime" type="time" class="text-sm" />
-			</label>
-			<label class="flex flex-col gap-0.5 text-xs font-medium text-ink-muted">
-				Fin
-				<Input name="endTime" type="time" class="text-sm" />
-			</label>
-			<label class="flex w-20 flex-col gap-0.5 text-xs font-medium text-ink-muted">
-				Places
-				<Input name="capacity" type="number" min="1" max="99" value="1" class="text-sm" />
-			</label>
-			<Button type="submit" variant="secondary" class="min-h-9 px-3">
+			<ShiftFields {tournament} />
+			<Button type="submit" variant="secondary" size="sm">
 				<Plus size={16} /> Créneau
 			</Button>
 			{#if shiftErrors}

@@ -12,8 +12,17 @@
 	--brand-tertiary: #6f76de; /* périwinkle */
 	--brand-cyan: #40d9f1; /* cyan accent */
 
+	/* ---------- Boutons glossy : stops de gradient & anneaux dérivés ---------- */
+	--btn-primary-top: #142099; /* marine éclairci (haut du gradient) */
+	--btn-primary-ring: var(--brand-primary-700);
+	--btn-secondary-top: #54d4b6; /* teal éclairci */
+	--btn-secondary-ring: #1fae8d;
+	--btn-danger-top: #f0584f; /* rouge éclairci */
+	--btn-danger-ring: #c52a22;
+
 	/* ---------- Surfaces & lignes ---------- */
-	--surface-bg: #ffffff;
+	--surface-page: #fdfdfc; /* fond de page (légèrement cassé) */
+	--surface-bg: #ffffff; /* cards & surfaces pures */
 	--surface-subtle: #f5f7fa;
 	--surface-muted: #eceff4;
 	--border: #e2e6ec;
