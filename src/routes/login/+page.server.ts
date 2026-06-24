@@ -62,7 +62,17 @@ async function sendLink(
 		},
 		headers
 	});
-	return isPrototype ? (takePrototypeLink(email) ?? null) : null;
+	if (!isPrototype) return null;
+	const link = takePrototypeLink(email);
+	if (!link) return null;
+	// Connexion instantanée : on ne garde que le chemin + query du lien de vérification pour
+	// rediriger en same-origin → fonctionne quel que soit le port local (5173, 5174, …).
+	try {
+		const u = new URL(link);
+		return u.pathname + u.search;
+	} catch {
+		return link;
+	}
 }
 
 export const actions: Actions = {

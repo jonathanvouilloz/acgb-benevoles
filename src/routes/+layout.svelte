@@ -2,29 +2,17 @@
 	import './layout.css';
 	import '@fontsource-variable/manrope';
 	import favicon from '$lib/assets/favicon.svg';
-	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { authClient } from '$lib/auth-client';
 	import { Toaster } from '$lib/components/ui/toast';
 	import { ConfirmDialog } from '$lib/components/ui/confirm';
-	import { User } from 'lucide-svelte';
+	import { LogOut, User } from 'lucide-svelte';
 	import type { LayoutData } from './$types';
 
 	let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
 
-	let signingOut = $state(false);
-
 	/** Le suivi organisateur (tableau récap) a besoin de toute la largeur ; le reste reste étroit. */
 	const wide = $derived(page.url.pathname.endsWith('/suivi'));
-
-	async function logout() {
-		signingOut = true;
-		await authClient.signOut();
-		await invalidateAll();
-		signingOut = false;
-		await goto(resolve('/login'));
-	}
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
@@ -57,14 +45,16 @@
 				>
 					<User size={15} class="shrink-0" /> Mon compte
 				</a>
-				<button
-					type="button"
-					onclick={logout}
-					disabled={signingOut}
-					class="font-medium text-ink-muted underline hover:text-ink disabled:opacity-50"
-				>
-					Déconnexion
-				</button>
+				<form method="POST" action={resolve('/logout')} class="flex">
+					<button
+						type="submit"
+						aria-label="Déconnexion"
+						title="Déconnexion"
+						class="flex items-center text-ink-muted hover:text-ink"
+					>
+						<LogOut size={16} class="shrink-0" />
+					</button>
+				</form>
 			</div>
 		{:else}
 			<a href={resolve('/login')} class="text-sm font-medium text-brand-primary underline"

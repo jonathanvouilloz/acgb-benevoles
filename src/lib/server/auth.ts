@@ -18,9 +18,16 @@ import { isPrototype, stashPrototypeLink } from './prototype';
 export const auth = betterAuth({
 	database: drizzleAdapter(db, { provider: 'pg', schema }),
 	secret: env.BETTER_AUTH_SECRET,
-	// Slash final retiré : un trailing slash fait dériver le basePath en `//api/auth`
-	// → le handler ne matche plus `/api/auth/*` et renvoie 404 (cf. isAuthPath de better-auth).
-	baseURL: env.BETTER_AUTH_URL?.replace(/\/+$/, ''),
+	// En dev, on laisse Better Auth déduire l'URL depuis la requête (en-tête Host) : le port
+	// local varie (5173, 5174, …) et les liens magic-link + redirections suivent alors
+	// automatiquement le bon port. En prod, on fixe BETTER_AUTH_URL — slash final retiré, car
+	// un trailing slash fait dériver le basePath en `//api/auth` (handler 404, cf. isAuthPath).
+	baseURL: dev ? undefined : env.BETTER_AUTH_URL?.replace(/\/+$/, ''),
+	// Ports de dev Vite courants : tous fiables en local, pour que la connexion passe quel que
+	// soit le port choisi (utile aussi pour la redirection de vérification du magic link).
+	trustedOrigins: dev
+		? ['5173', '5174', '5175', '5176'].map((p) => `http://localhost:${p}`)
+		: [],
 	user: {
 		additionalFields: {
 			isOrganizer: { type: 'boolean', defaultValue: false, input: false },
