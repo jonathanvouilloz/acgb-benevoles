@@ -7,6 +7,8 @@
 	import { confirmAction } from '$lib/confirm.svelte';
 	import { toast } from '$lib/toast.svelte';
 	import PositionCard from '$lib/components/tournament/PositionCard.svelte';
+	import TournamentDateFields from '$lib/components/tournament/TournamentDateFields.svelte';
+	import { POSITION_PRESETS } from '$lib/position-presets';
 	import { formatDateRange, toDateInputValue } from '$lib/format';
 	import {
 		ArrowLeft,
@@ -30,6 +32,24 @@
 	let creatingPosition = $state(false);
 	let copied = $state(false);
 
+	// --- Ajout de postes (presets multi-sélection + custom) ---
+	let selectedPresets = $state<string[]>([]);
+	let customName = $state('');
+
+	const existingNames = $derived(new Set(t.positions.map((p) => p.name.trim().toLowerCase())));
+	const newPositionCount = $derived(selectedPresets.length + (customName.trim() ? 1 : 0));
+
+	function togglePreset(name: string) {
+		selectedPresets = selectedPresets.includes(name)
+			? selectedPresets.filter((n) => n !== name)
+			: [...selectedPresets, name];
+	}
+
+	function resetPositionForm() {
+		selectedPresets = [];
+		customName = '';
+	}
+
 	async function copyShareLink() {
 		const url = `${window.location.origin}/t/${t.shareToken}`;
 		await navigator.clipboard.writeText(url);
@@ -47,7 +67,7 @@
 	}
 
 	const tErrors = $derived(fieldErrors(form, 'updateTournament'));
-	const posErrors = $derived(fieldErrors(form, 'createPosition'));
+	const posErrors = $derived(fieldErrors(form, 'createPositions'));
 </script>
 
 <svelte:head><title>{t.name} — Bénévoles ACGB</title></svelte:head>
@@ -83,17 +103,11 @@
 			Lieu <span class="font-normal text-ink-muted">(optionnel)</span>
 			<Input name="location" type="text" value={t.location ?? ''} />
 		</label>
-		<div class="flex gap-3">
-			<label class="flex flex-1 flex-col gap-1 text-sm font-medium text-ink">
-				Début
-				<Input name="startDate" type="date" value={toDateInputValue(t.startDate)} />
-			</label>
-			<label class="flex flex-1 flex-col gap-1 text-sm font-medium text-ink">
-				Fin
-				<Input name="endDate" type="date" value={toDateInputValue(t.endDate)} />
-				{#if tErrors?.endDate}<span class="text-xs text-error">{tErrors.endDate[0]}</span>{/if}
-			</label>
-		</div>
+		<TournamentDateFields
+			start={toDateInputValue(t.startDate)}
+			end={toDateInputValue(t.endDate)}
+			errors={tErrors}
+		/>
 		<div class="flex gap-2">
 			<Button type="submit" size="sm"><Check size={16} /> Enregistrer</Button>
 			<Button type="button" size="sm" variant="ghost" onclick={() => (editingTournament = false)}>
@@ -196,31 +210,65 @@
 	</div>
 {/if}
 
-<!-- Ajout de poste (modale) -->
-<Modal bind:open={creatingPosition} title="Nouveau poste">
+<!-- Ajout de postes (modale) -->
+<Modal bind:open={creatingPosition} title="Ajouter des postes" onclose={resetPositionForm}>
 	<form
 		method="POST"
-		action="?/createPosition"
-		class="flex flex-col gap-3"
+		action="?/createPositions"
+		class="flex flex-col gap-4"
 		use:enhance={() =>
 			async ({ update, result }) => {
 				await update();
 				if (result.type === 'success') {
 					creatingPosition = false;
-					toast.success('Poste ajouté');
+					resetPositionForm();
+					toast.success('Postes ajoutés');
 				}
 			}}
 	>
+		<!-- Presets courants -->
+		<div class="flex flex-col gap-2">
+			<span class="text-sm font-medium text-ink">Postes courants</span>
+			<div class="flex flex-wrap gap-2">
+				{#each POSITION_PRESETS as preset (preset)}
+					{@const exists = existingNames.has(preset.toLowerCase())}
+					{@const active = selectedPresets.includes(preset)}
+					<button
+						type="button"
+						disabled={exists}
+						onclick={() => togglePreset(preset)}
+						class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition duration-150 {exists
+							? 'cursor-not-allowed border-border bg-surface-muted text-ink-muted/60'
+							: active
+								? 'border-brand-primary bg-brand-primary/10 text-brand-primary'
+								: 'border-border bg-surface text-ink-muted hover:border-ink-muted hover:text-ink'}"
+					>
+						{#if active || exists}<Check size={14} class="shrink-0" />{/if}
+						{preset}
+					</button>
+					{#if active}<input type="hidden" name="names" value={preset} />{/if}
+				{/each}
+			</div>
+			{#if POSITION_PRESETS.every((p) => existingNames.has(p.toLowerCase()))}
+				<p class="text-xs text-ink-muted">Tous les postes courants sont déjà ajoutés.</p>
+			{/if}
+		</div>
+
+		<!-- Poste custom -->
 		<label class="flex flex-col gap-1 text-sm font-medium text-ink">
-			Nom du poste
-			<Input name="name" type="text" placeholder="Buvette, Accueil, Arbitre…" />
-			{#if posErrors?.name}<span class="text-xs text-error">{posErrors.name[0]}</span>{/if}
+			Autre poste <span class="font-normal text-ink-muted">(optionnel)</span>
+			<Input name="names" type="text" bind:value={customName} placeholder="Vestiaire, Sono…" />
+			{#if posErrors?.names}<span class="text-xs font-normal text-error">{posErrors.names[0]}</span
+				>{/if}
 		</label>
+
 		<div class="flex justify-end gap-2">
 			<Button type="button" size="sm" variant="ghost" onclick={() => (creatingPosition = false)}>
 				Annuler
 			</Button>
-			<Button type="submit" size="sm"><Plus size={16} /> Ajouter</Button>
+			<Button type="submit" size="sm" disabled={newPositionCount === 0}>
+				<Plus size={16} /> Ajouter{newPositionCount > 0 ? ` (${newPositionCount})` : ''}
+			</Button>
 		</div>
 	</form>
 </Modal>

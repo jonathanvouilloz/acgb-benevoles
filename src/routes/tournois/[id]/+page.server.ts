@@ -57,27 +57,41 @@ export const actions: Actions = {
 		throw redirect(303, '/tournois');
 	},
 
-	createPosition: async ({ request, locals, params }) => {
+	createPositions: async ({ request, locals, params }) => {
 		const user = requireOrganizer(locals);
 		const form = await request.formData();
-		const values = {
-			name: String(form.get('name') ?? ''),
-			description: String(form.get('description') ?? '')
-		};
-		const parsed = positionSchema.safeParse(values);
-		if (!parsed.success) {
+
+		// Presets sélectionnés + champ custom arrivent tous sous le champ `names`.
+		const names = form
+			.getAll('names')
+			.map((n) => String(n).trim())
+			.filter(Boolean);
+
+		if (names.length === 0) {
 			return fail(400, {
-				action: 'createPosition',
-				errors: parsed.error.flatten().fieldErrors,
-				values
+				action: 'createPositions',
+				errors: { names: ['Sélectionne au moins un poste.'] }
 			});
 		}
-		try {
-			await createPosition(params.id, user.id, parsed.data);
-		} catch {
-			return forbidden('createPosition');
+
+		// Valide chaque nom (réutilise les règles de positionSchema).
+		for (const name of names) {
+			const parsed = positionSchema.safeParse({ name });
+			if (!parsed.success) {
+				const msg = parsed.error.flatten().fieldErrors.name?.[0] ?? 'Nom de poste invalide.';
+				return fail(400, { action: 'createPositions', errors: { names: [msg] } });
+			}
 		}
-		return { action: 'createPosition', success: true };
+
+		try {
+			// Création séquentielle : `assignPosteColor` recompte à chaque insert → couleurs distinctes.
+			for (const name of names) {
+				await createPosition(params.id, user.id, { name });
+			}
+		} catch {
+			return forbidden('createPositions');
+		}
+		return { action: 'createPositions', success: true };
 	},
 
 	updatePosition: async ({ request, locals }) => {

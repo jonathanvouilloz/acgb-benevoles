@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import TournamentDateFields from '$lib/components/tournament/TournamentDateFields.svelte';
 	import { toast } from '$lib/toast.svelte';
 	import { ArrowLeft } from 'lucide-svelte';
 	import type { ActionData } from './$types';
@@ -58,20 +59,11 @@
 			>{/if}
 	</label>
 
-	<div class="flex gap-3">
-		<label class="flex flex-1 flex-col gap-1 text-sm font-medium text-ink">
-			Début
-			<Input name="startDate" type="date" value={form?.values?.startDate ?? ''} />
-			{#if form?.errors?.startDate}<span class="text-xs text-error">{form.errors.startDate[0]}</span
-				>{/if}
-		</label>
-		<label class="flex flex-1 flex-col gap-1 text-sm font-medium text-ink">
-			Fin
-			<Input name="endDate" type="date" value={form?.values?.endDate ?? ''} />
-			{#if form?.errors?.endDate}<span class="text-xs text-error">{form.errors.endDate[0]}</span
-				>{/if}
-		</label>
-	</div>
+	<TournamentDateFields
+		start={form?.values?.startDate ?? ''}
+		end={form?.values?.endDate ?? ''}
+		errors={form?.errors}
+	/>
 
 	<Button type="submit" size="sm" disabled={submitting} class="mt-2">
 		{submitting ? 'Création…' : 'Créer le tournoi'}
