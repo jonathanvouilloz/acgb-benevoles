@@ -3,6 +3,24 @@
 **Complexité** : S
 **Statut** : EN COURS (code complet — prêt à tester)
 
+## Etat session 2026-06-24
+
+**Fait :**
+
+- Vue suivi transformée en outil **planning** : helper `planningByPoste(t, {positionId, day})` dans `recap.ts` (postes → créneaux, noms séparés `available` / `maybe`, capacité, `remaining`).
+- **Mobile** : nouvelle vue empilée `PlanningList.svelte` (carte par créneau, places X/Y colorées) — bascule auto `< lg` ; le desktop garde la matrice plein écran.
+- **Matrice** enrichie (`RecapMatrix.svelte`) : ligne d'en-tête « places X/Y » colorée par état, colonne des noms figée au scroll horizontal, légende.
+- **Impression A4 paysage** `PrintPlanning.svelte`, deux formats au choix (par poste / matrice) via `window.print()` ; `@page { size: A4 landscape }` dans `layout.css`, chrome masqué par `print:hidden`, `print-color-adjust: exact` pour garder les couleurs.
+- CSV export déjà en place (`toCsv`). `npm run check` vert (0 erreur / 0 warning). Aucune migration, aucun changement serveur.
+
+**Prochain :** Validation manuelle Jonathan (rendu impression « par poste » sur aperçu PDF + bascule mobile). Une fois confirmé → Epic 5 DONE.
+
+**Pièges :** le format **matrice imprimé** peut déborder si beaucoup de créneaux (choix assumé — « par poste » est le format robuste sans crop). Sticky vertical des en-têtes matrice abandonné (3 rangées d'en-tête) → seule la colonne des noms est figée.
+
+**Commit :** [758d3f1] feat(suivi): planning organisateur lisible + impression A4 paysage
+
+---
+
 ## Etat session 2026-06-23
 
 **Fait :**
@@ -31,25 +49,33 @@ Vue organisateur : voir qui s'est inscrit où, avec quel statut, et repérer d'u
 - [x] Affichage « X / Y places » par créneau.
 - [x] Distinction visuelle `disponible` vs `peut-être`.
 - [x] Mise en évidence des créneaux non remplis.
-- [ ] (Optionnel) export simple de la liste. _(reporté — hors scope MVP, confirmé)_
+- [x] (Optionnel) export simple de la liste. _(CSV — fait)_
+- [x] Vue empilée mobile (carte par créneau).
+- [x] Matrice desktop avec places X/Y + colonne des noms figée.
+- [x] Impression A4 paysage (par poste / matrice).
 
 ## Carte du code
 
-> Mise à jour : 2026-06-23
+> Mise à jour : 2026-06-24
 
 | Fichier | Rôle |
 | --- | --- |
-| `src/lib/server/services/signup-service.ts` | `getTournamentSignupsForOrganizer` (lecture gardée ownership) + helpers partagés `findTournamentRow` / `mapTournamentRow` (mutualisés avec la lecture publique bénévole). |
+| `src/lib/server/services/signup-service.ts` | `getTournamentSignupsForOrganizer` (lecture gardée ownership) + helpers `findTournamentRow` / `mapTournamentRow`. |
 | `src/routes/tournois/[id]/suivi/+page.server.ts` | `load` lecture seule, gardé `requireOrganizer`, 404 si non propriétaire. |
-| `src/routes/tournois/[id]/suivi/+page.svelte` | Vue suivi : en-tête tournoi, bandeau de synthèse (agrégat tous créneaux), postes → créneaux. |
-| `src/lib/components/tournament/TrackingShiftRow.svelte` | Ligne créneau read-only : ratio pourvues/capacité, mise en évidence des non-remplis, liste des inscrits. |
-| `src/routes/tournois/[id]/+page.svelte` | Bouton « Voir le suivi » vers la route de suivi. |
+| `src/routes/tournois/[id]/suivi/+page.svelte` | Orchestration : filtres, bascule mobile (cartes) / desktop (Tableau \| Matrice), déclenchement impression. |
+| `src/lib/recap.ts` | `flattenTournament` (lignes table + CSV) et `planningByPoste` (groupé postes → créneaux, source mobile + print). |
+| `src/lib/components/tracking/RecapToolbar.svelte` | Recherche, filtres, toggle de vue (desktop), boutons CSV + Imprimer (par poste / matrice). |
+| `src/lib/components/tracking/RecapTable.svelte` | Tableau plat triable (desktop). |
+| `src/lib/components/tracking/RecapMatrix.svelte` | Matrice bénévoles × créneaux : ligne places X/Y, colonne des noms figée. |
+| `src/lib/components/tracking/PlanningList.svelte` | Vue empilée mobile : carte par créneau (places, noms dispo / peut-être). |
+| `src/lib/components/tracking/PrintPlanning.svelte` | Planning imprimable A4 paysage, 2 formats (par poste / matrice), `hidden print:block`. |
+| `src/routes/layout.css` · `src/routes/+layout.svelte` | `@page` A4 paysage + masquage du chrome à l'impression (`print:hidden`). |
 
 ### Décisions clés
 
-- Page **dédiée** `/tournois/[id]/suivi` (séparée du CRUD) plutôt qu'intégrée à la page de gestion : sépare édition et lecture.
-- Réutilisation de la couche compteurs de l'Epic 4 plutôt qu'une requête SQL d'agrégation dédiée : `availableCount`/`maybeCount`/`isFull` déjà calculés côté métier.
-- Mise en évidence basée sur `isFull` → seules les places `available` comptent (les `maybe` n'ont jamais d'effet sur le « à pourvoir »).
+- Page **dédiée** `/tournois/[id]/suivi` (lecture seule), tout dérivé côté client à partir des compteurs Epic 4 — **aucun changement serveur/DB**.
+- **Impression = `window.print()`** (→ « Enregistrer en PDF »), sans dépendance ; format « par poste » garanti sans crop, « matrice » compact mais peut déborder.
+- Mise en évidence « à pourvoir » basée sur `isFull` (`available >= capacity`) → les `maybe` ne comptent jamais.
 
 ## Décisions techniques
 

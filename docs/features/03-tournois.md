@@ -1,7 +1,24 @@
 # Epic 3 — Tournois, postes & créneaux (orga)
 
 **Complexité** : L
-**Statut** : **DONE** (parcours orga validé manuellement le 2026-06-23)
+**Statut** : **DONE** (parcours orga validé le 2026-06-23 ; itérations UX création le 2026-06-24)
+
+## Etat session 2026-06-24
+
+**Fait :**
+
+- Modale d'ajout de postes refondue : **puces presets multi-sélection** (`position-presets.ts` : Buvette, Arbitre, Rangement, Médaille, Photos ; puce déjà présente → grisée) + champ custom. Action serveur `createPosition` → **`createPositions`** (batch `form.getAll('names')`, validation par nom via `positionSchema`, couleurs séquentielles préservées).
+- **Date picker clean** (bits-ui + @internationalized/date) : nouveau `DatePicker.svelte` (popover calendrier, locale fr-CH, lundi en tête) émettant un `<input hidden>` `YYYY-MM-DD` → contrat Zod/form **inchangé**. Remplace les `<input type="date">` natifs en création **et** édition.
+- `TournamentDateFields.svelte` : calendrier de début + sélecteur de durée **1 jour / 2 jours / Autre** (fin dérivée ; « Autre » révèle un 2e calendrier `minValue = début`), durée auto-déduite en édition.
+- 2 deps ajoutées (`bits-ui` 2.18, `@internationalized/date` 3.12). `npm run check` vert (0 / 0).
+
+**Prochain :** RAS bloquant. Tester le rendu mobile du popover calendrier ; valider la création multi-postes en un clic.
+
+**Pièges :** `Popover.Trigger` (bits-ui) rend un `<button>` → `type="button"` **obligatoire** sinon il soumet le form. Seed de `$state` depuis les props dans `TournamentDateFields` annoté `// svelte-ignore state_referenced_locally` (capture initiale voulue, props figées le temps du form).
+
+**Commit :** [1255901] feat(tournoi): postes pré-remplis + date picker bits-ui + durée 1j/2j
+
+---
 
 ## Etat session 2026-06-23
 
@@ -14,12 +31,13 @@
 
 ## Carte du code
 
-> Mise à jour : 2026-06-23
+> Mise à jour : 2026-06-24
 
 | Fichier                                          | Rôle                                                                                         |
 | ------------------------------------------------ | -------------------------------------------------------------------------------------------- |
 | `src/lib/schemas/{tournament,position,shift}.ts` | Validation Zod. `shift.ts` expose `toShiftTimestamps` (recompose jour + heures en UTC-naïf).  |
 | `src/lib/poste-colors.ts`                        | Palette 8 couleurs + `assignPosteColor(existingCount)` (cycle).                              |
+| `src/lib/position-presets.ts`                    | Postes courants proposés en puces (Buvette, Arbitre, Rangement, Médaille, Photos).          |
 | `src/lib/format.ts`                              | Formatage FR `timeZone: 'UTC'` + helpers `toDateInputValue` / `toTimeInputValue`.            |
 | `src/lib/server/auth-guard.ts`                   | `requireOrganizer(locals)` → redirect /login si anonyme, 403 si non-orga.                    |
 | `src/lib/server/services/tournament-service.ts`  | CRUD tournoi + `shareToken` (nanoid 10, anti-collision) + requête imbriquée postes/créneaux. |
@@ -27,8 +45,10 @@
 | `src/lib/server/services/shift-service.ts`       | CRUD créneaux, gardes d'appartenance (join position → tournament).                           |
 | `src/lib/server/db/schema.ts`                    | Ajout des `relations()` drizzle (aucune migration) pour `db.query ... with`.                 |
 | `src/routes/tournois/+page.*`                    | Dashboard : liste des tournois de l'orga + état vide.                                        |
-| `src/routes/tournois/nouveau/+page.*`            | Formulaire de création.                                                                      |
-| `src/routes/tournois/[id]/+page.*`               | Page de gestion unique : 8 actions nommées + postes/créneaux inline (`use:enhance`).         |
+| `src/routes/tournois/nouveau/+page.*`            | Création : `TournamentDateFields` (calendrier + durée).                                      |
+| `src/routes/tournois/[id]/+page.*`               | Gestion unique : actions nommées (dont **`createPositions`** batch), modale presets, édition avec `TournamentDateFields`. |
+| `src/lib/components/tournament/TournamentDateFields.svelte` | Date de début (`DatePicker`) + durée 1j/2j/Autre, fin dérivée (hidden `endDate`). |
+| `src/lib/components/ui/date-picker/DatePicker.svelte` | Calendrier popover (bits-ui), `type="button"` sur le trigger, hidden input `YYYY-MM-DD`. |
 | `src/lib/components/tournament/{PositionCard,ShiftRow}.svelte` | Présentation + édition inline d'un poste / créneau.                              |
 | `src/lib/components/ui/input/Input.svelte`       | Champ réutilisable (`border-border`).                                                        |
 
