@@ -18,7 +18,9 @@ import { isPrototype, stashPrototypeLink } from './prototype';
 export const auth = betterAuth({
 	database: drizzleAdapter(db, { provider: 'pg', schema }),
 	secret: env.BETTER_AUTH_SECRET,
-	baseURL: env.BETTER_AUTH_URL,
+	// Slash final retiré : un trailing slash fait dériver le basePath en `//api/auth`
+	// → le handler ne matche plus `/api/auth/*` et renvoie 404 (cf. isAuthPath de better-auth).
+	baseURL: env.BETTER_AUTH_URL?.replace(/\/+$/, ''),
 	user: {
 		additionalFields: {
 			isOrganizer: { type: 'boolean', defaultValue: false, input: false },
