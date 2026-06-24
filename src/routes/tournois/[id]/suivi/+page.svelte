@@ -4,10 +4,14 @@
 	import RecapToolbar from '$lib/components/tracking/RecapToolbar.svelte';
 	import RecapTable from '$lib/components/tracking/RecapTable.svelte';
 	import RecapMatrix from '$lib/components/tracking/RecapMatrix.svelte';
+	import RecapByVolunteer from '$lib/components/tracking/RecapByVolunteer.svelte';
+	import AssignmentDialog from '$lib/components/tracking/AssignmentDialog.svelte';
+	import ExportDialog from '$lib/components/tracking/ExportDialog.svelte';
+	import type { AssignRequest } from '$lib/components/tracking/assignment-types';
 	import PlanningList from '$lib/components/tracking/PlanningList.svelte';
 	import PrintPlanning from '$lib/components/tracking/PrintPlanning.svelte';
 	import { formatDateRange, toDateInputValue } from '$lib/format';
-	import { flattenTournament, planningByPoste, toCsv } from '$lib/recap';
+	import { flattenTournament, planningByPoste } from '$lib/recap';
 	import { dayOptions } from '$lib/time-options';
 	import { ArrowLeft, MapPin, CalendarDays } from 'lucide-svelte';
 	import type { PageData } from './$types';
@@ -40,7 +44,7 @@
 	let positionFilter = $state('all');
 	let dayFilter = $state('all');
 	let statusFilter = $state('all');
-	let view = $state<'table' | 'matrix'>('matrix');
+	let view = $state<'table' | 'matrix' | 'byVolunteer'>('matrix');
 
 	/** Planning groupé par poste — source de la vue empilée mobile (filtres poste + jour). */
 	const postes = $derived(planningByPoste(t, { positionId: positionFilter, day: dayFilter }));
@@ -65,20 +69,19 @@
 		});
 	});
 
-	function exportCsv() {
-		// BOM UTF-8 en tête pour qu'Excel (FR) lise correctement les accents.
-		const blob = new Blob(['﻿', toCsv(filtered)], { type: 'text/csv;charset=utf-8' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		const slug = t.name
-			.replace(/[^a-z0-9]+/gi, '-')
-			.replace(/^-+|-+$/g, '')
-			.toLowerCase();
-		a.href = url;
-		a.download = `suivi-${slug || 'tournoi'}.csv`;
-		a.click();
-		URL.revokeObjectURL(url);
-	}
+	/**
+	 * Bénévoles visibles après recherche/filtres — utilisé pour restreindre les lignes de la
+	 * matrice (qui, sinon, lit le tournoi brut et ignorait la recherche : bug corrigé).
+	 */
+	const visibleVolunteerIds = $derived(
+		new Set(filtered.filter((r) => r.status !== 'empty' && r.userId).map((r) => r.userId))
+	);
+
+	/** Requête d'affectation en attente de confirmation (échange / déplacement). */
+	let pending = $state<AssignRequest | null>(null);
+
+	/** Ouverture de la modale d'export Excel (choix du format). */
+	let exportOpen = $state(false);
 
 	let printFormat = $state<'poste' | 'matrix'>('poste');
 
@@ -115,7 +118,9 @@
 </div>
 
 <!-- Synthèse -->
-<div class="mt-4 flex flex-wrap gap-3 rounded-lg border border-border bg-surface-subtle p-4 print:hidden">
+<div
+	class="mt-4 flex flex-wrap gap-3 rounded-lg border border-border bg-surface-subtle p-4 print:hidden"
+>
 	<div class="flex-1">
 		<p class="text-2xl font-bold text-ink-strong">{summary.filled}/{summary.capacity}</p>
 		<p class="text-sm text-ink-muted">places pourvues</p>
@@ -148,7 +153,7 @@
 			bind:view
 			{positionOptions}
 			{dayFilterOptions}
-			onExport={exportCsv}
+			onExport={() => (exportOpen = true)}
 			onPrint={print}
 		/>
 
@@ -157,16 +162,32 @@
 			<PlanningList {postes} />
 		</div>
 
-		<!-- Desktop : tableau triable ou matrice plein écran -->
+		<!-- Desktop : tableau triable, matrice plein écran, ou cartes par bénévole -->
 		<div class="hidden lg:block">
 			{#if view === 'table'}
 				<RecapTable rows={filtered} />
+			{:else if view === 'byVolunteer'}
+				<RecapByVolunteer rows={filtered} />
 			{:else}
-				<RecapMatrix tournament={t} positionId={positionFilter} day={dayFilter} />
+				<RecapMatrix
+					tournament={t}
+					positionId={positionFilter}
+					day={dayFilter}
+					volunteerIds={visibleVolunteerIds}
+					{statusFilter}
+					interactive
+					onAssign={(req) => (pending = req)}
+				/>
 			{/if}
 		</div>
 	</div>
 {/if}
+
+<!-- Confirmation d'échange / déplacement (matrice interactive) -->
+<AssignmentDialog request={pending} onclose={() => (pending = null)} />
+
+<!-- Export Excel multi-format -->
+<ExportDialog bind:open={exportOpen} tournament={t} />
 
 <!-- Planning imprimable (invisible à l'écran, A4 paysage) -->
 <PrintPlanning tournament={t} format={printFormat} positionId={positionFilter} day={dayFilter} />

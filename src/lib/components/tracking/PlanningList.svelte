@@ -50,12 +50,13 @@
 							<!-- Bénévoles disponibles -->
 							{#if s.available.length > 0}
 								<ul class="mt-2 flex flex-wrap gap-1.5">
-									{#each s.available as name (name)}
+									{#each s.available as p (p.name)}
 										<li
 											class="inline-flex items-center gap-1 rounded-full bg-success/12 px-2 py-0.5 text-xs font-medium text-ink"
 										>
 											<Check size={13} class="shrink-0 text-success" />
-											{name}
+											{p.name}{#if p.note}<span class="font-normal text-ink-muted">· {p.note}</span
+												>{/if}
 										</li>
 									{/each}
 								</ul>
@@ -68,7 +69,7 @@
 								<p class="mt-1.5 flex flex-wrap items-center gap-1 text-xs text-warning">
 									<CircleHelp size={13} class="shrink-0" />
 									<span class="font-medium">Peut-être :</span>
-									{s.maybe.join(', ')}
+									{s.maybe.map((p) => (p.note ? `${p.name} (${p.note})` : p.name)).join(', ')}
 								</p>
 							{/if}
 						</article>

@@ -99,9 +99,9 @@ Pas de photo dans l'app (outil utilitaire). Si visuel ponctuel : photos d'action
 
 Section vivante — chaque composant signature s'y ajoute + sa démo sur `/styleguide`.
 
-| Composant             | Variantes                                                                                | Styleguide |
-| --------------------- | ---------------------------------------------------------------------------------------- | ---------- |
-| Button                | primary (marine) · secondary (teal) · ghost · danger · états hover/active/focus/disabled | à créer    |
+| Composant | Variantes                                                                                | Styleguide |
+| --------- | ---------------------------------------------------------------------------------------- | ---------- |
+| Button    | primary (marine) · secondary (teal) · ghost · danger · états hover/active/focus/disabled | à créer    |
 
 **Style bouton « glossy »** (inspiré des boutons d'animations.dev, couleurs ACGB conservées) : les variantes colorées (`primary`, `secondary`, `danger`) utilisent une skin réutilisable `.skin-glossy` + `.skin-{variant}` (cf. `src/routes/layout.css`) :
 
@@ -110,10 +110,10 @@ Section vivante — chaque composant signature s'y ajoute + sa démo sur `/style
 - **Hover** : `filter: brightness(1.07)` · **active** : `brightness(0.96)` (+ `scale(.98)` sur le gros bouton) · **disabled** : `filter: none`.
 - `ghost` reste plat (transparent, hover `bg-surface-muted`). Skin découplée de la taille.
 - **Tailles** (prop `size`) : `md` (défaut) `rounded-lg`/44px · `sm` `rounded`/32px (≈ `buy-button-small`). Les boutons compacts en ligne (`min-h-9`/36px) gardent leur classe inline.
-| StatusBadge           | disponible (teal) · peut-être (ambre) · complet (rouge)                                  | à créer    |
-| ShiftCard (créneau)   | places restantes, capacité, statut, action d'inscription                                 | à créer    |
-| PositionGroup (poste) | en-tête couleur auto + liste de créneaux                                                 | à créer    |
-| EmptyState            | générique                                                                                | à créer    |
-| Modal                 | backdrop + panneau centré · `bind:open` · Échap/clic backdrop pour fermer · scroll lock  | à créer    |
+  | StatusBadge | disponible (teal) · peut-être (ambre) · complet (rouge) | à créer |
+  | ShiftCard (créneau) | places restantes, capacité, statut, action d'inscription | à créer |
+  | PositionGroup (poste) | en-tête couleur auto + liste de créneaux | à créer |
+  | EmptyState | générique | à créer |
+  | Modal | backdrop + panneau centré · `bind:open` · Échap/clic backdrop pour fermer · scroll lock | à créer |
 
 > `/styleguide` (page live noindex) à créer pendant l'Epic 1, une fois SvelteKit scaffold.

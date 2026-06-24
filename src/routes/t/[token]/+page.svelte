@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 	import VolunteerShiftRow from '$lib/components/tournament/VolunteerShiftRow.svelte';
 	import EnableNotifications from '$lib/components/push/EnableNotifications.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { formatDateRange } from '$lib/format';
 	import { flattenShifts, splitByTime, nextOwnShift } from '$lib/volunteer-shifts';
-	import { CalendarDays, MapPin, LogIn, Star, ChevronDown } from 'lucide-svelte';
+	import { CalendarDays, MapPin, LogIn, Star, ChevronDown, User, Mail, Phone } from 'lucide-svelte';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -41,6 +42,44 @@
 		</p>
 	{/if}
 </header>
+
+<!-- Contact organisateur — pour joindre la personne qui gère le tournoi -->
+<section class="mt-4 rounded-lg border border-border bg-surface-subtle p-4">
+	<h2 class="flex items-center gap-1.5 text-sm font-semibold text-ink-strong">
+		<User size={15} /> Organisateur
+	</h2>
+	<div class="mt-2 flex flex-col gap-1 text-sm text-ink">
+		<span class="font-medium">{t.organizer.name}</span>
+		<a
+			href="mailto:{t.organizer.email}"
+			class="inline-flex w-fit items-center gap-1.5 text-ink-muted hover:text-brand-primary"
+		>
+			<Mail size={14} />
+			{t.organizer.email}
+		</a>
+		{#if t.organizer.phone}
+			<a
+				href="tel:{t.organizer.phone}"
+				class="inline-flex w-fit items-center gap-1.5 text-ink-muted hover:text-brand-primary"
+			>
+				<Phone size={14} />
+				{t.organizer.phone}
+			</a>
+		{/if}
+	</div>
+</section>
+
+{#if data.needsPhone}
+	<div class="mt-4 rounded-lg border border-warning/40 bg-warning/10 p-4">
+		<p class="text-sm text-ink">
+			Ajoute ton numéro de téléphone pour pouvoir t'inscrire (au cas où l'organisateur doit te
+			joindre).
+		</p>
+		<a href={resolve('/compte')} class="mt-2 inline-block">
+			<Button size="sm" variant="secondary"><Phone size={16} /> Compléter mon profil</Button>
+		</a>
+	</div>
+{/if}
 
 {#if !data.isLoggedIn}
 	<div

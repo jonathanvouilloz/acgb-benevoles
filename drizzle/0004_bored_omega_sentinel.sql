@@ -1,0 +1,1 @@
+ALTER TABLE "signup" ADD COLUMN "note" text;

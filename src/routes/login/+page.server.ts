@@ -137,7 +137,10 @@ export const actions: Actions = {
 
 		let link: string | null;
 		try {
-			link = await sendLink(request.headers, email, redirectTo, { name: fullName(parsed.data), phone });
+			link = await sendLink(request.headers, email, redirectTo, {
+				name: fullName(parsed.data),
+				phone
+			});
 		} catch {
 			return failure(502, {
 				mode,

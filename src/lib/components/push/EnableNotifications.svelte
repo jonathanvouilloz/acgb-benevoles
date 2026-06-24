@@ -101,7 +101,9 @@
 			<BellRing size={18} class="mt-0.5 shrink-0 text-info" />
 			<div class="text-sm text-ink">
 				<p class="font-medium text-ink-strong">Active les rappels</p>
-				<p class="text-ink-muted">Reçois une notification avant tes créneaux pour ne rien oublier.</p>
+				<p class="text-ink-muted">
+					Reçois une notification avant tes créneaux pour ne rien oublier.
+				</p>
 				{#if state === 'error'}
 					<p class="mt-1 text-error">Échec de l'activation. Réessaie.</p>
 				{/if}
@@ -122,7 +124,10 @@
 		<div class="text-sm text-ink">
 			<p class="font-medium text-ink-strong">Reçois les rappels sur iPhone</p>
 			<p class="text-ink-muted">
-				Ajoute l'app à ton écran d'accueil : appuie sur <Share size={14} class="inline align-text-bottom" />
+				Ajoute l'app à ton écran d'accueil : appuie sur <Share
+					size={14}
+					class="inline align-text-bottom"
+				/>
 				<span class="font-medium">Partager</span>, puis
 				<span class="font-medium">Sur l'écran d'accueil</span>
 				<Plus size={14} class="inline align-text-bottom" />. Ouvre ensuite l'app pour activer les
@@ -132,7 +137,7 @@
 	</div>
 {:else if state === 'denied'}
 	<p class="flex items-center gap-1.5 text-sm text-ink-muted">
-		<BellOff size={15} class="shrink-0" /> Notifications bloquées — autorise-les dans les réglages
-		du navigateur pour recevoir les rappels.
+		<BellOff size={15} class="shrink-0" /> Notifications bloquées — autorise-les dans les réglages du
+		navigateur pour recevoir les rappels.
 	</p>
 {/if}

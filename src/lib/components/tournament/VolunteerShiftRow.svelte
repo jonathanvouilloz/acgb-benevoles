@@ -32,6 +32,12 @@
 		form?.shiftId === shift.id && form?.formError ? (form.formError as string) : undefined
 	);
 
+	// Note libre du bénévole (pré-remplie avec sa note existante). Mirorée en input caché dans
+	// les forms d'inscription, et éditable seule via l'action `setNote`.
+	// svelte-ignore state_referenced_locally
+	let note = $state(shift.myNote ?? '');
+	const noteDirty = $derived(note.trim() !== (shift.myNote ?? ''));
+
 	/**
 	 * enhance + toast de succès. Le bouton « Me retirer » (formaction=?/unregister)
 	 * partage le formulaire d'un changeStatus : on distingue via l'action soumise.
@@ -104,6 +110,31 @@
 
 	<!-- Actions -->
 	{#if isLoggedIn && !past}
+		<!-- Note libre (précision / contrainte) -->
+		<label class="flex flex-col gap-1 pt-1 text-xs font-medium text-ink-muted">
+			Précision (optionnel)
+			<textarea
+				bind:value={note}
+				rows="1"
+				maxlength="280"
+				placeholder="ex : dès 18h, scoring uniquement…"
+				class="min-h-8 resize-y rounded border border-surface-border px-2 py-1 text-sm font-normal text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
+			></textarea>
+		</label>
+
+		{#if shift.myStatus !== null && noteDirty}
+			<form method="POST" action="?/setNote" use:enhance={signupEnhance('Note enregistrée')}>
+				<input type="hidden" name="shiftId" value={shift.id} />
+				<input type="hidden" name="note" value={note} />
+				<button
+					type="submit"
+					class="inline-flex min-h-8 items-center gap-1 rounded border border-brand-primary/40 bg-brand-primary/5 px-2.5 text-sm font-medium text-brand-primary hover:bg-brand-primary/10"
+				>
+					Enregistrer la note
+				</button>
+			</form>
+		{/if}
+
 		<div class="flex flex-wrap gap-2 pt-1">
 			{#if shift.myStatus === null}
 				<form
@@ -113,6 +144,7 @@
 				>
 					<input type="hidden" name="shiftId" value={shift.id} />
 					<input type="hidden" name="status" value="available" />
+					<input type="hidden" name="note" value={note} />
 					<button
 						type="submit"
 						disabled={shift.isFull}
@@ -128,6 +160,7 @@
 				>
 					<input type="hidden" name="shiftId" value={shift.id} />
 					<input type="hidden" name="status" value="maybe" />
+					<input type="hidden" name="note" value={note} />
 					<button
 						type="submit"
 						class="inline-flex min-h-9 items-center gap-1 rounded border border-border px-3 text-sm font-semibold text-ink hover:bg-surface-muted"
@@ -143,6 +176,7 @@
 				>
 					<input type="hidden" name="shiftId" value={shift.id} />
 					<input type="hidden" name="status" value="available" />
+					<input type="hidden" name="note" value={note} />
 					<button
 						type="submit"
 						disabled={shift.isFull}
@@ -160,6 +194,7 @@
 				>
 					<input type="hidden" name="shiftId" value={shift.id} />
 					<input type="hidden" name="status" value="maybe" />
+					<input type="hidden" name="note" value={note} />
 					<button
 						type="submit"
 						class="inline-flex min-h-9 items-center gap-1 rounded border border-border px-3 text-sm font-semibold text-ink hover:bg-surface-muted"

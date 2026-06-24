@@ -6,9 +6,24 @@ import { z } from 'zod';
  */
 export const statusSchema = z.enum(['available', 'maybe'], { message: 'Statut invalide' });
 
+/** Note libre optionnelle (vide → undefined). */
+export const noteSchema = z
+	.string()
+	.trim()
+	.max(280, 'Note trop longue (280 caractères max)')
+	.optional()
+	.or(z.literal('').transform(() => undefined));
+
 export const signupSchema = z.object({
 	shiftId: z.string().uuid('Créneau invalide'),
-	status: statusSchema
+	status: statusSchema,
+	note: noteSchema
+});
+
+/** Édition de la seule note d'une inscription. */
+export const noteUpdateSchema = z.object({
+	shiftId: z.string().uuid('Créneau invalide'),
+	note: noteSchema
 });
 
 export type SignupStatus = z.infer<typeof statusSchema>;

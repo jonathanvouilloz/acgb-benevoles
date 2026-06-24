@@ -64,7 +64,8 @@
 <div class="flex flex-col gap-1 text-sm font-medium text-ink">
 	Date de début
 	<DatePicker bind:value={startStr} name="startDate" placeholder="Choisir une date" />
-	{#if errors?.startDate}<span class="text-xs font-normal text-error">{errors.startDate[0]}</span>{/if}
+	{#if errors?.startDate}<span class="text-xs font-normal text-error">{errors.startDate[0]}</span
+		>{/if}
 </div>
 
 <div class="flex flex-col gap-1 text-sm font-medium text-ink">

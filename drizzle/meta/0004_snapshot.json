@@ -1,6 +1,6 @@
 {
-	"id": "071c251d-516a-49b7-920a-ced0cfa15014",
-	"prevId": "e549daec-8e00-4b57-a6b6-9d37af13315a",
+	"id": "811f4423-bab0-40c3-8af8-7a5122dc2bb4",
+	"prevId": "071c251d-516a-49b7-920a-ced0cfa15014",
 	"version": "7",
 	"dialect": "postgresql",
 	"tables": {
@@ -404,6 +404,12 @@
 					"typeSchema": "public",
 					"primaryKey": false,
 					"notNull": true
+				},
+				"note": {
+					"name": "note",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
 				},
 				"reminder_24_sent_at": {
 					"name": "reminder_24_sent_at",

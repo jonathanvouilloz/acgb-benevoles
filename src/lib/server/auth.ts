@@ -24,8 +24,8 @@ export const auth = betterAuth({
 	user: {
 		additionalFields: {
 			isOrganizer: { type: 'boolean', defaultValue: false, input: false },
-			// Téléphone optionnel : saisi (facultatif) à la création via le magic link, éditable dans /compte.
-			phone: { type: 'string', required: false, input: true }
+			// Téléphone obligatoire : saisi à la création via le magic link, éditable dans /compte.
+			phone: { type: 'string', required: true, input: true }
 		}
 	},
 	session: {

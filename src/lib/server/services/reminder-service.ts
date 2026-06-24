@@ -114,7 +114,9 @@ async function processPalier(palier: Palier, now: Date): Promise<number> {
 }
 
 /** Point d'entrée du cron : envoie tous les rappels dus à l'instant `now`. */
-export async function sendDueReminders(now = new Date()): Promise<{ sent24: number; sent2: number }> {
+export async function sendDueReminders(
+	now = new Date()
+): Promise<{ sent24: number; sent2: number }> {
 	const sent24 = await processPalier(PALIERS[0], now);
 	const sent2 = await processPalier(PALIERS[1], now);
 	return { sent24, sent2 };

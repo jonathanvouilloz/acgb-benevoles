@@ -125,6 +125,8 @@ export const signup = pgTable(
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),
 		status: signupStatus('status').notNull(),
+		// Note libre du bénévole (contrainte / précision : « dès 18h », « scoring uniquement »…).
+		note: text('note'),
 		// Rappels push (Epic 6) — horodatage du dernier envoi, garantit l'idempotence du cron
 		// indépendamment de sa fréquence (cf. reminder-service). `null` = pas encore envoyé.
 		reminder24SentAt: timestamp('reminder_24_sent_at'),
@@ -155,8 +157,13 @@ export const pushSubscription = pgTable(
  * `db.query.tournament.findFirst({ with: { positions: { with: { shifts: true } } } })`
  * utilisées par la page de gestion organisateur (Epic 3).
  */
-export const tournamentRelations = relations(tournament, ({ many }) => ({
-	positions: many(position)
+export const tournamentRelations = relations(tournament, ({ one, many }) => ({
+	positions: many(position),
+	// Organisateur (propriétaire) — permet d'exposer ses coordonnées aux bénévoles.
+	organizer: one(user, {
+		fields: [tournament.organizerId],
+		references: [user.id]
+	})
 }));
 
 export const positionRelations = relations(position, ({ one, many }) => ({

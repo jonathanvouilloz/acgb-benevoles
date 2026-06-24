@@ -9,7 +9,10 @@ import type { VolunteerTournament } from '$lib/server/services/signup-service';
 export type RecapStatus = 'available' | 'maybe' | 'empty';
 
 export type RecapRow = {
+	userId: string;
 	volunteerName: string;
+	phone: string | null;
+	note: string | null;
 	positionId: string;
 	positionName: string;
 	positionColor: string;
@@ -38,10 +41,24 @@ export function flattenTournament(t: VolunteerTournament): RecapRow[] {
 				endsAt: s.endsAt
 			};
 			if (s.signups.length === 0) {
-				rows.push({ ...base, volunteerName: '', status: 'empty' });
+				rows.push({
+					...base,
+					userId: '',
+					volunteerName: '',
+					phone: null,
+					note: null,
+					status: 'empty'
+				});
 			} else {
 				for (const su of s.signups) {
-					rows.push({ ...base, volunteerName: su.name, status: su.status });
+					rows.push({
+						...base,
+						userId: su.userId,
+						volunteerName: su.name,
+						phone: su.phone,
+						note: su.note,
+						status: su.status
+					});
 				}
 			}
 		}
@@ -55,7 +72,10 @@ export const STATUS_LABEL: Record<RecapStatus, string> = {
 	empty: 'À pourvoir'
 };
 
-/** Un créneau regroupé avec ses noms d'inscrits séparés par statut, prêt à l'affichage. */
+/** Un inscrit prêt à l'affichage : nom + sa note libre éventuelle. */
+export type PlanningPerson = { name: string; note: string | null };
+
+/** Un créneau regroupé avec ses inscrits séparés par statut, prêt à l'affichage. */
 export type PlanningShift = {
 	id: string;
 	startsAt: Date;
@@ -64,8 +84,8 @@ export type PlanningShift = {
 	availableCount: number;
 	remaining: number;
 	isFull: boolean;
-	available: string[];
-	maybe: string[];
+	available: PlanningPerson[];
+	maybe: PlanningPerson[];
 };
 
 export type PlanningPoste = {
@@ -99,8 +119,12 @@ export function planningByPoste(
 				availableCount: s.availableCount,
 				remaining: s.remaining,
 				isFull: s.isFull,
-				available: s.signups.filter((su) => su.status === 'available').map((su) => su.name),
-				maybe: s.signups.filter((su) => su.status === 'maybe').map((su) => su.name)
+				available: s.signups
+					.filter((su) => su.status === 'available')
+					.map((su) => ({ name: su.name, note: su.note })),
+				maybe: s.signups
+					.filter((su) => su.status === 'maybe')
+					.map((su) => ({ name: su.name, note: su.note }))
 			});
 		}
 		if (shifts.length > 0) out.push({ id: p.id, name: p.name, color: p.color, shifts });

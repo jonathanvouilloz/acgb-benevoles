@@ -99,7 +99,7 @@
 
 	{#if mode === 'signup'}
 		<label class="flex flex-col gap-1 text-sm font-medium text-ink">
-			Téléphone <span class="font-normal text-ink-muted">(optionnel)</span>
+			Téléphone
 			<input
 				name="phone"
 				type="tel"

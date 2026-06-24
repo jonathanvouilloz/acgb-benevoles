@@ -15,7 +15,7 @@
 
 **Prochain :** Test manuel par Jonathan (parcours bénévole de bout en bout, cf. Notes). Une fois validé → passer Epic 4 DONE et démarrer Epic 5 (Suivi du remplissage, orga).
 
-**Pièges :** `db.execute(sql\`…\`)` neon-http renvoie un objet avec `.rows` (pas un array direct) — c'est ce qui porte le `RETURNING`. Le bouton « Me retirer » utilise `formaction="?/unregister"` à l'intérieur du form `?/changeStatus` (override du submitter).
+**Pièges :** `db.execute(sql\`…\`)`neon-http renvoie un objet avec`.rows`(pas un array direct) — c'est ce qui porte le`RETURNING`. Le bouton « Me retirer » utilise `formaction="?/unregister"`à l'intérieur du form`?/changeStatus` (override du submitter).
 
 **Commit :** [b9bd87f] docs: Epic 4 — code complet, prêt à tester
 
@@ -27,7 +27,7 @@ Côté bénévole : via le lien partagé, voir le tournoi (postes, créneaux, pl
 
 ## Tâches
 
-- [x] Table `Signup` (id, shift_id, user_id, status, created_at) + unicité (shift_id + user_id). _(déjà migrée Epic 1)_
+- [x] Table `Signup` (id, shift*id, user_id, status, created_at) + unicité (shift_id + user_id). *(déjà migrée Epic 1)\_
 - [x] Page publique tournoi via `share_token` (lecture) — `/t/[token]`.
 - [x] Affichage des places restantes par créneau (recalcul à chaque `load`).
 - [x] Inscription : choix créneau + statut (`available` / `maybe`).
@@ -46,15 +46,15 @@ Côté bénévole : via le lien partagé, voir le tournoi (postes, créneaux, pl
 
 > Mise à jour : 2026-06-23
 
-| Fichier | Rôle |
-| --- | --- |
-| `src/lib/schemas/signup.ts` | Zod des actions d'inscription (`statusSchema`, `signupSchema`, `shiftId` + `status`). |
-| `src/lib/server/services/signup-service.ts` | Cœur de l'epic : lecture tournoi par `share_token` (compteurs + `myStatus` + noms), `createSignup` / `changeSignupStatus` / `deleteSignup` avec garde capacité atomique. |
-| `src/routes/t/[token]/+page.server.ts` | `load` public (404 si token inconnu) + actions `signup` / `changeStatus` / `unregister` gardées par `requireLogin`. |
-| `src/routes/t/[token]/+page.svelte` | Vue bénévole : en-tête tournoi, CTA déconnecté, postes → créneaux. |
-| `src/lib/components/tournament/VolunteerShiftRow.svelte` | Ligne créneau : places restantes, liste des inscrits (noms + statut), boutons d'action (mini-forms `enhance`). |
-| `src/lib/server/auth-guard.ts` | `requireLogin(locals, redirectTo)` + `safeRedirect` (anti open-redirect). |
-| `src/routes/login/+page.server.ts` + `.svelte` | Lit `?redirect`, le valide, le passe en `callbackURL` du magic link. |
+| Fichier                                                  | Rôle                                                                                                                                                                     |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/lib/schemas/signup.ts`                              | Zod des actions d'inscription (`statusSchema`, `signupSchema`, `shiftId` + `status`).                                                                                    |
+| `src/lib/server/services/signup-service.ts`              | Cœur de l'epic : lecture tournoi par `share_token` (compteurs + `myStatus` + noms), `createSignup` / `changeSignupStatus` / `deleteSignup` avec garde capacité atomique. |
+| `src/routes/t/[token]/+page.server.ts`                   | `load` public (404 si token inconnu) + actions `signup` / `changeStatus` / `unregister` gardées par `requireLogin`.                                                      |
+| `src/routes/t/[token]/+page.svelte`                      | Vue bénévole : en-tête tournoi, CTA déconnecté, postes → créneaux.                                                                                                       |
+| `src/lib/components/tournament/VolunteerShiftRow.svelte` | Ligne créneau : places restantes, liste des inscrits (noms + statut), boutons d'action (mini-forms `enhance`).                                                           |
+| `src/lib/server/auth-guard.ts`                           | `requireLogin(locals, redirectTo)` + `safeRedirect` (anti open-redirect).                                                                                                |
+| `src/routes/login/+page.server.ts` + `.svelte`           | Lit `?redirect`, le valide, le passe en `callbackURL` du magic link.                                                                                                     |
 
 ### Décisions clés
 

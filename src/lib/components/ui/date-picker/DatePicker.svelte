@@ -41,8 +41,7 @@
 	// Resync si le parent change `value` (ex : durée 2 jours recalcule la date de fin).
 	$effect(() => {
 		const next = toCal(value);
-		const same =
-			(!next && !dateValue) || (!!next && !!dateValue && next.compare(dateValue) === 0);
+		const same = (!next && !dateValue) || (!!next && !!dateValue && next.compare(dateValue) === 0);
 		if (!same) dateValue = next;
 	});
 

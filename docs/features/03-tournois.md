@@ -33,24 +33,24 @@
 
 > Mise à jour : 2026-06-24
 
-| Fichier                                          | Rôle                                                                                         |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `src/lib/schemas/{tournament,position,shift}.ts` | Validation Zod. `shift.ts` expose `toShiftTimestamps` (recompose jour + heures en UTC-naïf).  |
-| `src/lib/poste-colors.ts`                        | Palette 8 couleurs + `assignPosteColor(existingCount)` (cycle).                              |
-| `src/lib/position-presets.ts`                    | Postes courants proposés en puces (Buvette, Arbitre, Rangement, Médaille, Photos).          |
-| `src/lib/format.ts`                              | Formatage FR `timeZone: 'UTC'` + helpers `toDateInputValue` / `toTimeInputValue`.            |
-| `src/lib/server/auth-guard.ts`                   | `requireOrganizer(locals)` → redirect /login si anonyme, 403 si non-orga.                    |
-| `src/lib/server/services/tournament-service.ts`  | CRUD tournoi + `shareToken` (nanoid 10, anti-collision) + requête imbriquée postes/créneaux. |
-| `src/lib/server/services/position-service.ts`    | CRUD postes, couleur auto, gardes d'appartenance (join tournament.organizerId).              |
-| `src/lib/server/services/shift-service.ts`       | CRUD créneaux, gardes d'appartenance (join position → tournament).                           |
-| `src/lib/server/db/schema.ts`                    | Ajout des `relations()` drizzle (aucune migration) pour `db.query ... with`.                 |
-| `src/routes/tournois/+page.*`                    | Dashboard : liste des tournois de l'orga + état vide.                                        |
-| `src/routes/tournois/nouveau/+page.*`            | Création : `TournamentDateFields` (calendrier + durée).                                      |
-| `src/routes/tournois/[id]/+page.*`               | Gestion unique : actions nommées (dont **`createPositions`** batch), modale presets, édition avec `TournamentDateFields`. |
-| `src/lib/components/tournament/TournamentDateFields.svelte` | Date de début (`DatePicker`) + durée 1j/2j/Autre, fin dérivée (hidden `endDate`). |
-| `src/lib/components/ui/date-picker/DatePicker.svelte` | Calendrier popover (bits-ui), `type="button"` sur le trigger, hidden input `YYYY-MM-DD`. |
-| `src/lib/components/tournament/{PositionCard,ShiftRow}.svelte` | Présentation + édition inline d'un poste / créneau.                              |
-| `src/lib/components/ui/input/Input.svelte`       | Champ réutilisable (`border-border`).                                                        |
+| Fichier                                                        | Rôle                                                                                                                      |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/schemas/{tournament,position,shift}.ts`               | Validation Zod. `shift.ts` expose `toShiftTimestamps` (recompose jour + heures en UTC-naïf).                              |
+| `src/lib/poste-colors.ts`                                      | Palette 8 couleurs + `assignPosteColor(existingCount)` (cycle).                                                           |
+| `src/lib/position-presets.ts`                                  | Postes courants proposés en puces (Buvette, Arbitre, Rangement, Médaille, Photos).                                        |
+| `src/lib/format.ts`                                            | Formatage FR `timeZone: 'UTC'` + helpers `toDateInputValue` / `toTimeInputValue`.                                         |
+| `src/lib/server/auth-guard.ts`                                 | `requireOrganizer(locals)` → redirect /login si anonyme, 403 si non-orga.                                                 |
+| `src/lib/server/services/tournament-service.ts`                | CRUD tournoi + `shareToken` (nanoid 10, anti-collision) + requête imbriquée postes/créneaux.                              |
+| `src/lib/server/services/position-service.ts`                  | CRUD postes, couleur auto, gardes d'appartenance (join tournament.organizerId).                                           |
+| `src/lib/server/services/shift-service.ts`                     | CRUD créneaux, gardes d'appartenance (join position → tournament).                                                        |
+| `src/lib/server/db/schema.ts`                                  | Ajout des `relations()` drizzle (aucune migration) pour `db.query ... with`.                                              |
+| `src/routes/tournois/+page.*`                                  | Dashboard : liste des tournois de l'orga + état vide.                                                                     |
+| `src/routes/tournois/nouveau/+page.*`                          | Création : `TournamentDateFields` (calendrier + durée).                                                                   |
+| `src/routes/tournois/[id]/+page.*`                             | Gestion unique : actions nommées (dont **`createPositions`** batch), modale presets, édition avec `TournamentDateFields`. |
+| `src/lib/components/tournament/TournamentDateFields.svelte`    | Date de début (`DatePicker`) + durée 1j/2j/Autre, fin dérivée (hidden `endDate`).                                         |
+| `src/lib/components/ui/date-picker/DatePicker.svelte`          | Calendrier popover (bits-ui), `type="button"` sur le trigger, hidden input `YYYY-MM-DD`.                                  |
+| `src/lib/components/tournament/{PositionCard,ShiftRow}.svelte` | Présentation + édition inline d'un poste / créneau.                                                                       |
+| `src/lib/components/ui/input/Input.svelte`                     | Champ réutilisable (`border-border`).                                                                                     |
 
 ## Description
 

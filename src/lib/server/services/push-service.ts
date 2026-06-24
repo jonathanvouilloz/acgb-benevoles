@@ -24,7 +24,11 @@ function ensureConfigured(): void {
 	if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
 		throw new Error('Clés VAPID manquantes : impossible d’envoyer une notification push.');
 	}
-	webpush.setVapidDetails(VAPID_SUBJECT ?? 'mailto:contact@acgb.ch', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+	webpush.setVapidDetails(
+		VAPID_SUBJECT ?? 'mailto:contact@acgb.ch',
+		VAPID_PUBLIC_KEY,
+		VAPID_PRIVATE_KEY
+	);
 	configured = true;
 }
 

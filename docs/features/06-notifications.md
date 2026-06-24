@@ -53,18 +53,18 @@ Notifications push (PWA) pour rappeler aux bénévoles leurs créneaux à venir.
 
 > Mise à jour : 2026-06-23
 
-| Fichier | Rôle |
-| --- | --- |
-| `src/lib/schemas/push.ts` | Zod `pushSubscriptionSchema` (forme `PushSubscription.toJSON()`). |
-| `src/lib/server/services/push-service.ts` | `savePushSubscription` (upsert endpoint) / `deletePushSubscription` / `sendPush` (web-push + cleanup 404/410). |
-| `src/lib/server/services/reminder-service.ts` | `sendDueReminders(now)` : paliers 24h/2h, idempotence via `reminder_24/2_sent_at`. |
-| `src/routes/api/push/subscribe/+server.ts` | `POST`/`DELETE` souscription (gardé `locals.user`). |
-| `src/routes/api/cron/reminders/+server.ts` | `GET` envoi des rappels, gardé `Bearer $CRON_SECRET`. |
-| `src/service-worker.ts` | Handlers `push` + `notificationclick`. |
-| `src/lib/components/push/EnableNotifications.svelte` | Opt-in client (support-guard, subscribe, POST). |
-| `src/routes/t/[token]/+page.svelte` | Bandeau « Activer les rappels » (connecté). |
-| `src/lib/server/db/schema.ts` | Colonnes rappels + unique endpoint. |
-| `vercel.json` | Cron horaire. |
+| Fichier                                              | Rôle                                                                                                           |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `src/lib/schemas/push.ts`                            | Zod `pushSubscriptionSchema` (forme `PushSubscription.toJSON()`).                                              |
+| `src/lib/server/services/push-service.ts`            | `savePushSubscription` (upsert endpoint) / `deletePushSubscription` / `sendPush` (web-push + cleanup 404/410). |
+| `src/lib/server/services/reminder-service.ts`        | `sendDueReminders(now)` : paliers 24h/2h, idempotence via `reminder_24/2_sent_at`.                             |
+| `src/routes/api/push/subscribe/+server.ts`           | `POST`/`DELETE` souscription (gardé `locals.user`).                                                            |
+| `src/routes/api/cron/reminders/+server.ts`           | `GET` envoi des rappels, gardé `Bearer $CRON_SECRET`.                                                          |
+| `src/service-worker.ts`                              | Handlers `push` + `notificationclick`.                                                                         |
+| `src/lib/components/push/EnableNotifications.svelte` | Opt-in client (support-guard, subscribe, POST).                                                                |
+| `src/routes/t/[token]/+page.svelte`                  | Bandeau « Activer les rappels » (connecté).                                                                    |
+| `src/lib/server/db/schema.ts`                        | Colonnes rappels + unique endpoint.                                                                            |
+| `vercel.json`                                        | Cron horaire.                                                                                                  |
 
 ## Décisions techniques
 

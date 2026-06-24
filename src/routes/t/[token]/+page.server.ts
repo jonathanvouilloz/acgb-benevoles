@@ -1,11 +1,12 @@
 import { error, fail } from '@sveltejs/kit';
 import { requireLogin } from '$lib/server/auth-guard';
-import { signupSchema } from '$lib/schemas/signup';
+import { signupSchema, noteUpdateSchema } from '$lib/schemas/signup';
 import {
 	getTournamentByShareToken,
 	createSignup,
 	changeSignupStatus,
-	deleteSignup
+	deleteSignup,
+	setSignupNote
 } from '$lib/server/services/signup-service';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -17,7 +18,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	return {
 		tournament,
 		isLoggedIn: !!locals.user,
-		me: locals.user ? { id: locals.user.id, name: locals.user.name } : null
+		me: locals.user ? { id: locals.user.id, name: locals.user.name } : null,
+		// Téléphone désormais obligatoire : on invite les comptes existants sans numéro à
+		// compléter leur profil avant de pouvoir s'inscrire (cf. action `signup`).
+		needsPhone: !!locals.user && !locals.user.phone
 	};
 };
 
@@ -41,7 +45,8 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const parsed = signupSchema.safeParse({
 			shiftId: String(form.get('shiftId') ?? ''),
-			status: String(form.get('status') ?? '')
+			status: String(form.get('status') ?? ''),
+			note: String(form.get('note') ?? '')
 		});
 		if (!parsed.success) {
 			return fail(400, {
@@ -51,8 +56,19 @@ export const actions: Actions = {
 			});
 		}
 
+		// Garde-fou : le téléphone est obligatoire (joignabilité). Les comptes créés avant
+		// cette règle peuvent ne pas en avoir → on bloque l'inscription tant qu'il manque.
+		if (!user.phone) {
+			return fail(400, {
+				action: 'signup',
+				shiftId: parsed.data.shiftId,
+				needsPhone: true,
+				formError: 'Ajoute ton téléphone dans « Mon compte » avant de t’inscrire.'
+			});
+		}
+
 		try {
-			await createSignup(parsed.data.shiftId, user.id, parsed.data.status);
+			await createSignup(parsed.data.shiftId, user.id, parsed.data.status, parsed.data.note);
 		} catch (err) {
 			return signupError('signup', parsed.data.shiftId, err);
 		}
@@ -64,7 +80,8 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const parsed = signupSchema.safeParse({
 			shiftId: String(form.get('shiftId') ?? ''),
-			status: String(form.get('status') ?? '')
+			status: String(form.get('status') ?? ''),
+			note: String(form.get('note') ?? '')
 		});
 		if (!parsed.success) {
 			return fail(400, {
@@ -75,7 +92,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			await changeSignupStatus(parsed.data.shiftId, user.id, parsed.data.status);
+			await changeSignupStatus(parsed.data.shiftId, user.id, parsed.data.status, parsed.data.note);
 		} catch (err) {
 			const mapped = signupError('changeStatus', parsed.data.shiftId, err);
 			// Pour `available` complet, message plus précis.
@@ -102,5 +119,24 @@ export const actions: Actions = {
 
 		await deleteSignup(parsed.data.shiftId, user.id);
 		return { action: 'unregister', shiftId: parsed.data.shiftId, success: true };
+	},
+
+	setNote: async ({ request, locals, params }) => {
+		const user = requireLogin(locals, `/t/${params.token}`);
+		const form = await request.formData();
+		const parsed = noteUpdateSchema.safeParse({
+			shiftId: String(form.get('shiftId') ?? ''),
+			note: String(form.get('note') ?? '')
+		});
+		if (!parsed.success) {
+			return fail(400, {
+				action: 'setNote',
+				shiftId: String(form.get('shiftId') ?? ''),
+				formError: 'Note invalide.'
+			});
+		}
+
+		await setSignupNote(parsed.data.shiftId, user.id, parsed.data.note);
+		return { action: 'setNote', shiftId: parsed.data.shiftId, success: true };
 	}
 };

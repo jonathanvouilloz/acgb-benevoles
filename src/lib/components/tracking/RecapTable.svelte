@@ -91,7 +91,10 @@
 							{#if row.status === 'empty'}
 								<span class="text-ink-muted">—</span>
 							{:else}
-								{row.volunteerName}
+								<div>{row.volunteerName}</div>
+								{#if row.note}
+									<div class="text-xs italic text-ink-muted">« {row.note} »</div>
+								{/if}
 							{/if}
 						</td>
 						<td class="px-4 py-3 text-ink">

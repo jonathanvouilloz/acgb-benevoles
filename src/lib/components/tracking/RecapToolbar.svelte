@@ -1,9 +1,20 @@
 <script lang="ts">
+	import { DropdownMenu } from 'bits-ui';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Select } from '$lib/components/ui/select';
 	import type { Option } from '$lib/time-options';
-	import { Download, Table2, LayoutGrid, Search, Printer } from 'lucide-svelte';
+	import {
+		FileSpreadsheet,
+		Table2,
+		LayoutGrid,
+		Users,
+		Search,
+		Printer,
+		ChevronDown
+	} from 'lucide-svelte';
+
+	type View = 'table' | 'matrix' | 'byVolunteer';
 
 	let {
 		search = $bindable(''),
@@ -20,12 +31,18 @@
 		positionFilter?: string;
 		dayFilter?: string;
 		statusFilter?: string;
-		view?: 'table' | 'matrix';
+		view?: View;
 		positionOptions: Option[];
 		dayFilterOptions: Option[];
 		onExport: () => void;
 		onPrint: (format: 'poste' | 'matrix') => void;
 	} = $props();
+
+	const views: { value: View; label: string; icon: typeof Table2 }[] = [
+		{ value: 'matrix', label: 'Matrice', icon: LayoutGrid },
+		{ value: 'table', label: 'Tableau', icon: Table2 },
+		{ value: 'byVolunteer', label: 'Par bénévole', icon: Users }
+	];
 
 	const statusOptions: Option[] = [
 		{ value: 'all', label: 'Tous les statuts' },
@@ -43,61 +60,58 @@
 				size={16}
 				class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted"
 			/>
-			<Input
-				type="search"
-				placeholder="Rechercher un bénévole…"
-				bind:value={search}
-				class="pl-9"
-			/>
+			<Input type="search" placeholder="Rechercher un bénévole…" bind:value={search} class="pl-9" />
 		</div>
 
 		<!-- Bascule de vue (desktop : la matrice prend tout l'écran ; sur mobile, vue empilée auto) -->
 		<div class="hidden shrink-0 overflow-hidden rounded border border-border lg:flex">
-			<button
-				type="button"
-				onclick={() => (view = 'table')}
-				class="inline-flex min-h-8 items-center gap-1.5 px-3 text-sm font-medium transition duration-150 {view ===
-				'table'
-					? 'skin-glossy skin-primary text-white'
-					: 'bg-surface text-ink-muted hover:bg-surface-muted'}"
-			>
-				<Table2 size={15} /> Tableau
-			</button>
-			<button
-				type="button"
-				onclick={() => (view = 'matrix')}
-				class="inline-flex min-h-8 items-center gap-1.5 border-l border-border px-3 text-sm font-medium transition duration-150 {view ===
-				'matrix'
-					? 'skin-glossy skin-primary text-white'
-					: 'bg-surface text-ink-muted hover:bg-surface-muted'}"
-			>
-				<LayoutGrid size={15} /> Matrice
-			</button>
+			{#each views as v (v.value)}
+				{@const Icon = v.icon}
+				<button
+					type="button"
+					onclick={() => (view = v.value)}
+					class="inline-flex min-h-8 items-center gap-1.5 px-3 text-sm font-medium transition duration-150 not-first:border-l not-first:border-border {view ===
+					v.value
+						? 'skin-glossy skin-primary text-white'
+						: 'bg-surface text-ink-muted hover:bg-surface-muted'}"
+				>
+					<Icon size={15} />
+					{v.label}
+				</button>
+			{/each}
 		</div>
 
-		<!-- Impression : deux mises en page au choix -->
-		<div class="flex shrink-0 items-center overflow-hidden rounded border border-border">
-			<span class="inline-flex items-center gap-1 px-2 text-xs font-medium text-ink-muted">
-				<Printer size={14} /> Imprimer
-			</span>
-			<button
-				type="button"
-				onclick={() => onPrint('poste')}
-				class="min-h-8 border-l border-border bg-surface px-2.5 text-sm font-medium text-ink-muted transition duration-150 hover:bg-surface-muted hover:text-ink"
+		<!-- Impression : menu déroulant (lève l'ambiguïté de l'ancien faux bouton « Imprimer ») -->
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger
+				class="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded border border-border bg-surface px-3 text-sm font-medium text-ink-muted transition duration-150 hover:bg-surface-muted hover:text-ink"
 			>
-				Par poste
-			</button>
-			<button
-				type="button"
-				onclick={() => onPrint('matrix')}
-				class="min-h-8 border-l border-border bg-surface px-2.5 text-sm font-medium text-ink-muted transition duration-150 hover:bg-surface-muted hover:text-ink"
-			>
-				Matrice
-			</button>
-		</div>
+				<Printer size={15} /> Imprimer <ChevronDown size={14} />
+			</DropdownMenu.Trigger>
+			<DropdownMenu.Portal>
+				<DropdownMenu.Content
+					sideOffset={6}
+					class="z-50 min-w-44 rounded-lg border border-border bg-surface p-1"
+					style="box-shadow: var(--shadow-md)"
+				>
+					<DropdownMenu.Item
+						onSelect={() => onPrint('poste')}
+						class="flex cursor-pointer items-center gap-2 rounded px-3 py-1.5 text-sm text-ink outline-none data-highlighted:bg-surface-muted"
+					>
+						Planning par poste
+					</DropdownMenu.Item>
+					<DropdownMenu.Item
+						onSelect={() => onPrint('matrix')}
+						class="flex cursor-pointer items-center gap-2 rounded px-3 py-1.5 text-sm text-ink outline-none data-highlighted:bg-surface-muted"
+					>
+						Matrice
+					</DropdownMenu.Item>
+				</DropdownMenu.Content>
+			</DropdownMenu.Portal>
+		</DropdownMenu.Root>
 
 		<Button type="button" variant="ghost" size="sm" onclick={onExport} class="shrink-0">
-			<Download size={15} /> CSV
+			<FileSpreadsheet size={15} /> Excel
 		</Button>
 	</div>
 
