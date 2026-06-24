@@ -29,16 +29,20 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
-<div class="mx-auto min-h-dvh w-full px-4 py-6 {wide ? 'max-w-6xl' : 'max-w-[640px]'}">
+<div
+	class="mx-auto min-h-dvh w-full px-4 py-6 print:max-w-none print:p-0 {wide
+		? 'max-w-6xl'
+		: 'max-w-[640px]'}"
+>
 	{#if data.prototype}
 		<p
-			class="mb-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-1.5 text-center text-xs font-medium text-ink-muted"
+			class="mb-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-1.5 text-center text-xs font-medium text-ink-muted print:hidden"
 		>
 			Mode démo — connexion sans email, données de test
 		</p>
 	{/if}
 
-	<header class="mb-6 flex items-center justify-between gap-3">
+	<header class="mb-6 flex items-center justify-between gap-3 print:hidden">
 		<a href={resolve('/')} class="text-sm font-semibold text-brand-primary">Bénévoles ACGB</a>
 		{#if data.user}
 			<div class="flex items-center gap-3 text-sm">
@@ -73,5 +77,7 @@
 </div>
 
 <!-- Singletons globaux : feedback transitoire + confirmations -->
-<Toaster />
-<ConfirmDialog />
+<div class="print:hidden">
+	<Toaster />
+	<ConfirmDialog />
+</div>

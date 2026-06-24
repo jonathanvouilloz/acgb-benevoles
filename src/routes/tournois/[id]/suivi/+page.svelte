@@ -1,10 +1,13 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { resolve } from '$app/paths';
 	import RecapToolbar from '$lib/components/tracking/RecapToolbar.svelte';
 	import RecapTable from '$lib/components/tracking/RecapTable.svelte';
 	import RecapMatrix from '$lib/components/tracking/RecapMatrix.svelte';
+	import PlanningList from '$lib/components/tracking/PlanningList.svelte';
+	import PrintPlanning from '$lib/components/tracking/PrintPlanning.svelte';
 	import { formatDateRange, toDateInputValue } from '$lib/format';
-	import { flattenTournament, toCsv } from '$lib/recap';
+	import { flattenTournament, planningByPoste, toCsv } from '$lib/recap';
 	import { dayOptions } from '$lib/time-options';
 	import { ArrowLeft, MapPin, CalendarDays } from 'lucide-svelte';
 	import type { PageData } from './$types';
@@ -37,7 +40,10 @@
 	let positionFilter = $state('all');
 	let dayFilter = $state('all');
 	let statusFilter = $state('all');
-	let view = $state<'table' | 'matrix'>('table');
+	let view = $state<'table' | 'matrix'>('matrix');
+
+	/** Planning groupé par poste — source de la vue empilée mobile (filtres poste + jour). */
+	const postes = $derived(planningByPoste(t, { positionId: positionFilter, day: dayFilter }));
 
 	const positionOptions = $derived([
 		{ value: 'all', label: 'Tous les postes' },
@@ -73,19 +79,28 @@
 		a.click();
 		URL.revokeObjectURL(url);
 	}
+
+	let printFormat = $state<'poste' | 'matrix'>('poste');
+
+	/** Choisit la mise en page d'impression puis ouvre le dialogue navigateur (→ « Enregistrer en PDF »). */
+	async function print(format: 'poste' | 'matrix') {
+		printFormat = format;
+		await tick();
+		window.print();
+	}
 </script>
 
 <svelte:head><title>Suivi — {t.name} — Bénévoles ACGB</title></svelte:head>
 
 <a
 	href={resolve('/tournois/[id]', { id: t.id })}
-	class="inline-flex items-center gap-1 text-sm text-ink-muted transition-colors hover:text-ink"
+	class="inline-flex items-center gap-1 text-sm text-ink-muted transition-colors hover:text-ink print:hidden"
 >
 	<ArrowLeft size={16} /> Gestion du tournoi
 </a>
 
 <!-- En-tête -->
-<div class="mt-3">
+<div class="mt-3 print:hidden">
 	<h1 class="text-2xl font-bold text-ink-strong">{t.name}</h1>
 	<p class="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
 		<CalendarDays size={15} />
@@ -100,7 +115,7 @@
 </div>
 
 <!-- Synthèse -->
-<div class="mt-4 flex flex-wrap gap-3 rounded-lg border border-border bg-surface-subtle p-4">
+<div class="mt-4 flex flex-wrap gap-3 rounded-lg border border-border bg-surface-subtle p-4 print:hidden">
 	<div class="flex-1">
 		<p class="text-2xl font-bold text-ink-strong">{summary.filled}/{summary.capacity}</p>
 		<p class="text-sm text-ink-muted">places pourvues</p>
@@ -122,9 +137,9 @@
 
 <!-- Récap -->
 {#if t.positions.length === 0}
-	<p class="mt-8 text-sm text-ink-muted">Aucun poste pour ce tournoi.</p>
+	<p class="mt-8 text-sm text-ink-muted print:hidden">Aucun poste pour ce tournoi.</p>
 {:else}
-	<div class="fade-up mt-6 flex flex-col gap-4">
+	<div class="fade-up mt-6 flex flex-col gap-4 print:hidden">
 		<RecapToolbar
 			bind:search
 			bind:positionFilter
@@ -134,12 +149,24 @@
 			{positionOptions}
 			{dayFilterOptions}
 			onExport={exportCsv}
+			onPrint={print}
 		/>
 
-		{#if view === 'table'}
-			<RecapTable rows={filtered} />
-		{:else}
-			<RecapMatrix tournament={t} />
-		{/if}
+		<!-- Mobile : vue empilée par créneau (lecture verticale, aucun scroll horizontal) -->
+		<div class="lg:hidden">
+			<PlanningList {postes} />
+		</div>
+
+		<!-- Desktop : tableau triable ou matrice plein écran -->
+		<div class="hidden lg:block">
+			{#if view === 'table'}
+				<RecapTable rows={filtered} />
+			{:else}
+				<RecapMatrix tournament={t} positionId={positionFilter} day={dayFilter} />
+			{/if}
+		</div>
 	</div>
 {/if}
+
+<!-- Planning imprimable (invisible à l'écran, A4 paysage) -->
+<PrintPlanning tournament={t} format={printFormat} positionId={positionFilter} day={dayFilter} />

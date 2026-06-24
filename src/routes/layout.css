@@ -105,3 +105,21 @@
 		}
 	}
 }
+
+/* Impression — planning bénévoles en A4 paysage (cf. PrintPlanning.svelte).
+   Le chrome applicatif est masqué via `print:hidden` ; ici on règle la page,
+   le fond et la préservation des couleurs. */
+@media print {
+	@page {
+		size: A4 landscape;
+		margin: 8mm;
+	}
+	html,
+	body {
+		background: #fff;
+	}
+	body {
+		-webkit-print-color-adjust: exact;
+		print-color-adjust: exact;
+	}
+}

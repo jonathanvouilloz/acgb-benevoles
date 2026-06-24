@@ -3,7 +3,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Select } from '$lib/components/ui/select';
 	import type { Option } from '$lib/time-options';
-	import { Download, Table2, LayoutGrid, Search } from 'lucide-svelte';
+	import { Download, Table2, LayoutGrid, Search, Printer } from 'lucide-svelte';
 
 	let {
 		search = $bindable(''),
@@ -13,7 +13,8 @@
 		view = $bindable('table'),
 		positionOptions,
 		dayFilterOptions,
-		onExport
+		onExport,
+		onPrint
 	}: {
 		search?: string;
 		positionFilter?: string;
@@ -23,6 +24,7 @@
 		positionOptions: Option[];
 		dayFilterOptions: Option[];
 		onExport: () => void;
+		onPrint: (format: 'poste' | 'matrix') => void;
 	} = $props();
 
 	const statusOptions: Option[] = [
@@ -49,8 +51,8 @@
 			/>
 		</div>
 
-		<!-- Bascule de vue -->
-		<div class="flex shrink-0 overflow-hidden rounded border border-border">
+		<!-- Bascule de vue (desktop : la matrice prend tout l'écran ; sur mobile, vue empilée auto) -->
+		<div class="hidden shrink-0 overflow-hidden rounded border border-border lg:flex">
 			<button
 				type="button"
 				onclick={() => (view = 'table')}
@@ -70,6 +72,27 @@
 					: 'bg-surface text-ink-muted hover:bg-surface-muted'}"
 			>
 				<LayoutGrid size={15} /> Matrice
+			</button>
+		</div>
+
+		<!-- Impression : deux mises en page au choix -->
+		<div class="flex shrink-0 items-center overflow-hidden rounded border border-border">
+			<span class="inline-flex items-center gap-1 px-2 text-xs font-medium text-ink-muted">
+				<Printer size={14} /> Imprimer
+			</span>
+			<button
+				type="button"
+				onclick={() => onPrint('poste')}
+				class="min-h-8 border-l border-border bg-surface px-2.5 text-sm font-medium text-ink-muted transition duration-150 hover:bg-surface-muted hover:text-ink"
+			>
+				Par poste
+			</button>
+			<button
+				type="button"
+				onclick={() => onPrint('matrix')}
+				class="min-h-8 border-l border-border bg-surface px-2.5 text-sm font-medium text-ink-muted transition duration-150 hover:bg-surface-muted hover:text-ink"
+			>
+				Matrice
 			</button>
 		</div>
 
