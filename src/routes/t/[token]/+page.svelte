@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import VolunteerShiftRow from '$lib/components/tournament/VolunteerShiftRow.svelte';
+	import TimeRangeSlider from '$lib/components/tournament/TimeRangeSlider.svelte';
 	import EnableNotifications from '$lib/components/push/EnableNotifications.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { formatDateRange } from '$lib/format';
@@ -13,11 +14,10 @@
 		groupByTime,
 		groupByPosition,
 		distinctDays,
-		distinctSlots,
 		presentPositionIds,
 		totalRemaining,
-		SLOT_LABELS,
-		type TimeSlot
+		shiftHourBounds,
+		needDensity
 	} from '$lib/volunteer-shifts';
 	import {
 		CalendarDays,
@@ -51,7 +51,9 @@
 
 	// --- État des filtres ---
 	let day = $state<string | null>(null);
-	let slot = $state<TimeSlot | null>(null);
+	// Plage horaire en minutes depuis minuit ; null = pas encore touchée (toute la journée).
+	let winStart = $state<number | null>(null);
+	let winEnd = $state<number | null>(null);
 	let positionId = $state<string | null>(null);
 	let onlyAvailable = $state(false);
 	let onlyMine = $state(false);
@@ -60,19 +62,43 @@
 
 	// Options de filtres calculées d'après les créneaux réellement présents.
 	const dayOpts = $derived(distinctDays(upcoming));
-	const slotOpts = $derived(distinctSlots(upcoming));
 	const posPresent = $derived(presentPositionIds(upcoming));
 	const positionChips = $derived(t.positions.filter((p) => posPresent.has(p.id)));
 	const myCount = $derived(upcoming.filter((s) => s.myStatus !== null).length);
 
-	const filtered = $derived(filterShifts(base, { day, slot, positionId, onlyAvailable, onlyMine }));
+	// Curseur de plage : bornes en heures pleines → minutes ; fenêtre active si resserrée.
+	const bounds = $derived(shiftHourBounds(base));
+	const effStart = $derived(winStart ?? bounds.min * 60);
+	const effEnd = $derived(winEnd ?? bounds.max * 60);
+	const windowActive = $derived(effStart > bounds.min * 60 || effEnd < bounds.max * 60);
+	const windowFilter = $derived(windowActive ? { start: effStart, end: effEnd } : null);
+
+	// Histogramme des besoins : densité (jour + poste sélectionnés), indépendante de la plage.
+	const densityBase = $derived(
+		filterShifts(base, { day, window: null, positionId, onlyAvailable: false, onlyMine: false })
+	);
+	const density = $derived(needDensity(densityBase, bounds.min, bounds.max));
+
+	const filtered = $derived(
+		filterShifts(base, { day, window: windowFilter, positionId, onlyAvailable, onlyMine })
+	);
 	const remaining = $derived(totalRemaining(filtered));
 	const timeGroups = $derived(groupByTime(filtered));
 	const positionGroups = $derived(groupByPosition(filtered, t.positions));
 
+	function resetWindow() {
+		winStart = null;
+		winEnd = null;
+	}
+
+	function onWindowChange(s: number, e: number) {
+		winStart = s;
+		winEnd = e;
+	}
+
 	function resetFilters() {
 		day = null;
-		slot = null;
+		resetWindow();
 		positionId = null;
 		onlyAvailable = false;
 		onlyMine = false;
@@ -196,16 +222,33 @@
 				</div>
 			{/if}
 
-			<!-- Tranche horaire + bascules dispo / mes inscriptions -->
+			<!-- Plage horaire : curseur à deux poignées + histogramme des besoins -->
+			{#if bounds.max - bounds.min >= 2}
+				<div class="flex flex-col gap-1">
+					<div class="flex items-center justify-between">
+						<span class="text-xs font-medium text-ink-muted">Quand peux-tu aider ?</span>
+						{#if windowActive}
+							<button
+								onclick={resetWindow}
+								class="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
+							>
+								<X size={12} /> Toute la journée
+							</button>
+						{/if}
+					</div>
+					<TimeRangeSlider
+						min={bounds.min * 60}
+						max={bounds.max * 60}
+						start={effStart}
+						end={effEnd}
+						{density}
+						onchange={onWindowChange}
+					/>
+				</div>
+			{/if}
+
+			<!-- Bascules dispo / mes inscriptions -->
 			<div class="-mx-1 flex flex-wrap gap-1.5 px-1">
-				{#each slotOpts as s (s)}
-					<button
-						class="{chipBase} {slot === s ? chipOn : chipOff}"
-						onclick={() => (slot = slot === s ? null : s)}
-					>
-						{SLOT_LABELS[s]}
-					</button>
-				{/each}
 				<button
 					class="{chipBase} {onlyAvailable ? chipOn : chipOff}"
 					onclick={() => (onlyAvailable = !onlyAvailable)}

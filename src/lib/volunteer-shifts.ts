@@ -78,14 +78,78 @@ export function dayKeyOf(d: Date): string {
 }
 
 /* ------------------------------------------------------------------ *
+ * Plage horaire continue — le bénévole pose une fenêtre « de X h à Y h »
+ * (curseur à deux poignées) et voit tout ce qui la chevauche.
+ * Tout est exprimé en minutes depuis minuit (heure murale, UTC-naïf).
+ * ------------------------------------------------------------------ */
+
+/** Fenêtre horaire sélectionnée, en minutes depuis minuit. */
+export type TimeWindow = { start: number; end: number };
+
+/** Minutes depuis minuit de l'heure de début (heure murale UTC-naïf). */
+export function minutesOfDay(d: Date): number {
+	return d.getUTCHours() * 60 + d.getUTCMinutes();
+}
+
+/**
+ * Minute de fin d'un créneau dans sa journée de début. Un créneau qui se termine
+ * le lendemain (ou pile à minuit) est ramené à 24 h pour rester comparable.
+ */
+function endMinutesOf(s: FlatShift): number {
+	if (dayKeyOf(s.endsAt) !== dayKeyOf(s.startsAt)) return 24 * 60;
+	const m = minutesOfDay(s.endsAt);
+	return m === 0 ? 24 * 60 : m;
+}
+
+/**
+ * Bornes horaires (en heures pleines) couvrant tous les créneaux : début arrondi
+ * vers le bas, fin vers le haut. Définit l'amplitude du curseur. Repli 8 h–22 h si vide.
+ */
+export function shiftHourBounds(shifts: FlatShift[]): { min: number; max: number } {
+	if (shifts.length === 0) return { min: 8, max: 22 };
+	let min = 24;
+	let max = 0;
+	for (const s of shifts) {
+		const sh = Math.floor(minutesOfDay(s.startsAt) / 60);
+		const eh = Math.ceil(endMinutesOf(s) / 60);
+		if (sh < min) min = sh;
+		if (eh > max) max = eh;
+	}
+	if (max <= min) max = min + 1;
+	return { min, max };
+}
+
+/** Le créneau chevauche-t-il la fenêtre [start, end) (en minutes) ? */
+export function overlapsWindow(s: FlatShift, w: TimeWindow): boolean {
+	return minutesOfDay(s.startsAt) < w.end && endMinutesOf(s) > w.start;
+}
+
+/**
+ * Densité des besoins par heure sur [hourMin, hourMax) : pour chaque heure, somme des
+ * places encore à pourvoir des créneaux qui la chevauchent. Sert à dessiner l'histogramme
+ * derrière le curseur (« où ça manque »).
+ */
+export function needDensity(shifts: FlatShift[], hourMin: number, hourMax: number): number[] {
+	const arr = new Array(Math.max(0, hourMax - hourMin)).fill(0);
+	for (const s of shifts) {
+		const startM = minutesOfDay(s.startsAt);
+		const endM = endMinutesOf(s);
+		for (let h = hourMin; h < hourMax; h++) {
+			if (startM < (h + 1) * 60 && endM > h * 60) arr[h - hourMin] += s.remaining;
+		}
+	}
+	return arr;
+}
+
+/* ------------------------------------------------------------------ *
  * Filtrage
  * ------------------------------------------------------------------ */
 
 export type ShiftFilters = {
 	/** Jour "YYYY-MM-DD", ou null = tous les jours. */
 	day: string | null;
-	/** Tranche horaire, ou null = toutes. */
-	slot: TimeSlot | null;
+	/** Plage horaire (minutes depuis minuit), ou null = toute la journée. */
+	window: TimeWindow | null;
 	/** Id de poste, ou null = tous les postes. */
 	positionId: string | null;
 	/** Ne garder que les créneaux avec au moins une place libre. */
@@ -97,7 +161,7 @@ export type ShiftFilters = {
 export function filterShifts(shifts: FlatShift[], f: ShiftFilters): FlatShift[] {
 	return shifts.filter((s) => {
 		if (f.day && dayKeyOf(s.startsAt) !== f.day) return false;
-		if (f.slot && timeSlotOf(s.startsAt) !== f.slot) return false;
+		if (f.window && !overlapsWindow(s, f.window)) return false;
 		if (f.positionId && s.positionId !== f.positionId) return false;
 		if (f.onlyAvailable && s.isFull) return false;
 		if (f.onlyMine && s.myStatus === null) return false;
@@ -120,12 +184,6 @@ export function distinctDays(shifts: FlatShift[]): Option[] {
 		if (!seen.has(key)) seen.set(key, formatDay(s.startsAt));
 	}
 	return [...seen].map(([value, label]) => ({ value, label }));
-}
-
-/** Tranches horaires distinctes présentes (dans l'ordre matin → soir). */
-export function distinctSlots(shifts: FlatShift[]): TimeSlot[] {
-	const present = new Set(shifts.map((s) => timeSlotOf(s.startsAt)));
-	return SLOT_ORDER.filter((s) => present.has(s));
 }
 
 /** Ids de postes présents dans la liste (pour filtrer les chips de poste). */
