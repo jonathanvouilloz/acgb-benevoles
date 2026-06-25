@@ -3,8 +3,10 @@
 	import { resolve } from '$app/paths';
 	import VolunteerShiftRow from '$lib/components/tournament/VolunteerShiftRow.svelte';
 	import TimeRangeSlider from '$lib/components/tournament/TimeRangeSlider.svelte';
+	import PositionMultiSelect from '$lib/components/tournament/PositionMultiSelect.svelte';
 	import EnableNotifications from '$lib/components/push/EnableNotifications.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { Switch } from '$lib/components/ui/switch';
 	import { formatDateRange } from '$lib/format';
 	import {
 		flattenShifts,
@@ -54,7 +56,7 @@
 	// Plage horaire en minutes depuis minuit ; null = pas encore touchée (toute la journée).
 	let winStart = $state<number | null>(null);
 	let winEnd = $state<number | null>(null);
-	let positionId = $state<string | null>(null);
+	let selectedPositions = $state<string[]>([]);
 	let onlyAvailable = $state(false);
 	let onlyMine = $state(false);
 	let groupBy = $state<'time' | 'position'>('time');
@@ -73,14 +75,26 @@
 	const windowActive = $derived(effStart > bounds.min * 60 || effEnd < bounds.max * 60);
 	const windowFilter = $derived(windowActive ? { start: effStart, end: effEnd } : null);
 
-	// Histogramme des besoins : densité (jour + poste sélectionnés), indépendante de la plage.
+	// Histogramme des besoins : densité (jour + postes sélectionnés), indépendante de la plage.
 	const densityBase = $derived(
-		filterShifts(base, { day, window: null, positionId, onlyAvailable: false, onlyMine: false })
+		filterShifts(base, {
+			day,
+			window: null,
+			positionIds: selectedPositions,
+			onlyAvailable: false,
+			onlyMine: false
+		})
 	);
 	const density = $derived(needDensity(densityBase, bounds.min, bounds.max));
 
 	const filtered = $derived(
-		filterShifts(base, { day, window: windowFilter, positionId, onlyAvailable, onlyMine })
+		filterShifts(base, {
+			day,
+			window: windowFilter,
+			positionIds: selectedPositions,
+			onlyAvailable,
+			onlyMine
+		})
 	);
 	const remaining = $derived(totalRemaining(filtered));
 	const timeGroups = $derived(groupByTime(filtered));
@@ -99,7 +113,7 @@
 	function resetFilters() {
 		day = null;
 		resetWindow();
-		positionId = null;
+		selectedPositions = [];
 		onlyAvailable = false;
 		onlyMine = false;
 	}
@@ -247,45 +261,18 @@
 				</div>
 			{/if}
 
-			<!-- Bascules dispo / mes inscriptions -->
-			<div class="-mx-1 flex flex-wrap gap-1.5 px-1">
-				<button
-					class="{chipBase} {onlyAvailable ? chipOn : chipOff}"
-					onclick={() => (onlyAvailable = !onlyAvailable)}
-				>
-					Places dispo
-				</button>
-				{#if data.isLoggedIn && myCount > 0}
-					<button
-						class="{chipBase} {onlyMine ? chipOn : chipOff}"
-						onclick={() => (onlyMine = !onlyMine)}
-					>
-						Mes créneaux ({myCount})
-					</button>
+			<!-- Bascules (switch) à gauche, multi-select des postes aligné à droite -->
+			<div class="flex items-center justify-between gap-3">
+				<div class="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+					<Switch bind:checked={onlyAvailable} label="Places dispo" />
+					{#if data.isLoggedIn && myCount > 0}
+						<Switch bind:checked={onlyMine} label="Mes créneaux ({myCount})" />
+					{/if}
+				</div>
+				{#if positionChips.length > 1}
+					<PositionMultiSelect positions={positionChips} bind:selected={selectedPositions} />
 				{/if}
 			</div>
-
-			<!-- Postes (color-codés) -->
-			{#if positionChips.length > 1}
-				<div class="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
-					<button
-						class="{chipBase} {positionId === null ? chipOn : chipOff}"
-						onclick={() => (positionId = null)}
-					>
-						Tous les postes
-					</button>
-					{#each positionChips as p (p.id)}
-						<button
-							class="{chipBase} {positionId === p.id ? chipOn : chipOff}"
-							onclick={() => (positionId = positionId === p.id ? null : p.id)}
-						>
-							<span class="size-2.5 shrink-0 rounded-full" style="background-color: {p.color}"
-							></span>
-							{p.name}
-						</button>
-					{/each}
-				</div>
-			{/if}
 
 			<!-- Compteur + bascule de regroupement -->
 			<div class="flex items-center justify-between gap-2 pt-0.5">

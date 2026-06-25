@@ -150,8 +150,8 @@ export type ShiftFilters = {
 	day: string | null;
 	/** Plage horaire (minutes depuis minuit), ou null = toute la journée. */
 	window: TimeWindow | null;
-	/** Id de poste, ou null = tous les postes. */
-	positionId: string | null;
+	/** Ids de postes retenus ; liste vide = tous les postes. */
+	positionIds: string[];
 	/** Ne garder que les créneaux avec au moins une place libre. */
 	onlyAvailable: boolean;
 	/** Ne garder que les créneaux où le bénévole est inscrit. */
@@ -162,7 +162,7 @@ export function filterShifts(shifts: FlatShift[], f: ShiftFilters): FlatShift[] 
 	return shifts.filter((s) => {
 		if (f.day && dayKeyOf(s.startsAt) !== f.day) return false;
 		if (f.window && !overlapsWindow(s, f.window)) return false;
-		if (f.positionId && s.positionId !== f.positionId) return false;
+		if (f.positionIds.length > 0 && !f.positionIds.includes(s.positionId)) return false;
 		if (f.onlyAvailable && s.isFull) return false;
 		if (f.onlyMine && s.myStatus === null) return false;
 		return true;
