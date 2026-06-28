@@ -22,6 +22,7 @@
 		Link2,
 		ClipboardList
 	} from 'lucide-svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import type { PageData, ActionData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -31,6 +32,23 @@
 	let editingTournament = $state(false);
 	let creatingPosition = $state(false);
 	let copied = $state(false);
+
+	// --- Repli/dépli des cards de poste (vide = tout replié par défaut) ---
+	const expanded = new SvelteSet<string>();
+	const allExpanded = $derived(
+		t.positions.length > 0 && t.positions.every((p) => expanded.has(p.id))
+	);
+
+	function toggleExpanded(id: string) {
+		if (expanded.has(id)) expanded.delete(id);
+		else expanded.add(id);
+	}
+	function expandAll() {
+		for (const p of t.positions) expanded.add(p.id);
+	}
+	function collapseAll() {
+		expanded.clear();
+	}
 
 	// --- Ajout de postes (presets multi-sélection + custom) ---
 	let selectedPresets = $state<string[]>([]);
@@ -193,9 +211,20 @@
 <!-- Postes -->
 <div class="mt-8 flex items-center justify-between gap-3">
 	<h2 class="text-lg font-semibold text-ink-strong">Postes</h2>
-	<Button type="button" size="sm" onclick={() => (creatingPosition = true)}>
-		<Plus size={16} /> Ajouter
-	</Button>
+	<div class="flex items-center gap-2">
+		{#if t.positions.length > 0}
+			<button
+				type="button"
+				onclick={allExpanded ? collapseAll : expandAll}
+				class="text-sm text-ink-muted hover:text-ink"
+			>
+				{allExpanded ? 'Tout replier' : 'Tout déplier'}
+			</button>
+		{/if}
+		<Button type="button" size="sm" onclick={() => (creatingPosition = true)}>
+			<Plus size={16} /> Ajouter
+		</Button>
+	</div>
 </div>
 
 {#if t.positions.length === 0}
@@ -204,7 +233,13 @@
 	<div class="mt-3 flex flex-col gap-4">
 		{#each t.positions as position, i (position.id)}
 			<div class="fade-up" style="animation-delay: {i * 60}ms">
-				<PositionCard {position} tournament={t} {form} />
+				<PositionCard
+					{position}
+					tournament={t}
+					{form}
+					collapsed={!expanded.has(position.id)}
+					onToggleCollapse={() => toggleExpanded(position.id)}
+				/>
 			</div>
 		{/each}
 	</div>

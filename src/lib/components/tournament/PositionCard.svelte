@@ -8,18 +8,22 @@
 	import { Input } from '$lib/components/ui/input';
 	import ShiftRow from './ShiftRow.svelte';
 	import ShiftFields from './ShiftFields.svelte';
-	import { Pencil, Trash2, Plus, Check, X } from 'lucide-svelte';
+	import { Pencil, Trash2, Plus, Check, X, ChevronRight } from 'lucide-svelte';
 	import type { Position, Shift, Tournament } from '$lib/server/db/schema';
 
 	let {
 		position,
 		tournament,
-		form
+		form,
+		collapsed,
+		onToggleCollapse
 	}: {
 		position: Position & { shifts: Shift[] };
 		tournament: Pick<Tournament, 'startDate' | 'endDate'>;
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		form: any;
+		collapsed: boolean;
+		onToggleCollapse: () => void;
 	} = $props();
 
 	let editing = $state(false);
@@ -82,16 +86,30 @@
 				</div>
 			</form>
 		{:else}
-			<div class="flex min-w-0 items-center gap-2">
+			<button
+				type="button"
+				onclick={onToggleCollapse}
+				aria-expanded={!collapsed}
+				class="flex min-w-0 flex-1 items-center gap-2 text-left"
+			>
+				<ChevronRight
+					size={16}
+					class="shrink-0 text-ink-muted transition-transform duration-[var(--dur-fast)] {collapsed
+						? ''
+						: 'rotate-90'}"
+				/>
 				<span class="size-3.5 shrink-0 rounded-full" style="background-color: {position.color}"
 				></span>
 				<div class="min-w-0">
-					<h3 class="truncate font-semibold text-ink-strong">{position.name}</h3>
+					<h3 class="truncate font-semibold text-ink-strong">
+						{position.name}
+						<span class="font-normal text-ink-muted">({position.shifts.length})</span>
+					</h3>
 					{#if position.description}
 						<p class="truncate text-sm text-ink-muted">{position.description}</p>
 					{/if}
 				</div>
-			</div>
+			</button>
 			<div class="flex shrink-0 gap-0.5">
 				<button
 					type="button"
@@ -135,39 +153,41 @@
 	</header>
 
 	<!-- Créneaux -->
-	<div class="flex flex-col gap-1 p-3">
-		{#if position.shifts.length === 0}
-			<p class="text-sm text-ink-muted">Aucun créneau. Ajoute le premier ci-dessous.</p>
-		{:else}
-			{#each position.shifts as shift (shift.id)}
-				<ShiftRow {shift} {tournament} {form} />
-			{/each}
-		{/if}
-
-		<!-- Ajout de créneau -->
-		<form
-			method="POST"
-			action="?/createShift"
-			class="mt-2 flex flex-wrap items-end gap-2 border-t border-border pt-3"
-			use:enhance={() =>
-				async ({ update, result }) => {
-					await update({ reset: false });
-					if (result.type === 'success') toast.success('Créneau ajouté');
-				}}
-		>
-			<input type="hidden" name="positionId" value={position.id} />
-			<ShiftFields {tournament} />
-			<Button type="submit" variant="secondary" size="sm">
-				<Plus size={16} /> Créneau
-			</Button>
-			{#if shiftErrors}
-				<p class="w-full text-xs text-error">
-					{shiftErrors.day?.[0] ??
-						shiftErrors.startTime?.[0] ??
-						shiftErrors.endTime?.[0] ??
-						shiftErrors.capacity?.[0]}
-				</p>
+	{#if !collapsed}
+		<div class="flex flex-col gap-1 p-3" transition:slide={{ duration: slideDuration }}>
+			{#if position.shifts.length === 0}
+				<p class="text-sm text-ink-muted">Aucun créneau. Ajoute le premier ci-dessous.</p>
+			{:else}
+				{#each position.shifts as shift (shift.id)}
+					<ShiftRow {shift} {tournament} {form} />
+				{/each}
 			{/if}
-		</form>
-	</div>
+
+			<!-- Ajout de créneau -->
+			<form
+				method="POST"
+				action="?/createShift"
+				class="mt-2 flex flex-wrap items-end gap-2 border-t border-border pt-3"
+				use:enhance={() =>
+					async ({ update, result }) => {
+						await update({ reset: false });
+						if (result.type === 'success') toast.success('Créneau ajouté');
+					}}
+			>
+				<input type="hidden" name="positionId" value={position.id} />
+				<ShiftFields {tournament} />
+				<Button type="submit" variant="secondary" size="sm">
+					<Plus size={16} /> Créneau
+				</Button>
+				{#if shiftErrors}
+					<p class="w-full text-xs text-error">
+						{shiftErrors.day?.[0] ??
+							shiftErrors.startTime?.[0] ??
+							shiftErrors.endTime?.[0] ??
+							shiftErrors.capacity?.[0]}
+					</p>
+				{/if}
+			</form>
+		</div>
+	{/if}
 </section>
