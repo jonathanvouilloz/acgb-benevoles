@@ -26,6 +26,7 @@
 		MapPin,
 		LogIn,
 		Star,
+		ListPlus,
 		ChevronDown,
 		User,
 		Mail,
@@ -48,25 +49,47 @@
 	const split = $derived(splitByTime(all, now));
 	const upcoming = $derived(split.upcoming);
 	const next = $derived(nextOwnShift(upcoming));
-	/** Base de la liste filtrable : les à-venir hors créneau mis en avant (évite le doublon). */
-	const base = $derived(upcoming.filter((s) => s.id !== next?.id));
 
-	// --- État des filtres ---
+	// --- Onglets : « Mes créneaux » (agenda perso) vs « S'inscrire » (liste ouverte) ---
+	const myCount = $derived(upcoming.filter((s) => s.myStatus !== null).length);
+	// Défaut : si déjà inscrit → « Mes créneaux », sinon → « S'inscrire ».
+	// svelte-ignore state_referenced_locally
+	let tab = $state<'mine' | 'browse'>(myCount > 0 ? 'mine' : 'browse');
+	// Le composant est réutilisé en naviguant entre tournois : on réinitialise l'onglet au défaut.
+	// svelte-ignore state_referenced_locally
+	let lastTournamentId = $state(t.id);
+	$effect(() => {
+		if (t.id !== lastTournamentId) {
+			lastTournamentId = t.id;
+			tab = myCount > 0 ? 'mine' : 'browse';
+		}
+	});
+
+	/** Agenda perso : mes créneaux à venir, regroupés par temps (le 1ᵉʳ = prochain, mis en avant). */
+	const myUpcoming = $derived(upcoming.filter((s) => s.myStatus !== null));
+	const myTimeGroups = $derived(groupByTime(myUpcoming));
+	/** Créneaux passés affichés : seulement les miens en onglet « Mes créneaux », sinon tous. */
+	const pastShifts = $derived(
+		tab === 'mine' ? split.past.filter((s) => s.myStatus !== null) : split.past
+	);
+
+	// --- État des filtres (onglet « S'inscrire ») ---
 	let day = $state<string | null>(null);
 	// Plage horaire en minutes depuis minuit ; null = pas encore touchée (toute la journée).
 	let winStart = $state<number | null>(null);
 	let winEnd = $state<number | null>(null);
 	let selectedPositions = $state<string[]>([]);
 	let onlyAvailable = $state(false);
-	let onlyMine = $state(false);
 	let groupBy = $state<'time' | 'position'>('time');
 	let showPast = $state(false);
+
+	/** Base de la liste d'inscription : tous les créneaux à venir. */
+	const base = $derived(upcoming);
 
 	// Options de filtres calculées d'après les créneaux réellement présents.
 	const dayOpts = $derived(distinctDays(upcoming));
 	const posPresent = $derived(presentPositionIds(upcoming));
 	const positionChips = $derived(t.positions.filter((p) => posPresent.has(p.id)));
-	const myCount = $derived(upcoming.filter((s) => s.myStatus !== null).length);
 
 	// Curseur de plage : bornes en heures pleines → minutes ; fenêtre active si resserrée.
 	const bounds = $derived(shiftHourBounds(base));
@@ -93,7 +116,7 @@
 			window: windowFilter,
 			positionIds: selectedPositions,
 			onlyAvailable,
-			onlyMine
+			onlyMine: false
 		})
 	);
 	const remaining = $derived(totalRemaining(filtered));
@@ -115,7 +138,6 @@
 		resetWindow();
 		selectedPositions = [];
 		onlyAvailable = false;
-		onlyMine = false;
 	}
 
 	const chipBase =
@@ -196,25 +218,65 @@
 {#if t.positions.length === 0 || all.length === 0}
 	<p class="mt-6 text-ink-muted">Aucun créneau n'a encore été défini pour ce tournoi.</p>
 {:else}
-	<!-- Ton prochain créneau -->
-	{#if next}
-		<section class="mt-6">
-			<h2 class="mb-2 flex items-center gap-1.5 text-sm font-semibold text-brand-primary">
-				<Star size={15} /> Ton prochain créneau
-			</h2>
-			<VolunteerShiftRow
-				shift={next}
-				isLoggedIn={data.isLoggedIn}
-				{myId}
-				{form}
-				positionName={next.positionName}
-				positionColor={next.positionColor}
-				featured
-			/>
-		</section>
+	<!-- Onglets : « Mes créneaux » (agenda perso) / « S'inscrire » (liste ouverte) -->
+	{#if data.isLoggedIn}
+		<div class="mt-6 flex items-center gap-1 rounded-full border border-border p-0.5">
+			<button
+				class="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors {tab ===
+				'mine'
+					? 'bg-brand-primary text-white'
+					: 'text-ink-muted hover:text-ink'}"
+				onclick={() => (tab = 'mine')}
+			>
+				<Star size={15} /> Mes créneaux{#if myCount > 0}&nbsp;({myCount}){/if}
+			</button>
+			<button
+				class="inline-flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors {tab ===
+				'browse'
+					? 'bg-brand-primary text-white'
+					: 'text-ink-muted hover:text-ink'}"
+				onclick={() => (tab = 'browse')}
+			>
+				<ListPlus size={15} /> S'inscrire
+			</button>
+		</div>
 	{/if}
 
-	{#if base.length > 0}
+	{#if data.isLoggedIn && tab === 'mine'}
+		<!-- Agenda perso : mes créneaux triés par horaire, le prochain mis en avant -->
+		{#if myUpcoming.length === 0}
+			<div
+				class="mt-6 flex flex-col items-start gap-3 rounded-lg border border-border bg-surface-subtle px-6 py-10"
+			>
+				<p class="text-sm text-ink-muted">Tu n'es inscrit à aucun créneau pour ce tournoi.</p>
+				<Button size="sm" onclick={() => (tab = 'browse')}>
+					<ListPlus size={16} /> Voir les créneaux à pourvoir
+				</Button>
+			</div>
+		{:else}
+			<div class="mt-4 flex flex-col gap-5">
+				{#each myTimeGroups as g (g.key)}
+					<section class="flex flex-col gap-2">
+						<h3 class="text-sm font-semibold text-ink-strong">
+							{g.dayLabel} · <span class="text-ink-muted">{g.slotLabel}</span>
+						</h3>
+						{#each g.shifts as shift (shift.id)}
+							<VolunteerShiftRow
+								{shift}
+								isLoggedIn={data.isLoggedIn}
+								{myId}
+								{form}
+								positionName={shift.positionName}
+								positionColor={shift.positionColor}
+								showDay={false}
+								featured={shift.id === next?.id}
+							/>
+						{/each}
+					</section>
+				{/each}
+			</div>
+		{/if}
+	{:else if base.length > 0}
 		<!-- Barre de filtres (collante en haut pendant le scroll) -->
 		<section
 			class="sticky top-0 z-10 -mx-4 mt-6 flex flex-col gap-2.5 border-b border-border bg-surface px-4 py-3"
@@ -265,9 +327,6 @@
 			<div class="flex items-center justify-between gap-3">
 				<div class="flex flex-wrap items-center gap-x-4 gap-y-1.5">
 					<Switch bind:checked={onlyAvailable} label="Places dispo" />
-					{#if data.isLoggedIn && myCount > 0}
-						<Switch bind:checked={onlyMine} label="Mes créneaux ({myCount})" />
-					{/if}
 				</div>
 				{#if positionChips.length > 1}
 					<PositionMultiSelect positions={positionChips} bind:selected={selectedPositions} />
@@ -364,12 +423,12 @@
 				{/each}
 			</div>
 		{/if}
-	{:else if !next}
+	{:else}
 		<p class="mt-6 text-sm text-ink-muted">Aucun créneau à venir.</p>
 	{/if}
 
-	<!-- Créneaux passés (masqués par défaut) -->
-	{#if split.past.length > 0}
+	<!-- Créneaux passés (masqués par défaut) — restreints aux miens en onglet « Mes créneaux » -->
+	{#if pastShifts.length > 0}
 		<section class="mt-8">
 			<button
 				type="button"
@@ -377,11 +436,11 @@
 				class="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted hover:text-ink"
 			>
 				<ChevronDown size={16} class="transition-transform {showPast ? 'rotate-180' : ''}" />
-				{showPast ? 'Masquer' : 'Afficher'} les créneaux passés ({split.past.length})
+				{showPast ? 'Masquer' : 'Afficher'} les créneaux passés ({pastShifts.length})
 			</button>
 			{#if showPast}
 				<div class="mt-2 flex flex-col gap-2">
-					{#each split.past as shift (shift.id)}
+					{#each pastShifts as shift (shift.id)}
 						<VolunteerShiftRow
 							{shift}
 							isLoggedIn={data.isLoggedIn}

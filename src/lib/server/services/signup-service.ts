@@ -262,6 +262,54 @@ export async function getMyTournaments(userId: string): Promise<MyTournamentCard
 	});
 }
 
+/** Une ligne de l'agenda bénévole : un créneau où l'utilisateur est inscrit, avec son tournoi. */
+export type MyAgendaShift = {
+	shiftId: string;
+	startsAt: Date;
+	endsAt: Date;
+	status: SignupStatus;
+	positionName: string;
+	positionColor: string;
+	tournamentName: string;
+	shareToken: string;
+};
+
+/**
+ * Tous les créneaux **à venir** où l'utilisateur est inscrit, tous tournois confondus
+ * (agenda global de l'accueil bénévole « Mes créneaux »). À venir = `endsAt > now`
+ * (cohérent avec `splitByTime`). Triés par heure de début croissante.
+ */
+export async function getMyUpcomingShifts(userId: string): Promise<MyAgendaShift[]> {
+	const rows = await db.query.signup.findMany({
+		where: eq(signup.userId, userId),
+		with: { shift: { with: { position: { with: { tournament: true } } } } }
+	});
+
+	const now = Date.now();
+	const out: MyAgendaShift[] = [];
+
+	for (const su of rows) {
+		const sh = su.shift;
+		if (sh.endsAt.getTime() <= now) continue;
+		const pos = sh.position;
+		const tour = pos.tournament;
+		out.push({
+			shiftId: sh.id,
+			startsAt: sh.startsAt,
+			endsAt: sh.endsAt,
+			status: su.status,
+			positionName: pos.name,
+			positionColor: pos.color,
+			tournamentName: tour.name,
+			shareToken: tour.shareToken
+		});
+	}
+
+	return out.sort(
+		(a, b) => a.startsAt.getTime() - b.startsAt.getTime() || a.endsAt.getTime() - b.endsAt.getTime()
+	);
+}
+
 /** Charge un créneau + sa capacité (existence). Retourne `null` si introuvable. */
 async function getShift(shiftId: string): Promise<{ capacity: number } | null> {
 	const rows = await db

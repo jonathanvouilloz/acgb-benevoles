@@ -1,10 +1,17 @@
-import { getMyTournaments } from '$lib/server/services/signup-service';
+import { getMyTournaments, getMyUpcomingShifts } from '$lib/server/services/signup-service';
 import type { PageServerLoad } from './$types';
 
-/** Accueil : pour un bénévole connecté, on charge ses tournois inscrits (« Mes inscriptions »). */
+/**
+ * Accueil bénévole connecté : l'agenda de ses prochains créneaux (tous tournois confondus)
+ * + la liste de ses tournois inscrits (« Mes inscriptions »).
+ */
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user && !locals.user.isOrganizer) {
-		return { myTournaments: await getMyTournaments(locals.user.id) };
+		const [myShifts, myTournaments] = await Promise.all([
+			getMyUpcomingShifts(locals.user.id),
+			getMyTournaments(locals.user.id)
+		]);
+		return { myShifts, myTournaments };
 	}
-	return { myTournaments: [] };
+	return { myShifts: [], myTournaments: [] };
 };

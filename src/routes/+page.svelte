@@ -3,10 +3,28 @@
 	import { Button } from '$lib/components/ui/button';
 	import StatusBadge from '$lib/components/ui/status-badge/StatusBadge.svelte';
 	import { formatDateRange, formatDay, formatTimeRange } from '$lib/format';
-	import { CalendarDays, MapPin, LogIn, Star } from 'lucide-svelte';
+	import { dayKeyOf } from '$lib/volunteer-shifts';
+	import { CalendarDays, MapPin, LogIn, Clock } from 'lucide-svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+
+	/** Agenda perso groupé par jour (créneaux déjà triés par heure côté serveur). */
+	const agendaDays = $derived.by(() => {
+		const groups: { key: string; label: string; shifts: typeof data.myShifts }[] = [];
+		const index = new Map<string, (typeof groups)[number]>();
+		for (const s of data.myShifts) {
+			const key = dayKeyOf(s.startsAt);
+			let g = index.get(key);
+			if (!g) {
+				g = { key, label: formatDay(s.startsAt), shifts: [] };
+				index.set(key, g);
+				groups.push(g);
+			}
+			g.shifts.push(s);
+		}
+		return groups;
+	});
 </script>
 
 <svelte:head><title>Bénévoles ACGB</title></svelte:head>
@@ -19,29 +37,64 @@
 		<Button size="sm">Mes tournois</Button>
 	</a>
 {:else if data.user}
-	<!-- Bénévole connecté : ses inscriptions -->
-	<h1 class="text-2xl font-bold text-ink-strong">Mes inscriptions</h1>
+	<!-- Bénévole connecté : agenda de ses prochains créneaux + ses tournois -->
+	<h1 class="text-2xl font-bold text-ink-strong">Mes créneaux</h1>
 
-	{#if data.myTournaments.length === 0}
+	{#if data.myShifts.length === 0}
 		<div
 			class="mt-6 flex flex-col items-center gap-3 rounded-lg border border-border bg-surface-subtle px-6 py-12 text-center"
 		>
 			<CalendarDays size={32} class="text-ink-muted" />
 			<p class="text-ink-muted">
-				Tu n'es inscrit à aucun tournoi pour l'instant.<br />
+				Tu n'as aucun créneau à venir.<br />
 				Utilise le lien partagé par ton organisateur pour t'inscrire.
 			</p>
 		</div>
 	{:else}
-		<ul class="mt-6 flex flex-col gap-3">
-			{#each data.myTournaments as t, i (t.id)}
-				<li class="fade-up" style="animation-delay: {i * 60}ms">
+		<!-- Agenda : tous mes prochains créneaux, tous tournois confondus, par jour -->
+		<div class="mt-6 flex flex-col gap-5">
+			{#each agendaDays as g, gi (g.key)}
+				<section class="fade-up flex flex-col gap-2" style="animation-delay: {gi * 60}ms">
+					<h2 class="text-sm font-semibold text-ink-strong">{g.label}</h2>
+					{#each g.shifts as s (s.shiftId)}
+						<a
+							href={resolve('/t/[token]', { token: s.shareToken })}
+							class="flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-3 transition hover:border-brand-primary hover:shadow-sm"
+						>
+							<span class="inline-flex w-[5.5rem] shrink-0 items-center gap-1.5 text-sm text-ink">
+								<Clock size={14} class="shrink-0 text-ink-muted" />
+								{formatTimeRange(s.startsAt, s.endsAt)}
+							</span>
+							<span class="flex min-w-0 flex-1 flex-col">
+								<span class="inline-flex items-center gap-1.5">
+									<span
+										class="size-2.5 shrink-0 rounded-full"
+										style="background-color: {s.positionColor}"
+									></span>
+									<span class="truncate font-medium text-ink-strong">{s.positionName}</span>
+								</span>
+								<span class="truncate text-xs text-ink-muted">{s.tournamentName}</span>
+							</span>
+							<StatusBadge status={s.status} class="shrink-0" />
+						</a>
+					{/each}
+				</section>
+			{/each}
+		</div>
+	{/if}
+
+	<!-- Mes tournois (accès rapide à chaque page d'inscription) -->
+	{#if data.myTournaments.length > 0}
+		<h2 class="mt-10 text-lg font-semibold text-ink-strong">Mes tournois</h2>
+		<ul class="mt-3 flex flex-col gap-3">
+			{#each data.myTournaments as t (t.id)}
+				<li>
 					<a
 						href={resolve('/t/[token]', { token: t.shareToken })}
 						class="block rounded-lg border border-border bg-surface px-4 py-3 transition hover:border-brand-primary hover:shadow-sm"
 					>
 						<div class="flex items-start justify-between gap-2">
-							<h2 class="font-semibold text-ink-strong">{t.name}</h2>
+							<h3 class="font-semibold text-ink-strong">{t.name}</h3>
 							<span class="shrink-0 text-xs text-ink-muted">
 								{t.signupCount} créneau{t.signupCount > 1 ? 'x' : ''}
 							</span>
@@ -55,29 +108,6 @@
 								<MapPin size={15} />
 								{t.location}
 							</p>
-						{/if}
-
-						{#if t.nextShift}
-							<div
-								class="mt-3 flex flex-wrap items-center gap-2 rounded border border-border bg-surface-subtle px-3 py-2 text-sm"
-							>
-								<Star size={14} class="shrink-0 text-brand-primary" />
-								<span class="text-ink-muted">Prochain :</span>
-								<span class="inline-flex items-center gap-1.5">
-									<span
-										class="size-2.5 shrink-0 rounded-full"
-										style="background-color: {t.nextShift.positionColor}"
-									></span>
-									<span class="font-medium text-ink-strong">{t.nextShift.positionName}</span>
-								</span>
-								<span class="text-ink">
-									{formatDay(t.nextShift.startsAt)} · {formatTimeRange(
-										t.nextShift.startsAt,
-										t.nextShift.endsAt
-									)}
-								</span>
-								<StatusBadge status={t.nextShift.status} class="ml-auto" />
-							</div>
 						{/if}
 					</a>
 				</li>
