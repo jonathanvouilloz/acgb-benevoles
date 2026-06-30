@@ -77,11 +77,8 @@
 </script>
 
 <div
-	class="rounded-lg border transition-colors {featured
-		? 'border-brand-primary/40'
-		: 'border-border bg-surface-subtle'}"
+	class="rounded-lg border border-border bg-surface-subtle transition-colors"
 	class:opacity-60={past}
-	style={featured ? 'background-color: rgb(2 14 113 / 0.05)' : ''}
 >
 	<!-- En-tête compact (toujours visible) : déplie le détail. L'action rapide « dispo » est
 	     un formulaire frère (jamais imbriqué dans le bouton de dépliage). -->
