@@ -54,6 +54,13 @@
 	/** Une action rapide « Je suis dispo » est proposée directement sur la ligne repliée. */
 	const canQuickSignup = $derived(isLoggedIn && !past && shift.myStatus === null && !shift.isFull);
 
+	/** Inscrits réordonnés : l'utilisateur connecté en tête, le reste garde l'ordre serveur. */
+	const sortedSignups = $derived(
+		myId
+			? [...shift.signups].sort((a, b) => (a.userId === myId ? -1 : b.userId === myId ? 1 : 0))
+			: shift.signups
+	);
+
 	/**
 	 * enhance + toast de succès. Le bouton « Me retirer » (formaction=?/unregister)
 	 * partage le formulaire d'un changeStatus : on distingue via l'action soumise.
@@ -70,11 +77,10 @@
 </script>
 
 <div
-	class="rounded border bg-surface transition-colors"
-	class:border-border={!featured}
-	class:border-brand-primary={featured}
+	class="rounded-lg transition-colors"
+	class:bg-surface-subtle={!featured}
 	class:opacity-60={past}
-	style={featured ? 'box-shadow: var(--shadow-sm)' : ''}
+	style={featured ? 'background-color: rgb(2 14 113 / 0.05); box-shadow: var(--shadow-sm)' : ''}
 >
 	<!-- En-tête compact (toujours visible) : déplie le détail. L'action rapide « dispo » est
 	     un formulaire frère (jamais imbriqué dans le bouton de dépliage). -->
@@ -94,7 +100,9 @@
 						>{positionName}</span
 					> ·
 				{/if}{#if showDay}{formatDay(shift.startsAt)} ·
-				{/if}{formatTimeRange(shift.startsAt, shift.endsAt)}
+				{/if}<span class="font-semibold text-ink-strong"
+					>{formatTimeRange(shift.startsAt, shift.endsAt)}</span
+				>
 			</span>
 
 			<span class="ml-auto flex shrink-0 items-center gap-2">
@@ -151,7 +159,7 @@
 			<!-- Inscrits -->
 			{#if shift.signups.length > 0}
 				<ul class="flex flex-col gap-1">
-					{#each shift.signups as su (su.userId)}
+					{#each sortedSignups as su (su.userId)}
 						<li class="flex items-center gap-1.5 text-sm text-ink">
 							{#if su.status === 'available'}
 								<Check size={14} class="shrink-0 text-success" />
@@ -231,6 +239,7 @@
 							method="POST"
 							action="?/changeStatus"
 							use:enhance={signupEnhance('Disponibilité confirmée', 'Tu t’es retiré du créneau')}
+							class="flex flex-wrap items-center gap-2"
 						>
 							<input type="hidden" name="shiftId" value={shift.id} />
 							<input type="hidden" name="status" value="available" />
@@ -249,6 +258,7 @@
 							method="POST"
 							action="?/changeStatus"
 							use:enhance={signupEnhance('Passé en peut-être', 'Tu t’es retiré du créneau')}
+							class="flex flex-wrap items-center gap-2"
 						>
 							<input type="hidden" name="shiftId" value={shift.id} />
 							<input type="hidden" name="status" value="maybe" />
