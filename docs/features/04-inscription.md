@@ -1,7 +1,24 @@
 # Epic 4 — Inscription bénévole
 
 **Complexité** : M
-**Statut** : DONE (testé et validé 2026-06-23) — sélection refondue 2026-06-24 (prêt à tester)
+**Statut** : DONE (testé et validé 2026-06-23) — vue « Mes créneaux » ajoutée 2026-06-30 (prêt à tester)
+
+## Etat session 2026-06-30 (vue dédiée « Mes créneaux »)
+
+**Fait :**
+
+- Onglets **« Mes créneaux » / « S'inscrire »** sur `/t/[token]` : ouverture par défaut sur _Mes créneaux_ si déjà inscrit (sinon _S'inscrire_), reset auto via `$effect` sur `t.id` en changeant de tournoi.
+- Onglet _Mes créneaux_ = agenda perso épuré (pas de filtres), groupé par jour/tranche, prochain créneau `featured`. Suppression du switch « Mes créneaux » (redondant) et du bloc « Ton prochain créneau » (fusionné dans l'agenda) ; créneaux passés restreints aux miens dans cet onglet.
+- **Accueil bénévole** : agenda global de tous les créneaux à venir, tous tournois confondus (`getMyUpcomingShifts`), groupé par jour ; cartes « Mes tournois » conservées en complément.
+- `npm run check` vert (0 erreur, 0 warning). Aucune migration DB.
+
+**Prochain :** Validation Jonathan (3 parcours : déjà inscrit, pas inscrit, accueil global). Puis déploiement Vercel du prototype.
+
+**Pièges :** `getMyUpcomingShifts` borne sur `endsAt > now` (cohérent avec `splitByTime`). L'onglet `browse` repart de tout `upcoming` (plus d'exclusion du « prochain »).
+
+**Commit :** [03c39b9] feat(benevole): vue dediee "Mes creneaux" (onglet tournoi + agenda accueil)
+
+---
 
 ## Etat session 2026-06-24 (sélection filtrable & compacte)
 
@@ -61,14 +78,16 @@ Côté bénévole : via le lien partagé, voir le tournoi (postes, créneaux, pl
 
 ## Carte du code
 
-> Mise à jour : 2026-06-23
+> Mise à jour : 2026-06-30
 
 | Fichier                                                  | Rôle                                                                                                                                                                     |
 | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `src/lib/schemas/signup.ts`                              | Zod des actions d'inscription (`statusSchema`, `signupSchema`, `shiftId` + `status`).                                                                                    |
-| `src/lib/server/services/signup-service.ts`              | Cœur de l'epic : lecture tournoi par `share_token` (compteurs + `myStatus` + noms), `createSignup` / `changeSignupStatus` / `deleteSignup` avec garde capacité atomique. |
+| `src/lib/server/services/signup-service.ts`              | Cœur de l'epic : lecture tournoi par `share_token` (compteurs + `myStatus` + noms), `createSignup` / `changeSignupStatus` / `deleteSignup`, et `getMyUpcomingShifts` (agenda cross-tournois pour l'accueil). |
+| `src/lib/volunteer-shifts.ts`                            | Helpers purs : `flattenShifts`, `splitByTime`, `nextOwnShift`, `filterShifts`, `groupByTime`/`groupByPosition`, `dayKeyOf`.                                              |
 | `src/routes/t/[token]/+page.server.ts`                   | `load` public (404 si token inconnu) + actions `signup` / `changeStatus` / `unregister` gardées par `requireLogin`.                                                      |
-| `src/routes/t/[token]/+page.svelte`                      | Vue bénévole : en-tête tournoi, CTA déconnecté, postes → créneaux.                                                                                                       |
+| `src/routes/t/[token]/+page.svelte`                      | Vue bénévole : onglets **Mes créneaux** (agenda perso) / **S'inscrire** (liste filtrable), créneaux passés.                                                              |
+| `src/routes/+page.server.ts` + `+page.svelte`            | Accueil bénévole : agenda global des prochains créneaux (`getMyUpcomingShifts`) groupé par jour + cartes « Mes tournois ».                                               |
 | `src/lib/components/tournament/VolunteerShiftRow.svelte` | Ligne créneau : places restantes, liste des inscrits (noms + statut), boutons d'action (mini-forms `enhance`).                                                           |
 | `src/lib/server/auth-guard.ts`                           | `requireLogin(locals, redirectTo)` + `safeRedirect` (anti open-redirect).                                                                                                |
 | `src/routes/login/+page.server.ts` + `.svelte`           | Lit `?redirect`, le valide, le passe en `callbackURL` du magic link.                                                                                                     |
@@ -78,6 +97,7 @@ Côté bénévole : via le lien partagé, voir le tournoi (postes, créneaux, pl
 - Seuls les `available` consomment une place ; `maybe` affiché mais ne réserve pas.
 - Capacité appliquée par requête SQL conditionnelle (pas de transaction sur neon-http) → pas de surréservation.
 - Noms des inscrits visibles publiquement (décision produit).
+- « Mes créneaux » est une **vue dédiée** (onglet par tournoi + agenda global accueil), pas un simple filtre : le bénévole voit ses créneaux triés par horaire, séparés des créneaux ouverts.
 
 ## Notes & edge cases
 
