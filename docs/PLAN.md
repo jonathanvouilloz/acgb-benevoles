@@ -12,12 +12,23 @@ Plan d'exécution maître. Statuts : `TODO` · `EN COURS` · `DONE`.
 | 4   | Inscription bénévole               | M          | DONE     | [features/04-inscription.md](features/04-inscription.md)     |
 | 5   | Suivi du remplissage (orga)        | S          | DONE     | [features/05-suivi.md](features/05-suivi.md)                 |
 | 6   | Push notifications & rappels       | M          | DONE     | [features/06-notifications.md](features/06-notifications.md) |
-| 7   | Fondation rôles (admin/orga/bénév) | M          | EN COURS | [features/07-roles.md](features/07-roles.md)                 |
-| 8   | Espace super admin (`/admin`)      | L          | TODO     | [features/08-admin.md](features/08-admin.md)                 |
-| 9   | Demande organisateur (bénévole)    | S          | TODO     | [features/09-demande-orga.md](features/09-demande-orga.md)   |
-| 10  | Rôle en navbar + switch de vue     | S          | TODO     | [features/10-navbar-role.md](features/10-navbar-role.md)     |
-| 11  | Listing tournois public            | M          | TODO     | [features/11-listing-public.md](features/11-listing-public.md) |
-| 12  | Refonte responsive desktop/iPad    | L          | TODO     | [features/12-responsive.md](features/12-responsive.md)       |
+| 7   | Fondation rôles (admin/orga/bénév) | M          | À VALIDER | [features/07-roles.md](features/07-roles.md)                 |
+| 8   | Espace super admin (`/admin`)      | L          | À VALIDER | [features/08-admin.md](features/08-admin.md)                 |
+| 9   | Demande organisateur (bénévole)    | S          | À VALIDER | [features/09-demande-orga.md](features/09-demande-orga.md)   |
+| 10  | Rôle en navbar + switch de vue     | S          | À VALIDER | [features/10-navbar-role.md](features/10-navbar-role.md)     |
+| 11  | Listing tournois public            | M          | À VALIDER | [features/11-listing-public.md](features/11-listing-public.md) |
+| 12  | Refonte responsive desktop/iPad    | L          | À VALIDER | [features/12-responsive.md](features/12-responsive.md)       |
+
+> **À VALIDER** = code livré (check + build verts), en attente de : (1) application des migrations `0005`/`0006`, (2) promotion du 1er super admin en DB, (3) test manuel Jonathan. Détail des étapes manuelles ci-dessous.
+
+### ⚠️ Étapes manuelles avant test
+
+```sql
+-- 1. Appliquer les migrations (côté Jonathan) :
+--    npx drizzle-kit migrate
+-- 2. Promouvoir le 1er super admin :
+UPDATE "user" SET role = 'super_admin' WHERE email = 'jonathan.vouilloz@gmail.com';
+```
 
 ## Ordre d'exécution
 

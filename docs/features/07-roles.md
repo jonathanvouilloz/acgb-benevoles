@@ -1,7 +1,21 @@
 # Epic 7 — Fondation rôles (super_admin / organizer / volunteer)
 
 **Complexité** : M
-**Statut** : EN COURS (démarré 2026-07-02)
+**Statut** : À VALIDER (livré 2026-07-02)
+
+## État session 2026-07-02 (livraison chantier rôles+accès+desktop, épics 7→12)
+
+**Fait (epic 7) :**
+
+- Migrations `0005_roles_add` (enum `user_role`, colonne `user.role`, table `organizer_request`, + **UPDATE data** `is_organizer=true → 'organizer'`) et `0006` (drop `is_organizer`). Générées en 2 passes pour éviter le prompt de rename (pas de TTY).
+- `auth.ts` : additionalField `role` (input:false). `auth-guard` : `requireOrganizer` (organizer|super_admin) + `requireSuperAdmin`. Helper pur `src/lib/roles.ts` (hasOrganizerAccess/isSuperAdmin/roleLabel).
+- Refactor de tous les call-sites `isOrganizer` (layout, accueil, compte) ; retrait du `toggleRole` libre.
+
+**Prochain :** étapes manuelles Jonathan (cf. `docs/PLAN.md`) : `npx drizzle-kit migrate`, puis `UPDATE "user" SET role='super_admin' WHERE email='jonathan.vouilloz@gmail.com';`, puis test manuel des 6 épics. Une fois validé → passer les statuts 7-12 en DONE.
+
+**Pièges :** la migration ne doit être appliquée qu'après les 2 fichiers (0005 avant 0006). `check` + `build` verts. Commits : un par epic (7→12).
+
+---
 
 > Prérequis des épics 8 (admin), 9 (demande orga), 10 (navbar/switch). À livrer avant eux.
 
