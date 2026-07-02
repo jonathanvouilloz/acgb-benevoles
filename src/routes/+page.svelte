@@ -10,7 +10,8 @@
 
 	let { data }: { data: PageData } = $props();
 
-	const isOrganizer = $derived(hasOrganizerAccess(data.user?.role));
+	// Accueil orga uniquement si accès orga ET pas en vue bénévole (switch de vue, epic 10).
+	const showOrganizerHome = $derived(hasOrganizerAccess(data.user?.role) && !data.volunteerView);
 
 	/** Agenda perso groupé par jour (créneaux déjà triés par heure côté serveur). */
 	const agendaDays = $derived.by(() => {
@@ -32,7 +33,7 @@
 
 <svelte:head><title>Bénévoles ACGB</title></svelte:head>
 
-{#if isOrganizer}
+{#if showOrganizerHome}
 	<!-- Organisateur -->
 	<h1 class="text-2xl font-bold text-ink-strong">Bénévoles ACGB</h1>
 	<p class="mt-2 text-ink-muted">Gère tes tournois, postes et créneaux.</p>

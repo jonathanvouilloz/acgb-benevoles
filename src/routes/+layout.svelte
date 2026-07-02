@@ -6,8 +6,8 @@
 	import { page } from '$app/state';
 	import { Toaster } from '$lib/components/ui/toast';
 	import { ConfirmDialog } from '$lib/components/ui/confirm';
-	import { hasOrganizerAccess, isSuperAdmin } from '$lib/roles';
-	import { LogOut, User, Shield } from 'lucide-svelte';
+	import { hasOrganizerAccess, isSuperAdmin, roleLabel } from '$lib/roles';
+	import { LogOut, User, Shield, Eye } from 'lucide-svelte';
 	import type { LayoutData } from './$types';
 
 	let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
@@ -15,6 +15,12 @@
 	/** Le suivi organisateur (matrice récap) exploite toute la largeur écran ; le reste reste étroit.
 	    La page centre elle-même son chrome (en-tête/synthèse/toolbar), seule la matrice déborde. */
 	const wide = $derived(page.url.pathname.endsWith('/suivi'));
+
+	/** Switch de vue (epic 10) : disponible aux comptes à accès organisateur. */
+	const canSwitchView = $derived(!!data.user && hasOrganizerAccess(data.user.role));
+	const volunteerView = $derived(data.viewMode === 'volunteer');
+	// En vue bénévole, on masque les accès orga/admin (aperçu fidèle) ; le toggle permet de revenir.
+	const showOrgaNav = $derived(canSwitchView && !volunteerView);
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
@@ -35,7 +41,7 @@
 			<a href={resolve('/')} class="text-sm font-semibold text-brand-primary">Bénévoles ACGB</a>
 			{#if data.user}
 				<div class="flex items-center gap-3 text-sm">
-					{#if isSuperAdmin(data.user.role)}
+					{#if showOrgaNav && isSuperAdmin(data.user.role)}
 						<a
 							href={resolve('/admin')}
 							class="flex items-center gap-1 font-medium text-brand-primary hover:underline"
@@ -43,11 +49,35 @@
 							<Shield size={15} class="shrink-0" /> Admin
 						</a>
 					{/if}
-					{#if hasOrganizerAccess(data.user.role)}
+					{#if showOrgaNav}
 						<a href={resolve('/tournois')} class="font-medium text-brand-primary hover:underline"
 							>Mes tournois</a
 						>
 					{/if}
+
+					{#if canSwitchView}
+						<!-- Bascule de vue organisateur ↔ bénévole (préférence UI, cookie). -->
+						<form method="POST" action={resolve('/set-view')} class="flex">
+							<input type="hidden" name="mode" value={volunteerView ? 'organizer' : 'volunteer'} />
+							<input type="hidden" name="redirect" value={page.url.pathname} />
+							<button
+								type="submit"
+								class="flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-ink-muted transition hover:border-brand-primary hover:text-brand-primary"
+								title={volunteerView ? 'Revenir en vue organisateur' : 'Voir en tant que bénévole'}
+							>
+								<Eye size={13} class="shrink-0" />
+								{volunteerView ? 'Revenir en organisateur' : 'Voir en bénévole'}
+							</button>
+						</form>
+					{:else}
+						<!-- Badge de rôle (comptes sans switch : bénévole). -->
+						<span
+							class="rounded-full bg-brand-primary/10 px-2.5 py-1 text-xs font-medium text-brand-primary"
+						>
+							{roleLabel(data.user.role)}
+						</span>
+					{/if}
+
 					<a
 						href={resolve('/compte')}
 						class="flex items-center gap-1 font-medium text-brand-primary hover:underline"

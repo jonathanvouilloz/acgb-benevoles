@@ -1,19 +1,19 @@
-import { hasOrganizerAccess } from '$lib/roles';
 import { getMyTournaments, getMyUpcomingShifts } from '$lib/server/services/signup-service';
+import { getViewMode } from '$lib/server/view-mode';
 import type { PageServerLoad } from './$types';
 
 /**
- * Accueil bénévole connecté : l'agenda de ses prochains créneaux (tous tournois confondus)
- * + la liste de ses tournois inscrits (« Mes inscriptions »).
- * Un organisateur voit son accueil orga (pas l'agenda bénévole).
+ * Accueil : agenda bénévole (prochains créneaux + « Mes inscriptions ») pour un bénévole,
+ * ou pour un organisateur qui a basculé en vue bénévole. En vue organisateur → accueil orga.
  */
-export const load: PageServerLoad = async ({ locals }) => {
-	if (locals.user && !hasOrganizerAccess(locals.user.role)) {
+export const load: PageServerLoad = async ({ locals, cookies }) => {
+	const asVolunteer = !!locals.user && getViewMode(cookies, locals.user.role) === 'volunteer';
+	if (locals.user && asVolunteer) {
 		const [myShifts, myTournaments] = await Promise.all([
 			getMyUpcomingShifts(locals.user.id),
 			getMyTournaments(locals.user.id)
 		]);
-		return { myShifts, myTournaments };
+		return { myShifts, myTournaments, volunteerView: true };
 	}
-	return { myShifts: [], myTournaments: [] };
+	return { myShifts: [], myTournaments: [], volunteerView: false };
 };
