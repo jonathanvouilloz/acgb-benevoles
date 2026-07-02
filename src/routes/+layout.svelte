@@ -6,8 +6,8 @@
 	import { page } from '$app/state';
 	import { Toaster } from '$lib/components/ui/toast';
 	import { ConfirmDialog } from '$lib/components/ui/confirm';
-	import { hasOrganizerAccess } from '$lib/roles';
-	import { LogOut, User } from 'lucide-svelte';
+	import { hasOrganizerAccess, isSuperAdmin } from '$lib/roles';
+	import { LogOut, User, Shield } from 'lucide-svelte';
 	import type { LayoutData } from './$types';
 
 	let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
@@ -35,6 +35,14 @@
 			<a href={resolve('/')} class="text-sm font-semibold text-brand-primary">Bénévoles ACGB</a>
 			{#if data.user}
 				<div class="flex items-center gap-3 text-sm">
+					{#if isSuperAdmin(data.user.role)}
+						<a
+							href={resolve('/admin')}
+							class="flex items-center gap-1 font-medium text-brand-primary hover:underline"
+						>
+							<Shield size={15} class="shrink-0" /> Admin
+						</a>
+					{/if}
 					{#if hasOrganizerAccess(data.user.role)}
 						<a href={resolve('/tournois')} class="font-medium text-brand-primary hover:underline"
 							>Mes tournois</a
