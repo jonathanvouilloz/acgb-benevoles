@@ -38,7 +38,13 @@
 		{/if}
 
 		<header class="mb-6 flex items-center justify-between gap-3 print:hidden">
-			<a href={resolve('/')} class="text-sm font-semibold text-brand-primary">Bénévoles ACGB</a>
+			<div class="flex items-center gap-4">
+				<a href={resolve('/')} class="text-sm font-semibold text-brand-primary">Bénévoles ACGB</a>
+				<a
+					href={resolve('/tournois-publics')}
+					class="text-sm font-medium text-ink-muted hover:text-brand-primary">Tournois</a
+				>
+			</div>
 			{#if data.user}
 				<div class="flex items-center gap-3 text-sm">
 					{#if showOrgaNav && isSuperAdmin(data.user.role)}

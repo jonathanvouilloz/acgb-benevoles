@@ -51,8 +51,11 @@
 			<CalendarDays size={32} class="text-ink-muted" />
 			<p class="text-ink-muted">
 				Tu n'as aucun créneau à venir.<br />
-				Utilise le lien partagé par ton organisateur pour t'inscrire.
+				Parcours les tournois pour t'inscrire.
 			</p>
+			<a href={resolve('/tournois-publics')} class="mt-1 inline-block">
+				<Button size="sm" variant="secondary">Voir les tournois</Button>
+			</a>
 		</div>
 	{:else}
 		<!-- Agenda : tous mes prochains créneaux, tous tournois confondus, par jour -->
@@ -124,7 +127,12 @@
 	<p class="mt-2 text-ink-muted">
 		Inscris-toi aux créneaux des tournois de l'ACGB. Connecte-toi pour voir tes inscriptions.
 	</p>
-	<a href={resolve('/login')} class="mt-4 inline-block">
-		<Button size="sm"><LogIn size={16} /> Se connecter</Button>
-	</a>
+	<div class="mt-4 flex flex-wrap gap-2">
+		<a href={resolve('/tournois-publics')} class="inline-block">
+			<Button size="sm">Voir les tournois</Button>
+		</a>
+		<a href={resolve('/login')} class="inline-block">
+			<Button size="sm" variant="secondary"><LogIn size={16} /> Se connecter</Button>
+		</a>
+	</div>
 {/if}

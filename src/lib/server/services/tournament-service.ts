@@ -1,8 +1,44 @@
 import { and, eq, desc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { db } from '$lib/server/db';
-import { tournament } from '$lib/server/db/schema';
+import { tournament, user } from '$lib/server/db/schema';
+import { tournamentPhase, type TournamentPhase } from '$lib/tournament-status';
 import type { TournamentInput } from '$lib/schemas/tournament';
+
+export type PublicTournament = {
+	id: string;
+	name: string;
+	location: string | null;
+	startDate: Date;
+	endDate: Date;
+	shareToken: string;
+	organizerName: string;
+	phase: TournamentPhase;
+};
+
+/**
+ * Liste publique de TOUS les tournois (accès libre, même non connecté). On expose le nom de
+ * l'organisateur (déjà visible sur la page d'inscription) mais aucune donnée de contact.
+ * Tri : plus récents d'abord ; la phase est calculée pour le regroupement côté page.
+ */
+export async function listPublicTournaments(): Promise<PublicTournament[]> {
+	const rows = await db
+		.select({
+			id: tournament.id,
+			name: tournament.name,
+			location: tournament.location,
+			startDate: tournament.startDate,
+			endDate: tournament.endDate,
+			shareToken: tournament.shareToken,
+			organizerName: user.name
+		})
+		.from(tournament)
+		.innerJoin(user, eq(tournament.organizerId, user.id))
+		.orderBy(desc(tournament.startDate));
+
+	const now = new Date();
+	return rows.map((r) => ({ ...r, phase: tournamentPhase(r.startDate, r.endDate, now) }));
+}
 
 /** Génère un `share_token` court et unique (anti-collision sur la contrainte d'unicité). */
 async function generateUniqueShareToken(): Promise<string> {
