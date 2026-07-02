@@ -6,6 +6,7 @@
 	import { Toaster } from '$lib/components/ui/toast';
 	import { ConfirmDialog } from '$lib/components/ui/confirm';
 	import Navbar from '$lib/components/nav/Navbar.svelte';
+	import BottomNav from '$lib/components/nav/BottomNav.svelte';
 	import type { LayoutData } from './$types';
 
 	let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
@@ -36,7 +37,9 @@
 <div class="flex min-h-dvh flex-col">
 	<Navbar user={data.user} viewMode={data.viewMode} />
 
-	<main class="mx-auto w-full flex-1 px-4 py-6 sm:px-6 print:p-0 {maxW}">
+	<main
+		class="mx-auto w-full flex-1 px-4 pt-6 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:px-6 lg:pb-6 print:p-0 {maxW}"
+	>
 		{#if data.prototype}
 			<p
 				class="mb-4 rounded-md border border-warning/40 bg-warning/10 px-3 py-1.5 text-center text-xs font-medium text-ink-muted print:hidden"
@@ -47,6 +50,8 @@
 
 		{@render children()}
 	</main>
+
+	<BottomNav user={data.user} viewMode={data.viewMode} />
 </div>
 
 <!-- Singletons globaux : feedback transitoire + confirmations -->
