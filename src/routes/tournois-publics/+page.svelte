@@ -39,12 +39,12 @@
 					{phaseLabel(g.phase)}
 					<span class="text-xs font-normal text-ink-muted">({g.items.length})</span>
 				</h2>
-				<ul class="flex flex-col gap-2">
+				<ul class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
 					{#each g.items as t (t.id)}
 						<li>
 							<a
 								href={resolve('/t/[token]', { token: t.shareToken })}
-								class="flex items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3 transition hover:border-brand-primary hover:shadow-sm
+								class="flex h-full items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3 transition hover:border-brand-primary hover:shadow-sm
 									{t.phase === 'past' ? 'opacity-70' : ''}"
 							>
 								<div class="min-w-0 flex-1">

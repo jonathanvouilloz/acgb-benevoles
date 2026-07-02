@@ -69,8 +69,13 @@ Light only. Aucune couleur en dur dans les composants — **tokens uniquement**.
   - ⚠️ Champs en `text-sm` (14px) : iOS Safari peut zoomer au focus (police < 16px). À arbitrer si gênant.
 - **Radius** : `--radius-sm 6px` · `--radius 8px` (défaut) · `--radius-lg 14px` · `--radius-full 999px`.
 - **Ombres** : `--shadow-sm` (cartes), `--shadow-md` (modals/menus). Discrètes.
-- **Breakpoints** : `sm 640` · `md 768` · `lg 1024`. Le design part du mobile.
-- **Max-width** contenu : 640px (vue bénévole), 960px (tableaux orga).
+- **Breakpoints** : `sm 640` · `md 768` · `lg 1024`. Le design part du mobile, mais **desktop/iPad sont des cibles de plein droit** (pas une simple colonne mobile étirée).
+- **Navbar** : barre supérieure sticky (`components/nav/Navbar.svelte`). Desktop (`md+`) : liens inline + actions (badge rôle / switch de vue, compte, déconnexion). Mobile (`< md`) : brand + bouton menu → panneau déroulant empilé.
+- **Largeur de contenu adaptée à la route** (gérée dans `+layout.svelte`, fin de la colonne 640 unique) :
+  - Formulaires & lecture (accueil, compte, login) → `max-w-2xl` centré.
+  - Inscription bénévole `/t/[token]` & gestion tournoi `/tournois/[id]` → `max-w-3xl`.
+  - Listings (`/tournois`, `/tournois-publics`, `/admin/*`) → `max-w-5xl` avec **grilles multi-colonnes** (`sm:grid-cols-2 lg:grid-cols-3`) pour occuper le desktop intentionnellement.
+  - Matrice de suivi → `max-w-[95vw]` (la page centre son propre chrome en `max-w-5xl`).
 
 ## 6. Photographie & art direction
 

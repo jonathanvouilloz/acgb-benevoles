@@ -15,7 +15,7 @@
 {#if data.tournaments.length === 0}
 	<p class="mt-6 text-sm text-ink-muted">Aucun tournoi pour le moment.</p>
 {:else}
-	<ul class="mt-6 flex flex-col gap-2">
+	<ul class="mt-6 grid gap-2 lg:grid-cols-2">
 		{#each data.tournaments as t (t.id)}
 			<li class="rounded-lg border border-border bg-surface p-4">
 				<div class="flex flex-wrap items-start justify-between gap-2">

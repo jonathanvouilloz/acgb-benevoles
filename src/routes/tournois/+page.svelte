@@ -30,12 +30,12 @@
 		</a>
 	</div>
 {:else}
-	<ul class="mt-6 flex flex-col gap-3">
+	<ul class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 		{#each data.tournaments as t (t.id)}
 			<li>
 				<a
 					href={resolve('/tournois/[id]', { id: t.id })}
-					class="block rounded-lg border border-border bg-surface px-4 py-3 transition hover:border-brand-primary hover:shadow-sm"
+					class="block h-full rounded-lg border border-border bg-surface px-4 py-3 transition hover:border-brand-primary hover:shadow-sm"
 				>
 					<h2 class="font-semibold text-ink-strong">{t.name}</h2>
 					<p class="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
