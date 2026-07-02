@@ -4,11 +4,22 @@
 	import { Input } from '$lib/components/ui/input';
 	import { toast } from '$lib/toast.svelte';
 	import { roleLabel } from '$lib/roles';
+	import { ShieldQuestion } from 'lucide-svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let submitting = $state(false);
+	let requesting = $state(false);
+
+	const req = $derived(data.organizerRequest);
+	// Un bénévole sans demande en cours (ni approuvée) peut soumettre une demande.
+	const canRequest = $derived(data.role === 'volunteer' && req?.status !== 'pending');
+
+	$effect(() => {
+		if (form && 'requestSent' in form && form.requestSent) toast.success('Demande envoyée');
+		else if (form && 'requestError' in form && form.requestError) toast.error(form.requestError);
+	});
 </script>
 
 <svelte:head><title>Mon compte — Bénévoles ACGB</title></svelte:head>
@@ -59,10 +70,55 @@
 	</Button>
 </form>
 
-<!-- Type de compte (lecture seule). La demande de promotion organisateur arrive en epic 9. -->
+<!-- Type de compte + demande de promotion organisateur (bénévole uniquement) -->
 <div class="mt-8 rounded-lg border border-border bg-surface-subtle p-4">
 	<p class="text-sm font-medium text-ink-strong">Type de compte</p>
 	<p class="mt-1 text-sm text-ink-muted">
 		Tu es <span class="font-medium text-ink">{roleLabel(data.role)}</span>.
 	</p>
+
+	{#if data.role === 'volunteer'}
+		{#if req?.status === 'pending'}
+			<p class="mt-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-ink">
+				Ta demande pour devenir organisateur est <span class="font-medium">en attente</span> de
+				validation.
+			</p>
+		{:else if req?.status === 'rejected'}
+			<p class="mt-3 text-sm text-ink-muted">
+				Ta précédente demande a été refusée. Tu peux en soumettre une nouvelle.
+			</p>
+		{/if}
+
+		{#if canRequest}
+			<form
+				method="POST"
+				action="?/requestOrganizer"
+				class="mt-3 flex flex-col gap-2"
+				use:enhance={() => {
+					requesting = true;
+					return async ({ update }) => {
+						await update();
+						requesting = false;
+					};
+				}}
+			>
+				<label class="flex flex-col gap-1 text-xs font-medium text-ink">
+					Devenir organisateur — un mot pour l'association (optionnel)
+					<textarea
+						name="message"
+						rows="2"
+						maxlength="500"
+						placeholder="Pourquoi souhaites-tu organiser des tournois ?"
+						class="w-full rounded border border-border bg-surface px-3 py-2 text-sm text-ink transition hover:border-ink-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
+					></textarea>
+				</label>
+				<div>
+					<Button type="submit" size="sm" variant="secondary" disabled={requesting}>
+						<ShieldQuestion size={15} />
+						{requesting ? 'Envoi…' : 'Demander à devenir organisateur'}
+					</Button>
+				</div>
+			</form>
+		{/if}
+	{/if}
 </div>
