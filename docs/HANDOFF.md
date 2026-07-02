@@ -15,9 +15,10 @@ Chantier **rôles (super_admin/organizer/volunteer) + espace admin + demande org
 
 **Avant de tester — étapes manuelles (côté Jonathan) :**
 
-1. Appliquer les migrations : `npx drizzle-kit migrate` (0005 puis 0006).
-2. Promouvoir le 1er super admin :
+1. ✅ Migrations appliquées le 2026-07-02 (`drizzle-kit migrate` — 0005 puis 0006).
+2. ⏳ **Reste à faire** — promouvoir le 1er super admin (bloqué côté agent par sécurité) :
    `UPDATE "user" SET role = 'super_admin' WHERE email = 'jonathan.vouilloz@gmail.com';`
+   (le compte doit exister : se connecter une fois d'abord si besoin.)
 3. Tester : rôles/gardes, `/admin`, demande orga depuis `/compte`, switch de vue, `/tournois-publics`, responsive desktop/iPad/mobile.
 
 Une fois validé → passer les statuts 7-12 en DONE dans `docs/PLAN.md`. Détail par epic dans `docs/features/07..12`.

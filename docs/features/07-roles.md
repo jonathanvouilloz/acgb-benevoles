@@ -15,6 +15,23 @@
 
 **Pièges :** la migration ne doit être appliquée qu'après les 2 fichiers (0005 avant 0006). `check` + `build` verts. Commits : un par epic (7→12).
 
+## Carte du code
+> Mise à jour : 2026-07-02
+
+| Fichier | Rôle |
+|---------|------|
+| `src/lib/server/db/schema.ts` | Enum `userRole`, colonne `user.role`, table `organizerRequest` + relations |
+| `drizzle/0005_roles_add.sql` | Ajout `role`/table demandes + UPDATE data `is_organizer→role` |
+| `drizzle/0006_roles_drop_is_organizer.sql` | Drop de `is_organizer` |
+| `src/lib/roles.ts` | Helpers purs client-safe : `hasOrganizerAccess`, `isSuperAdmin`, `roleLabel` |
+| `src/lib/server/auth-guard.ts` | `requireOrganizer` (role-based) + `requireSuperAdmin` |
+| `src/lib/server/auth.ts` | additionalField `role` (input:false) |
+
+### Décisions clés
+- 3 rôles ; `organizer` = accès orga **et** bénévole (même compte). Promotion via demande validée par super admin.
+- 1er super admin promu **manuellement en DB** (pas de code de seed).
+- Migration en 2 passes (add puis drop) pour éviter le prompt de rename de drizzle-kit (pas de TTY).
+
 ---
 
 > Prérequis des épics 8 (admin), 9 (demande orga), 10 (navbar/switch). À livrer avant eux.
