@@ -11,8 +11,9 @@ import { isPrototype, stashPrototypeLink } from './prototype';
 /**
  * Instance Better Auth — auth sans mot de passe par magic link (cf. docs/features/02-auth.md).
  *
- * - `isOrganizer` est un champ additionnel en lecture seule côté client (`input: false`) :
- *   la promotion organisateur se fait manuellement en DB (décision MVP).
+ * - `role` est un champ additionnel en lecture seule côté client (`input: false`) :
+ *   la promotion `volunteer → organizer` passe par une demande validée par un super admin
+ *   (cf. epics 8-9) ; le 1er super admin est promu manuellement en DB.
  * - Session 30 jours, renouvelée chaque jour, pour que la PWA reste connectée.
  */
 export const auth = betterAuth({
@@ -30,7 +31,9 @@ export const auth = betterAuth({
 		: [],
 	user: {
 		additionalFields: {
-			isOrganizer: { type: 'boolean', defaultValue: false, input: false },
+			// Rôle applicatif (volunteer | organizer | super_admin). Enum typé en `string`
+			// côté Better Auth ; valeurs validées applicativement (cf. userRole dans schema.ts).
+			role: { type: 'string', defaultValue: 'volunteer', input: false },
 			// Téléphone obligatoire : saisi à la création via le magic link, éditable dans /compte.
 			phone: { type: 'string', required: true, input: true }
 		}

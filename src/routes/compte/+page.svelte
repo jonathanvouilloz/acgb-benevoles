@@ -1,15 +1,14 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { toast } from '$lib/toast.svelte';
+	import { roleLabel } from '$lib/roles';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let submitting = $state(false);
-	let switchingRole = $state(false);
 </script>
 
 <svelte:head><title>Mon compte — Bénévoles ACGB</title></svelte:head>
@@ -60,38 +59,10 @@
 	</Button>
 </form>
 
-{#if data.prototype}
-	<div class="mt-8 rounded-lg border border-warning/40 bg-warning/10 p-4">
-		<p class="text-sm font-medium text-ink-strong">Mode démo — rôle</p>
-		<p class="mt-1 text-sm text-ink-muted">
-			Tu es actuellement <span class="font-medium text-ink"
-				>{data.isOrganizer ? 'organisateur' : 'bénévole'}</span
-			>. Bascule pour tester l'autre parcours.
-		</p>
-		<form
-			method="POST"
-			action="?/toggleRole"
-			class="mt-3"
-			use:enhance={() => {
-				switchingRole = true;
-				const wasOrganizer = data.isOrganizer;
-				return async ({ update }) => {
-					await update({ reset: false });
-					await invalidateAll();
-					toast.success(
-						wasOrganizer ? 'Tu es maintenant bénévole' : 'Tu es maintenant organisateur'
-					);
-					switchingRole = false;
-				};
-			}}
-		>
-			<Button type="submit" size="sm" variant="secondary" disabled={switchingRole}>
-				{switchingRole
-					? 'Bascule…'
-					: data.isOrganizer
-						? 'Passer en bénévole'
-						: 'Passer en organisateur'}
-			</Button>
-		</form>
-	</div>
-{/if}
+<!-- Type de compte (lecture seule). La demande de promotion organisateur arrive en epic 9. -->
+<div class="mt-8 rounded-lg border border-border bg-surface-subtle p-4">
+	<p class="text-sm font-medium text-ink-strong">Type de compte</p>
+	<p class="mt-1 text-sm text-ink-muted">
+		Tu es <span class="font-medium text-ink">{roleLabel(data.role)}</span>.
+	</p>
+</div>

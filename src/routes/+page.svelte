@@ -4,10 +4,13 @@
 	import StatusBadge from '$lib/components/ui/status-badge/StatusBadge.svelte';
 	import { formatDateRange, formatDay, formatTimeRange } from '$lib/format';
 	import { dayKeyOf } from '$lib/volunteer-shifts';
+	import { hasOrganizerAccess } from '$lib/roles';
 	import { CalendarDays, MapPin, LogIn, Clock } from 'lucide-svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+
+	const isOrganizer = $derived(hasOrganizerAccess(data.user?.role));
 
 	/** Agenda perso groupé par jour (créneaux déjà triés par heure côté serveur). */
 	const agendaDays = $derived.by(() => {
@@ -29,7 +32,7 @@
 
 <svelte:head><title>Bénévoles ACGB</title></svelte:head>
 
-{#if data.user?.isOrganizer}
+{#if isOrganizer}
 	<!-- Organisateur -->
 	<h1 class="text-2xl font-bold text-ink-strong">Bénévoles ACGB</h1>
 	<p class="mt-2 text-ink-muted">Gère tes tournois, postes et créneaux.</p>

@@ -6,6 +6,7 @@
 	import { page } from '$app/state';
 	import { Toaster } from '$lib/components/ui/toast';
 	import { ConfirmDialog } from '$lib/components/ui/confirm';
+	import { hasOrganizerAccess } from '$lib/roles';
 	import { LogOut, User } from 'lucide-svelte';
 	import type { LayoutData } from './$types';
 
@@ -34,7 +35,7 @@
 			<a href={resolve('/')} class="text-sm font-semibold text-brand-primary">Bénévoles ACGB</a>
 			{#if data.user}
 				<div class="flex items-center gap-3 text-sm">
-					{#if data.user.isOrganizer}
+					{#if hasOrganizerAccess(data.user.role)}
 						<a href={resolve('/tournois')} class="font-medium text-brand-primary hover:underline"
 							>Mes tournois</a
 						>

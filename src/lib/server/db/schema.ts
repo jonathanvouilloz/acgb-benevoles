@@ -22,6 +22,16 @@ import {
 
 export const signupStatus = pgEnum('signup_status', ['available', 'maybe']);
 
+/**
+ * Rôle applicatif (cf. docs/features/07-roles.md) :
+ * - `volunteer` (défaut) : bénévole uniquement.
+ * - `organizer` : accès orga ET bénévole (même compte, switch de vue côté UI).
+ * - `super_admin` : tout + espace `/admin`.
+ * La promotion `volunteer → organizer` passe par une demande validée par un super admin.
+ * Le 1er super admin est promu manuellement en DB.
+ */
+export const userRole = pgEnum('user_role', ['volunteer', 'organizer', 'super_admin']);
+
 export const user = pgTable('user', {
 	id: text('id').primaryKey(),
 	email: text('email').notNull().unique(),
@@ -29,9 +39,34 @@ export const user = pgTable('user', {
 	phone: text('phone'),
 	emailVerified: boolean('email_verified').notNull().default(false),
 	image: text('image'),
-	isOrganizer: boolean('is_organizer').notNull().default(false),
+	role: userRole('role').notNull().default('volunteer'),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	updatedAt: timestamp('updated_at').notNull().defaultNow()
+});
+
+/**
+ * Demande de promotion `volunteer → organizer` (cf. epics 8-9).
+ * Traitée par un super admin depuis `/admin`. On conserve l'historique ; l'unicité d'une
+ * demande `pending` par utilisateur est garantie applicativement (service), pas en DB.
+ */
+export const organizerRequestStatus = pgEnum('organizer_request_status', [
+	'pending',
+	'approved',
+	'rejected'
+]);
+
+export const organizerRequest = pgTable('organizer_request', {
+	id: uuid('id').primaryKey().defaultRandom(),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' }),
+	status: organizerRequestStatus('status').notNull().default('pending'),
+	// Motivation libre saisie par le bénévole (optionnelle).
+	message: text('message'),
+	createdAt: timestamp('created_at').notNull().defaultNow(),
+	// Super admin qui a tranché + horodatage (null tant que `pending`).
+	reviewedBy: text('reviewed_by').references(() => user.id, { onDelete: 'set null' }),
+	reviewedAt: timestamp('reviewed_at')
 });
 
 /**
@@ -193,6 +228,21 @@ export const signupRelations = relations(signup, ({ one }) => ({
 	})
 }));
 
+export const organizerRequestRelations = relations(organizerRequest, ({ one }) => ({
+	// Demandeur (bénévole).
+	user: one(user, {
+		fields: [organizerRequest.userId],
+		references: [user.id],
+		relationName: 'requester'
+	}),
+	// Super admin qui a tranché.
+	reviewer: one(user, {
+		fields: [organizerRequest.reviewedBy],
+		references: [user.id],
+		relationName: 'reviewer'
+	})
+}));
+
 export type User = typeof user.$inferSelect;
 export type Session = typeof session.$inferSelect;
 export type Account = typeof account.$inferSelect;
@@ -202,3 +252,5 @@ export type Position = typeof position.$inferSelect;
 export type Shift = typeof shift.$inferSelect;
 export type Signup = typeof signup.$inferSelect;
 export type PushSubscription = typeof pushSubscription.$inferSelect;
+export type OrganizerRequest = typeof organizerRequest.$inferSelect;
+export type UserRole = (typeof userRole.enumValues)[number];

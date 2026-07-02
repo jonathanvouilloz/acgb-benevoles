@@ -1,17 +1,33 @@
 import { error, redirect } from '@sveltejs/kit';
+import { hasOrganizerAccess } from '$lib/roles';
 
 /**
- * Garde des routes réservées à l'organisateur.
+ * Garde des routes réservées à l'organisateur (organizer ou super_admin).
  * - Non connecté → redirige vers /login.
- * - Connecté mais non-organisateur → 403.
+ * - Connecté sans accès orga → 403.
  * Retourne l'utilisateur (typé non-null) pour usage direct dans le `load`/l'action.
  */
 export function requireOrganizer(locals: App.Locals): NonNullable<App.Locals['user']> {
 	if (!locals.user) {
 		throw redirect(303, '/login');
 	}
-	if (!locals.user.isOrganizer) {
+	if (!hasOrganizerAccess(locals.user.role)) {
 		throw error(403, 'Accès réservé aux organisateurs.');
+	}
+	return locals.user;
+}
+
+/**
+ * Garde des routes réservées au super admin (`/admin`).
+ * - Non connecté → redirige vers /login.
+ * - Connecté mais pas super_admin → 403.
+ */
+export function requireSuperAdmin(locals: App.Locals): NonNullable<App.Locals['user']> {
+	if (!locals.user) {
+		throw redirect(303, '/login');
+	}
+	if (locals.user.role !== 'super_admin') {
+		throw error(403, 'Accès réservé aux administrateurs.');
 	}
 	return locals.user;
 }

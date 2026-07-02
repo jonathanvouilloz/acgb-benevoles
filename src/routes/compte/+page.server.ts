@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { error, fail, redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { user } from '$lib/server/db/schema';
 import { accountSchema } from '$lib/schemas/account';
@@ -17,8 +17,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		.limit(1);
 
 	const me = row[0] ?? { name: locals.user.name, email: locals.user.email, phone: null };
-	// En mode prototype, on expose la bascule de rôle (organisateur ↔ bénévole) pour tout tester.
-	return { me, prototype: isPrototype, isOrganizer: locals.user.isOrganizer };
+	return { me, prototype: isPrototype, role: locals.user.role };
 };
 
 export const actions: Actions = {
@@ -48,21 +47,5 @@ export const actions: Actions = {
 			.where(eq(user.id, locals.user.id));
 
 		return { success: true };
-	},
-
-	/**
-	 * Bascule de rôle réservée au mode prototype (démo). Permet à un seul testeur d'essayer
-	 * le parcours organisateur ET bénévole. Hors prototype : route inexistante (403).
-	 */
-	toggleRole: async ({ locals }) => {
-		if (!isPrototype) throw error(403, 'Indisponible.');
-		if (!locals.user) throw redirect(303, '/login?redirect=/compte');
-
-		await db
-			.update(user)
-			.set({ isOrganizer: !locals.user.isOrganizer, updatedAt: new Date() })
-			.where(eq(user.id, locals.user.id));
-
-		return { roleChanged: true };
 	}
 };
