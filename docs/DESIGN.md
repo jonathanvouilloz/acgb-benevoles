@@ -70,7 +70,10 @@ Light only. Aucune couleur en dur dans les composants — **tokens uniquement**.
 - **Radius** : `--radius-sm 6px` · `--radius 8px` (défaut) · `--radius-lg 14px` · `--radius-full 999px`.
 - **Ombres** : `--shadow-sm` (cartes), `--shadow-md` (modals/menus). Discrètes.
 - **Breakpoints** : `sm 640` · `md 768` · `lg 1024`. Le design part du mobile, mais **desktop/iPad sont des cibles de plein droit** (pas une simple colonne mobile étirée).
-- **Navbar** : barre supérieure sticky (`components/nav/Navbar.svelte`). Desktop (`md+`) : liens inline + actions (badge rôle / switch de vue, compte, déconnexion). Mobile (`< md`) : brand + bouton menu → panneau déroulant empilé.
+- **Navigation** (double système, breakpoint pivot `lg` 1024px) :
+  - **Top bar** sticky (`components/nav/Navbar.svelte`) : marque (logo/« ACGB ») + liens inline visibles **desktop** (`lg:flex`) ; à droite à toutes tailles → cloche notifications (`NotificationBell.svelte`) + menu compte (`AccountMenu.svelte`, switch de vue / déconnexion).
+  - **Bottom bar « pill flottante »** (`components/nav/BottomNav.svelte`) : mobile + tablette (`lg:hidden`), barre détachée des bords (`rounded-full`, ombre, `backdrop-blur`, safe-area). Inactifs = icône seule, actif = pastille teintée icône + label. Onglets dérivés du rôle/vue via `$lib/nav-model.ts` (source partagée avec la top bar).
+  - **Modèle partagé** `nav-model.ts` : `isActive()` + `buildTabs()` (une seule vérité rôle/vue, pas de duplication).
 - **Largeur de contenu adaptée à la route** (gérée dans `+layout.svelte`, fin de la colonne 640 unique) :
   - Formulaires & lecture (accueil, compte, login) → `max-w-2xl` centré.
   - Inscription bénévole `/t/[token]` & gestion tournoi `/tournois/[id]` → `max-w-3xl`.
@@ -96,7 +99,8 @@ Pas de photo dans l'app (outil utilitaire). Si visuel ponctuel : photos d'action
   - Confirmation d'inscription : check + léger pop du statut (scale 0.96→1, fade), `--dur-base`.
   - Apparition de liste (créneaux/postes) : fade-up doux, stagger 50ms.
   - Drawer/sheet mobile pour ajouter un créneau : slide depuis le bas, `--ease-drawer`.
-- Ne s'anime JAMAIS : nav, footer, éléments vus en boucle, focus clavier.
+  - **Bottom bar** : la pastille active **glisse** (left/width, `--dur-base` `--ease-drawer`) d'un onglet à l'autre ; le label de l'onglet actif apparaît en fondu. Menus ponctuels (cloche, compte) : pop d'ouverture (scale 0.96→1 + fade, `--dur-fast`).
+- **Nav : seul l'indicateur actif + les menus ponctuels s'animent.** Les liens/onglets eux-mêmes ne s'animent pas (transition de couleur uniquement). Ne s'anime jamais : footer, éléments vus en boucle, focus clavier.
 - Toujours : `prefers-reduced-motion`, transform/opacity only, rendu visible sans JS.
 - Implémentation : skill `/motion` en fin de build (pas au jour 1).
 
