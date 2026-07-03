@@ -21,6 +21,10 @@
 - **Placement initial sans glissé** : la transition n'est appliquée (`.pill.animate`) qu'après le 1er placement (activée en `requestAnimationFrame`) → plus de glissé parasite depuis le bord au load.
 - **Feedback optimiste** : `path` dérive de `navigating.to?.url.pathname ?? page.url.pathname` → la pastille glisse dès le tap, sans attendre le `load` de la page destination (fini le décalage au premier accès à une page pas encore chargée).
 
+**Commit :** [c78424c] feat(nav): bottom bar pill flottante + cloche notifications créneaux + logo
+
+---
+
 ## État session 2026-07-02 (refonte navigation — bottom bar PWA)
 
 **Fait :**
@@ -52,16 +56,25 @@
 - Doctrine mise à jour dans `docs/DESIGN.md` §5.
 
 ## Carte du code
+> Mise à jour : 2026-07-03
 
-- `src/lib/components/nav/Navbar.svelte` — top bar « ACGB » + nav horizontale desktop (`lg:flex`) + `<AccountMenu>`.
-- `src/lib/components/nav/BottomNav.svelte` — bottom bar mobile/tablette (`lg:hidden`), onglets dérivés du rôle/vue.
-- `src/lib/components/nav/AccountMenu.svelte` — bouton compte + menu session (identité, rôle, switch de vue, Mon compte, déconnexion).
-- `src/lib/components/nav/NotificationBell.svelte` — cloche + badge imminent + panneau « Prochains créneaux » (top bar, connecté).
-- `src/lib/nav-model.ts` — `isActive()`, `buildTabs()`, types partagés (`NavTab`, `AgendaItem`). Source unique rôle/vue.
-- `src/routes/+layout.server.ts` — agenda perso : `imminentCount` (48 h) + `upcomingShifts` (slice 6), via `getMyUpcomingShifts`.
-- `src/routes/+layout.svelte` — shell + `contentMax(path)` + `<BottomNav>` + padding bas safe-area (barre flottante).
-- `src/app.html` — meta viewport `viewport-fit=cover`.
-- Grilles : `tournois/+page.svelte`, `tournois-publics/+page.svelte`, `admin/tournois/+page.svelte`.
+| Fichier | Rôle |
+|---------|------|
+| `src/lib/nav-model.ts` | Source unique nav : `isActive()`, `buildTabs()` (rôle/vue, contrainte 4-onglets super admin), types `NavTab`/`AgendaItem`. Client-safe. |
+| `src/lib/components/nav/BottomNav.svelte` | Bottom bar « pill flottante » (`lg:hidden`) : pastille active glissante mesurée + badge imminent + feedback optimiste (`navigating.to`). |
+| `src/lib/components/nav/Navbar.svelte` | Top bar sticky : logo `logo-acgb.png` (lien accueil) + liens desktop (`lg:flex`) + `<NotificationBell>` + `<AccountMenu>`. |
+| `src/lib/components/nav/NotificationBell.svelte` | Cloche + badge imminent + panneau « Prochains créneaux » (`/t/[token]`, « Activer les rappels »). Connecté uniquement. |
+| `src/lib/components/nav/AccountMenu.svelte` | Bouton compte + menu session (identité, rôle, switch de vue, déconnexion). Inchangé. |
+| `src/routes/+layout.server.ts` | Agenda perso partagé : `imminentCount` (48 h) + `upcomingShifts` (slice 6), via `getMyUpcomingShifts` (zéro nouvelle query). |
+| `src/routes/+layout.svelte` | Shell + `contentMax(path)` + câblage props nav + padding bas barre flottante. |
+| `static/icon.png` · `src/app.html` · `static/manifest.webmanifest` · `src/service-worker.ts` | Icône carrée ACGB = favicon / apple-touch / manifest PWA / icône+badge push (remplace `icon.svg`). |
+
+### Décisions clés
+- **Indicateur glissant mesuré** (pas de largeurs de tabs égales) : onglets à largeur variable (inactif = icône, actif = icône+label), donc la pastille lit `offsetLeft`/`offsetWidth` de l'onglet actif. Labels togglés **sans** transition de largeur (seule la pastille anime `left/width`) pour éviter une mesure en cours d'animation.
+- **Transition activée après le 1er placement** (`.pill.animate` posé en `requestAnimationFrame`) → aucun glissé parasite au chargement.
+- **Feedback optimiste** : `path` = `navigating.to?.url.pathname ?? page.url.pathname` → la pastille suit la cible dès le tap, avant la fin du `load`.
+- **`nav-model.ts` client-safe** : type `AgendaItem` local (pas d'import du type serveur `MyAgendaShift`) pour ne pas tirer `$lib/server` côté client.
+- **Manifest icon `purpose: any`** (pas `maskable`) : le castor déborderait de la zone de sécurité du masque adaptatif Android.
 
 ## Pièges / à surveiller au test
 
