@@ -1,7 +1,6 @@
 <script lang="ts">
 	import './layout.css';
 	import '@fontsource-variable/manrope';
-	import favicon from '$lib/assets/favicon.svg';
 	import { page } from '$app/state';
 	import { Toaster } from '$lib/components/ui/toast';
 	import { ConfirmDialog } from '$lib/components/ui/confirm';
@@ -32,13 +31,18 @@
 	const maxW = $derived(contentMax(page.url.pathname));
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
+<svelte:head><link rel="icon" href="/icon.png" /></svelte:head>
 
 <div class="flex min-h-dvh flex-col">
-	<Navbar user={data.user} viewMode={data.viewMode} />
+	<Navbar
+		user={data.user}
+		viewMode={data.viewMode}
+		upcomingShifts={data.upcomingShifts}
+		imminentCount={data.imminentCount}
+	/>
 
 	<main
-		class="mx-auto w-full flex-1 px-4 pt-6 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:px-6 lg:pb-6 print:p-0 {maxW}"
+		class="mx-auto w-full flex-1 px-4 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 lg:pb-6 print:p-0 {maxW}"
 	>
 		{#if data.prototype}
 			<p
@@ -51,7 +55,7 @@
 		{@render children()}
 	</main>
 
-	<BottomNav user={data.user} viewMode={data.viewMode} />
+	<BottomNav user={data.user} viewMode={data.viewMode} imminentCount={data.imminentCount} />
 </div>
 
 <!-- Singletons globaux : feedback transitoire + confirmations -->

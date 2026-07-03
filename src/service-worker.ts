@@ -53,8 +53,8 @@ sw.addEventListener('push', (event) => {
 	event.waitUntil(
 		sw.registration.showNotification(data.title ?? 'Bénévoles ACGB', {
 			body: data.body,
-			icon: '/icon.svg',
-			badge: '/icon.svg',
+			icon: '/icon.png',
+			badge: '/icon.png',
 			data: { url: data.url ?? '/' }
 		})
 	);
