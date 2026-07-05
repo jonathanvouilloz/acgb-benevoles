@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { shift, position, tournament } from '$lib/server/db/schema';
 import { toShiftTimestamps, type ShiftInput } from '$lib/schemas/shift';
+import { scheduleForShift } from './reminder-scheduler';
 
 /** Vérifie qu'un poste appartient à un tournoi de l'organisateur. Throw 'FORBIDDEN' sinon. */
 async function assertPositionOwner(positionId: string, organizerId: string): Promise<void> {
@@ -46,6 +47,11 @@ export async function updateShift(shiftId: string, organizerId: string, input: S
 		.set({ startsAt, endsAt, capacity: input.capacity })
 		.where(eq(shift.id, shiftId))
 		.returning();
+
+	// Le créneau a pu être déplacé → reprogramme les rappels de tous ses inscrits `available`
+	// (best-effort ; les anciens messages QStash droppent à leur livraison via `expectedStartsAtMs`).
+	if (row) await scheduleForShift(shiftId);
+
 	return row ?? null;
 }
 
