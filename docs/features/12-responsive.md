@@ -3,6 +3,25 @@
 **Complexité** : L
 **Statut** : À VALIDER (livré 2026-07-02)
 
+## État session 2026-07-05 (fix boucle bottom bar + audit + polish nav/rôles/rappels)
+
+**Fait :**
+
+- **Fix bug bloquant `effect_update_depth_exceeded`** (`BottomNav.svelte`) : la pastille glissante bouclait à l'infini quand aucun onglet ne matchait l'URL (`activeIndex === -1`) — `measure()` réécrivait un nouvel objet `pill` à chaque passage → gel total du runtime Svelte (bottom bar figée, clics ignorés, bouton rappels inerte). Écritures de `pill` désormais gardées.
+- **Audit sécu + technique** (2 agents) : aucune faille critique/haute ; findings traités ou notés (cf. hors périmètre). Migration `0007` (`rate_limit`) **appliquée + vérifiée** sur Neon.
+- **Rate-limit magic links** (transverse Epic 2) : `auth.api.signInMagicLink` contourne le rate-limit HTTP de Better Auth → limiter Postgres (`rate-limit.ts`, `INSERT … ON CONFLICT` atomique, fail-open), 12/h par IP + 4/h par email, sur les 2 modes login/signup.
+- **Onglet parent actif** : `navMatchPath()` rattache `/t/[token]` → onglet « Tournois » (bottom bar + top bar). Plus de perte de sélection en entrant dans un tournoi.
+- **`ViewChip`** : indicateur de vue active dans la top bar, cliquable (toggle `/set-view`) pour orga/admin, label statique pour bénévole.
+- **Badge notif rond** (cercle 18px fixe, BottomNav + NotificationBell). **`EnableNotifications` sur `/compte`** (corrige le lien mort de la cloche). **Bandeau « Gérer ce tournoi »** sur `/t/[token]` si `isOwner` (flag serveur, `organizerId` non exposé).
+
+**Prochain :** valider sur device réel PWA (chip vue bascule + onglets, focus onglet sur `/t/…`, cloche→/compte→Activer, bandeau Gérer, badge rond). Puis merge `feat/nav-redesign` → `master` (voir HANDOFF pour la config prod : env QStash/VAPID/BETTER_AUTH_URL + migration `0007` sur base prod).
+
+**Pièges :** le `ViewChip` s'affiche à toutes tailles dans la top bar → surveiller la place sur très petit écran (passer en icône seule si ça serre). Findings hors périmètre non traités : `now = $state(Date.now())` figé (`t/[token]`), en-têtes sécu (CSP), `PROTOTYPE_MODE` à vérifier absent en prod, push subscribe DELETE/upsert à scoper `user_id`.
+
+**Commit :** [0f27f0f] feat(nav): onglet parent actif, chip de vue, badge rond, rappels /compte, raccourci gestion
+
+---
+
 ## État session 2026-07-05 (gate d'installation PWA obligatoire + polish icônes)
 
 **Fait :**
@@ -74,14 +93,16 @@
 - Doctrine mise à jour dans `docs/DESIGN.md` §5.
 
 ## Carte du code
-> Mise à jour : 2026-07-05
+> Mise à jour : 2026-07-05 (session fix boucle + polish nav)
 
 | Fichier | Rôle |
 |---------|------|
+| `src/lib/components/nav/ViewChip.svelte` | Indicateur de vue active (top bar) : bouton toggle `/set-view` pour orga/admin, label statique pour bénévole. |
+| `src/lib/server/services/rate-limit.ts` | Rate-limiter Postgres « fenêtre fixe » (`INSERT … ON CONFLICT`, fail-open). Utilisé par `/login` (anti email-bombing). |
 | `src/lib/pwa.ts` | Détection PWA/plateforme (`isStandalone`/`isIOS`/`isAndroid`/`isMobile`/`inAppBrowser`). Source unique (aussi consommée par `EnableNotifications`). |
 | `src/lib/pwa-install.svelte.ts` | Capture `beforeinstallprompt`/`appinstalled` (état réactif) + `promptInstall()`. Importé tôt dans le layout. |
 | `src/lib/components/pwa/PwaInstallGate.svelte` | Overlay bloquant non-fermable (espace connecté mobile) : 3 issues in-app/iOS/Android + override `?pwa-gate-preview=1`. |
-| `src/lib/nav-model.ts` | Source unique nav : `isActive()`, `buildTabs()` (rôle/vue, contrainte 4-onglets super admin), types `NavTab`/`AgendaItem`. Client-safe. |
+| `src/lib/nav-model.ts` | Source unique nav : `isActive()`, `navMatchPath()` (rattache `/t/[token]` → onglet Tournois), `buildTabs()`, types `NavTab`/`AgendaItem`. Client-safe. |
 | `src/lib/components/nav/BottomNav.svelte` | Bottom bar « pill flottante » (`lg:hidden`) : pastille active glissante mesurée + badge imminent + feedback optimiste (`navigating.to`). |
 | `src/lib/components/nav/Navbar.svelte` | Top bar sticky : logo `logo-acgb.png` (lien accueil) + liens desktop (`lg:flex`) + `<NotificationBell>` + `<AccountMenu>`. |
 | `src/lib/components/nav/NotificationBell.svelte` | Cloche + badge imminent + panneau « Prochains créneaux » (`/t/[token]`, « Activer les rappels »). Connecté uniquement. |

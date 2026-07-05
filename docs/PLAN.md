@@ -25,10 +25,12 @@ Plan d'exécution maître. Statuts : `TODO` · `EN COURS` · `DONE`.
 
 ```sql
 -- 1. Appliquer les migrations (côté Jonathan) :
---    npx drizzle-kit migrate
+--    npx drizzle-kit migrate   (inclut 0007 rate_limit — déjà appliquée sur la base courante)
 -- 2. Promouvoir le 1er super admin :
 UPDATE "user" SET role = 'super_admin' WHERE email = 'jonathan.vouilloz@gmail.com';
 ```
+
+> Sécurité (2026-07-05) : rate-limit des magic links ajouté (`rate-limit.ts`, migration `0007`). Bien appliquer `0007` sur la base **prod** avant le passage en production.
 
 ## Ordre d'exécution
 
