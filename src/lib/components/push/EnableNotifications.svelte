@@ -131,4 +131,17 @@
 		<BellOff size={15} class="shrink-0" /> Notifications bloquées — autorise-les dans les réglages du
 		navigateur pour recevoir les rappels.
 	</p>
+{:else if state === 'unsupported'}
+	<div class="flex items-start gap-2 rounded-lg border border-border bg-surface-subtle p-4">
+		<BellOff size={18} class="mt-0.5 shrink-0 text-ink-muted" />
+		<div class="text-sm text-ink">
+			<p class="font-medium text-ink-strong">Rappels indisponibles sur ce navigateur</p>
+			<p class="text-ink-muted">
+				Les notifications push nécessitent une connexion sécurisée (HTTPS). Installe l'app sur ton
+				écran d'accueil ou ouvre-la depuis l'adresse officielle pour activer les rappels.
+			</p>
+		</div>
+	</div>
+{:else if state === 'checking'}
+	<p class="text-sm text-ink-muted">Vérification…</p>
 {/if}

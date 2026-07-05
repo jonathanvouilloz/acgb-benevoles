@@ -105,7 +105,7 @@
 			>
 				<span class="flex items-center gap-2">
 					<BellRing size={16} class="shrink-0 text-ink-muted" />
-					Activer les rappels
+					Gérer mes rappels
 				</span>
 				<ChevronRight size={15} class="shrink-0 text-ink-muted" />
 			</a>

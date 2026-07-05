@@ -74,6 +74,7 @@
 <!-- Rappels push : point d'activation global (cible du lien « Activer les rappels » de la cloche) -->
 <section class="mt-8 flex flex-col gap-2">
 	<p class="text-sm font-medium text-ink-strong">Rappels de créneaux</p>
+	<p class="text-xs text-ink-muted">Reçois une notification avant tes créneaux pour ne rien oublier.</p>
 	<EnableNotifications />
 </section>
 
