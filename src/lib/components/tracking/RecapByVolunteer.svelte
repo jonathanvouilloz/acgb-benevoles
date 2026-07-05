@@ -43,7 +43,7 @@
 		{#each groups as g (g.userId)}
 			<div class="rounded-lg border border-border bg-surface p-4">
 				<div class="flex items-baseline justify-between gap-2">
-					<h3 class="font-semibold text-ink-strong">{g.name}</h3>
+					<h3 class="h3">{g.name}</h3>
 					<span class="shrink-0 text-xs text-ink-muted">
 						{g.assignments.length} créneau{g.assignments.length > 1 ? 'x' : ''}
 					</span>

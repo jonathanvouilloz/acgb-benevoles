@@ -6,7 +6,7 @@ import type { LayoutServerLoad } from './$types';
 /** Fenêtre « imminent » : un créneau `available` qui commence dans les 48 h. */
 const IMMINENT_MS = 48 * 60 * 60 * 1000;
 /** Nombre de créneaux affichés dans le panneau cloche (les plus proches). */
-const AGENDA_PREVIEW = 6;
+const AGENDA_PREVIEW = 3;
 
 /**
  * Expose au shell : l'utilisateur courant (état connecté / déconnexion), le flag

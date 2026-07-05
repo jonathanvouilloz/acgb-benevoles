@@ -19,7 +19,7 @@
 
 <svelte:head><title>Connexion — Bénévoles ACGB</title></svelte:head>
 
-<h1 class="text-2xl font-bold text-ink-strong">
+<h1 class="h1">
 	{mode === 'login' ? 'Connexion' : 'Créer un compte'}
 </h1>
 <p class="mt-2 text-ink-muted">

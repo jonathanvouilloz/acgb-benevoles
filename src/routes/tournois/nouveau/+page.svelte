@@ -22,7 +22,7 @@
 	<ArrowLeft size={16} /> Mes tournois
 </a>
 
-<h1 class="mt-3 text-2xl font-bold text-ink-strong">Nouveau tournoi</h1>
+<h1 class="mt-3 h1">Nouveau tournoi</h1>
 
 <form
 	method="POST"

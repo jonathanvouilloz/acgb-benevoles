@@ -41,6 +41,37 @@
 	}
 }
 
+/* Échelle de titres (cf. DESIGN.md §4) — un seul levier réutilisable, appliqué via
+   les classes .h1/.h2/.h3 sur les titres de l'app. H1 en marine (en-tête de page,
+   autorisé DESIGN.md §3), H2/H3 en ink-strong pour étager la hiérarchie. Les utilitaires
+   Tailwind gardent la priorité → override ponctuel (ex. text-error) toujours possible. */
+@layer components {
+	.display {
+		font-size: var(--fs-display);
+		font-weight: var(--fw-bold);
+		line-height: var(--lh-tight);
+		color: var(--brand-primary);
+	}
+	.h1 {
+		font-size: var(--fs-h1);
+		font-weight: var(--fw-bold);
+		line-height: var(--lh-tight);
+		color: var(--brand-primary);
+	}
+	.h2 {
+		font-size: var(--fs-h2);
+		font-weight: var(--fw-semibold);
+		line-height: var(--lh-tight);
+		color: var(--ink-strong);
+	}
+	.h3 {
+		font-size: var(--fs-h3);
+		font-weight: var(--fw-semibold);
+		line-height: var(--lh-tight);
+		color: var(--ink-strong);
+	}
+}
+
 /* Boutons « glossy » (inspiré buy-button animations.dev, couleurs ACGB).
    Skin découplée de la taille : applicable au gros bouton (radius-lg, 44px)
    comme aux boutons compacts en ligne (rounded 8px, 36px). */

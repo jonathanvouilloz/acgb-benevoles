@@ -35,14 +35,14 @@
 
 {#if showOrganizerHome}
 	<!-- Organisateur -->
-	<h1 class="text-2xl font-bold text-ink-strong">Bénévoles ACGB</h1>
+	<h1 class="h1">Bénévoles ACGB</h1>
 	<p class="mt-2 text-ink-muted">Gère tes tournois, postes et créneaux.</p>
 	<a href={resolve('/tournois')} class="mt-4 inline-block">
 		<Button size="sm">Mes tournois</Button>
 	</a>
 {:else if data.user}
 	<!-- Bénévole connecté : agenda de ses prochains créneaux + ses tournois -->
-	<h1 class="text-2xl font-bold text-ink-strong">Mes créneaux</h1>
+	<h1 class="h1">Mes créneaux</h1>
 
 	{#if data.myShifts.length === 0}
 		<div
@@ -62,7 +62,7 @@
 		<div class="mt-6 flex flex-col gap-5">
 			{#each agendaDays as g, gi (g.key)}
 				<section class="fade-up flex flex-col gap-2" style="animation-delay: {gi * 60}ms">
-					<h2 class="text-sm font-semibold text-ink-strong">{g.label}</h2>
+					<h2 class="h2">{g.label}</h2>
 					{#each g.shifts as s (s.shiftId)}
 						<a
 							href={resolve('/t/[token]', { token: s.shareToken })}
@@ -92,7 +92,7 @@
 
 	<!-- Mes tournois (accès rapide à chaque page d'inscription) -->
 	{#if data.myTournaments.length > 0}
-		<h2 class="mt-10 text-lg font-semibold text-ink-strong">Mes tournois</h2>
+		<h2 class="mt-10 h2">Mes tournois</h2>
 		<ul class="mt-3 flex flex-col gap-3">
 			{#each data.myTournaments as t (t.id)}
 				<li>
@@ -101,7 +101,7 @@
 						class="block rounded-lg border border-border bg-surface px-4 py-3 transition hover:border-brand-primary hover:shadow-sm"
 					>
 						<div class="flex items-start justify-between gap-2">
-							<h3 class="font-semibold text-ink-strong">{t.name}</h3>
+							<h3 class="h3">{t.name}</h3>
 							<span class="shrink-0 text-xs text-ink-muted">
 								{t.signupCount} créneau{t.signupCount > 1 ? 'x' : ''}
 							</span>
@@ -123,7 +123,7 @@
 	{/if}
 {:else}
 	<!-- Visiteur non connecté -->
-	<h1 class="text-2xl font-bold text-ink-strong">Bénévoles ACGB</h1>
+	<h1 class="h1">Bénévoles ACGB</h1>
 	<p class="mt-2 text-ink-muted">
 		Inscris-toi aux créneaux des tournois de l'ACGB. Connecte-toi pour voir tes inscriptions.
 	</p>

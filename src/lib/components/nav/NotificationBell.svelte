@@ -99,7 +99,7 @@
 			{/if}
 
 			<a
-				href={resolve('/compte')}
+				href={resolve('/rappels')}
 				role="menuitem"
 				class="flex items-center justify-between gap-2 px-3 py-2.5 text-sm text-ink transition hover:bg-surface-subtle"
 			>

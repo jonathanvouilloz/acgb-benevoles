@@ -10,7 +10,7 @@
 
 <svelte:head><title>Tournois — Administration</title></svelte:head>
 
-<h1 class="text-2xl font-bold text-ink-strong">Tous les tournois ({data.tournaments.length})</h1>
+<h1 class="h1">Tous les tournois ({data.tournaments.length})</h1>
 
 {#if data.tournaments.length === 0}
 	<p class="mt-6 text-sm text-ink-muted">Aucun tournoi pour le moment.</p>
@@ -21,7 +21,7 @@
 				<div class="flex flex-wrap items-start justify-between gap-2">
 					<div class="min-w-0">
 						<div class="flex items-center gap-2">
-							<h2 class="font-semibold text-ink-strong">{t.name}</h2>
+							<h2 class="h3">{t.name}</h2>
 							<PhaseBadge phase={t.phase} />
 						</div>
 						<p class="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">

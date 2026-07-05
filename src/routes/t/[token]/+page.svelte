@@ -150,7 +150,7 @@
 <svelte:head><title>{t.name} — Bénévoles ACGB</title></svelte:head>
 
 <header class="flex flex-col gap-1">
-	<h1 class="text-2xl font-bold text-ink-strong">{t.name}</h1>
+	<h1 class="h1">{t.name}</h1>
 	<p class="flex items-center gap-1.5 text-sm text-ink-muted">
 		<CalendarDays size={15} />
 		{formatDateRange(t.startDate, t.endDate)}
@@ -181,7 +181,7 @@
 
 <!-- Contact organisateur — pour joindre la personne qui gère le tournoi -->
 <section class="mt-4 rounded-lg border border-border bg-surface-subtle p-4">
-	<h2 class="flex items-center gap-1.5 text-sm font-semibold text-ink-strong">
+	<h2 class="flex items-center gap-1.5 h2">
 		<User size={15} /> Organisateur
 	</h2>
 	<div class="mt-2 flex flex-col gap-1 text-sm text-ink">
@@ -274,7 +274,7 @@
 			<div class="mt-4 flex flex-col gap-5">
 				{#each myTimeGroups as g (g.key)}
 					<section class="flex flex-col gap-2">
-						<h3 class="text-sm font-semibold text-ink-strong">
+						<h3 class="h3">
 							{g.dayLabel} · <span class="text-ink-muted">{g.slotLabel}</span>
 						</h3>
 						{#each g.shifts as shift (shift.id)}
@@ -396,7 +396,7 @@
 			<div class="mt-4 flex flex-col gap-5">
 				{#each timeGroups as g (g.key)}
 					<section class="flex flex-col gap-2">
-						<h3 class="text-sm font-semibold text-ink-strong">
+						<h3 class="h3">
 							{g.dayLabel} · <span class="text-ink-muted">{g.slotLabel}</span>
 						</h3>
 						{#each g.shifts as shift (shift.id)}
@@ -417,7 +417,7 @@
 			<div class="mt-4 flex flex-col gap-5">
 				{#each positionGroups as g (g.id)}
 					<section class="flex flex-col gap-2">
-						<h3 class="flex items-center gap-1.5 text-sm font-semibold text-ink-strong">
+						<h3 class="flex items-center gap-1.5 h3">
 							<span class="size-2.5 shrink-0 rounded-full" style="background-color: {g.color}"
 							></span>
 							{g.name}

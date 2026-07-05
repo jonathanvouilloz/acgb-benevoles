@@ -17,7 +17,7 @@
 		{#each postes as p (p.id)}
 			<section>
 				<!-- En-tête poste -->
-				<h2 class="mb-2 flex items-center gap-2 text-sm font-semibold text-ink-strong">
+				<h2 class="mb-2 flex items-center gap-2 h2">
 					<span class="size-2.5 shrink-0 rounded-full" style="background-color: {p.color}"></span>
 					{p.name}
 				</h2>

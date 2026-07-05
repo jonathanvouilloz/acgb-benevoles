@@ -19,7 +19,7 @@
 
 <svelte:head><title>Tournois — Bénévoles ACGB</title></svelte:head>
 
-<h1 class="text-2xl font-bold text-ink-strong">Tournois</h1>
+<h1 class="h1">Tournois</h1>
 <p class="mt-1 text-sm text-ink-muted">
 	Tous les tournois de l'ACGB. Ouvre-en un pour t'inscrire comme bénévole.
 </p>
@@ -35,7 +35,7 @@
 	<div class="mt-6 flex flex-col gap-8">
 		{#each groups as g (g.phase)}
 			<section class="flex flex-col gap-2">
-				<h2 class="flex items-center gap-2 text-sm font-semibold text-ink-strong">
+				<h2 class="flex items-center gap-2 h2">
 					{phaseLabel(g.phase)}
 					<span class="text-xs font-normal text-ink-muted">({g.items.length})</span>
 				</h2>
@@ -49,7 +49,7 @@
 							>
 								<div class="min-w-0 flex-1">
 									<div class="flex items-center gap-2">
-										<h3 class="truncate font-semibold text-ink-strong">{t.name}</h3>
+										<h3 class="truncate h3">{t.name}</h3>
 										<PhaseBadge phase={t.phase} class="shrink-0" />
 									</div>
 									<p class="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">

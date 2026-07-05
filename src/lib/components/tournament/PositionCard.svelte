@@ -101,7 +101,7 @@
 				<span class="size-3.5 shrink-0 rounded-full" style="background-color: {position.color}"
 				></span>
 				<div class="min-w-0">
-					<h3 class="truncate font-semibold text-ink-strong">
+					<h3 class="truncate h3">
 						{position.name}
 						<span class="font-normal text-ink-muted">({position.shifts.length})</span>
 					</h3>

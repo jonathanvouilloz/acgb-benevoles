@@ -106,7 +106,7 @@
 
 	<!-- En-tête -->
 	<div class="mt-3 print:hidden">
-		<h1 class="text-2xl font-bold text-ink-strong">{t.name}</h1>
+		<h1 class="h1">{t.name}</h1>
 		<p class="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
 			<CalendarDays size={15} />
 			{formatDateRange(t.startDate, t.endDate)}

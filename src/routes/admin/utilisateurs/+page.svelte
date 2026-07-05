@@ -31,12 +31,12 @@
 
 <svelte:head><title>Utilisateurs — Administration</title></svelte:head>
 
-<h1 class="text-2xl font-bold text-ink-strong">Utilisateurs</h1>
+<h1 class="h1">Utilisateurs</h1>
 
 <!-- Demandes de promotion organisateur en attente -->
 {#if data.requests.length > 0}
 	<section class="mt-6">
-		<h2 class="text-sm font-semibold text-ink-strong">
+		<h2 class="h2">
 			Demandes en attente ({data.requests.length})
 		</h2>
 		<ul class="mt-3 flex flex-col gap-2">
@@ -67,7 +67,7 @@
 
 <!-- Créer un compte organisateur -->
 <section class="mt-8 rounded-lg border border-border bg-surface-subtle p-4">
-	<h2 class="flex items-center gap-1.5 text-sm font-semibold text-ink-strong">
+	<h2 class="flex items-center gap-1.5 h2">
 		<UserPlus size={16} /> Créer un compte organisateur
 	</h2>
 	<p class="mt-1 text-xs text-ink-muted">
@@ -105,7 +105,7 @@
 
 <!-- Liste des utilisateurs -->
 <section class="mt-8">
-	<h2 class="text-sm font-semibold text-ink-strong">Tous les utilisateurs ({data.users.length})</h2>
+	<h2 class="h2">Tous les utilisateurs ({data.users.length})</h2>
 	<ul class="mt-3 flex flex-col gap-2">
 		{#each data.users as u (u.id)}
 			<li class="rounded-lg border border-border bg-surface p-3">

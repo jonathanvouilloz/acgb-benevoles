@@ -136,7 +136,7 @@
 {:else}
 	<div class="mt-3 flex items-start justify-between gap-3">
 		<div>
-			<h1 class="text-2xl font-bold text-ink-strong">{t.name}</h1>
+			<h1 class="h1">{t.name}</h1>
 			<p class="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
 				<CalendarDays size={15} />
 				{formatDateRange(t.startDate, t.endDate)}
@@ -210,7 +210,7 @@
 
 <!-- Postes -->
 <div class="mt-8 flex items-center justify-between gap-3">
-	<h2 class="text-lg font-semibold text-ink-strong">Postes</h2>
+	<h2 class="h2">Postes</h2>
 	<div class="flex items-center gap-2">
 		{#if t.positions.length > 0}
 			<button

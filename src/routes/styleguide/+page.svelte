@@ -29,13 +29,13 @@
 
 <div class="space-y-10">
 	<header>
-		<h1 class="text-2xl font-bold text-ink-strong">Styleguide</h1>
+		<h1 class="h1">Styleguide</h1>
 		<p class="mt-1 text-ink-muted">Référence vivante du design system — charte ACGB.</p>
 	</header>
 
 	<!-- Couleurs -->
 	<section class="space-y-3">
-		<h2 class="text-lg font-semibold text-ink-strong">Couleurs</h2>
+		<h2 class="h2">Couleurs</h2>
 		<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
 			{#each swatches as s (s.name)}
 				<div class="rounded-lg border border-border p-2">
@@ -48,17 +48,18 @@
 
 	<!-- Typographie -->
 	<section class="space-y-2">
-		<h2 class="text-lg font-semibold text-ink-strong">Typographie</h2>
-		<p class="text-2xl font-bold text-ink-strong">Display / 2rem bold</p>
-		<p class="text-xl font-bold text-ink-strong">H1 / 1.5rem bold</p>
-		<p class="text-lg font-semibold text-ink-strong">H2 / 1.25rem semibold</p>
+		<h2 class="h2">Typographie</h2>
+		<p class="display">Display / 2.25rem bold marine</p>
+		<p class="h1">H1 / 1.75rem bold marine</p>
+		<p class="h2">H2 / 1.375rem semibold</p>
+		<p class="h3">H3 / 1.125rem semibold</p>
 		<p class="text-base text-ink">Corps / 1rem regular — Manrope Variable.</p>
 		<p class="text-sm text-ink-muted">Légende / 0.875rem muted.</p>
 	</section>
 
 	<!-- Boutons -->
 	<section class="space-y-3">
-		<h2 class="text-lg font-semibold text-ink-strong">Boutons</h2>
+		<h2 class="h2">Boutons</h2>
 		<div class="flex flex-wrap items-center gap-3">
 			<Button variant="primary">Créer un tournoi</Button>
 			<Button variant="secondary">Je suis dispo</Button>
@@ -78,7 +79,7 @@
 
 	<!-- Status badges -->
 	<section class="space-y-3">
-		<h2 class="text-lg font-semibold text-ink-strong">Statuts d'inscription</h2>
+		<h2 class="h2">Statuts d'inscription</h2>
 		<div class="flex flex-wrap gap-3">
 			<StatusBadge status="available" />
 			<StatusBadge status="maybe" />
@@ -88,7 +89,7 @@
 
 	<!-- Select -->
 	<section class="space-y-3">
-		<h2 class="text-lg font-semibold text-ink-strong">Select</h2>
+		<h2 class="h2">Select</h2>
 		<div class="max-w-xs">
 			<Select bind:value={posteValue} options={posteOptions} />
 		</div>
@@ -97,7 +98,7 @@
 
 	<!-- Tableau récap -->
 	<section class="space-y-3">
-		<h2 class="text-lg font-semibold text-ink-strong">Tableau récap</h2>
+		<h2 class="h2">Tableau récap</h2>
 		<div class="overflow-x-auto rounded-lg border border-border">
 			<table class="w-full border-collapse text-sm">
 				<thead>
@@ -131,7 +132,7 @@
 
 	<!-- Motion -->
 	<section class="space-y-3">
-		<h2 class="text-lg font-semibold text-ink-strong">Motion — fade-up (5/10)</h2>
+		<h2 class="h2">Motion — fade-up (5/10)</h2>
 		<div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
 			{#each ['Buvette', 'Arbitre', 'Accueil'] as item, i (item)}
 				<div

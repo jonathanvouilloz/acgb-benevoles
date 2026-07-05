@@ -7,7 +7,7 @@
 
 <svelte:head><title>Lien envoyé — Bénévoles ACGB</title></svelte:head>
 
-<h1 class="text-2xl font-bold text-ink-strong">Vérifie ta boîte mail</h1>
+<h1 class="h1">Vérifie ta boîte mail</h1>
 <p class="mt-2 text-ink-muted">
 	{#if data.email}
 		On vient d'envoyer un lien de connexion à <span class="font-medium text-ink">{data.email}</span

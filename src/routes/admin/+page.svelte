@@ -10,7 +10,7 @@
 
 <svelte:head><title>Administration — Bénévoles ACGB</title></svelte:head>
 
-<h1 class="text-2xl font-bold text-ink-strong">Tableau de bord</h1>
+<h1 class="h1">Tableau de bord</h1>
 <p class="mt-1 text-sm text-ink-muted">Vue d'ensemble de l'activité ACGB.</p>
 
 <div class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">

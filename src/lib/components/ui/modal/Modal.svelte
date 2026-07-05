@@ -54,7 +54,7 @@
 			transition:scale={{ duration: slideDuration, start: 0.97 }}
 		>
 			<div class="flex items-center justify-between gap-3">
-				{#if title}<h2 class="text-lg font-semibold text-ink-strong">{title}</h2>{/if}
+				{#if title}<h2 class="h2">{title}</h2>{/if}
 				<button
 					type="button"
 					onclick={close}

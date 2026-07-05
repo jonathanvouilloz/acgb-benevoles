@@ -105,7 +105,7 @@
 
 			{#if inApp}
 				<!-- Webview in-app (WhatsApp/Instagram…) : l'installation PWA y est impossible. -->
-				<h1 class="mt-5 text-xl font-semibold text-ink-strong">Ouvre dans ton navigateur</h1>
+				<h1 class="mt-5 h1">Ouvre dans ton navigateur</h1>
 				<p class="mt-2 text-sm text-ink-muted">
 					Tu es dans {inApp}. Pour installer l'app et recevoir les rappels de tes créneaux, ouvre
 					ce lien dans {ios ? 'Safari' : 'Chrome'}.
@@ -128,7 +128,7 @@
 				</Button>
 			{:else if ios}
 				<!-- iOS Safari : pas d'installation programmatique, uniquement « Sur l'écran d'accueil ». -->
-				<h1 class="mt-5 text-xl font-semibold text-ink-strong">Installe l'app</h1>
+				<h1 class="mt-5 h1">Installe l'app</h1>
 				<p class="mt-2 text-sm text-ink-muted">
 					Pour continuer et recevoir les rappels de tes créneaux, ajoute l'app à ton écran
 					d'accueil.
@@ -166,7 +166,7 @@
 				</div>
 			{:else}
 				<!-- Android/Chrome (et aperçu desktop) : invite native si dispo, sinon menu navigateur. -->
-				<h1 class="mt-5 text-xl font-semibold text-ink-strong">Installe l'app</h1>
+				<h1 class="mt-5 h1">Installe l'app</h1>
 				<p class="mt-2 text-sm text-ink-muted">
 					Pour continuer et recevoir les rappels de tes créneaux, installe l'app sur ton
 					téléphone.

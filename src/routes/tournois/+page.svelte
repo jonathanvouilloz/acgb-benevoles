@@ -11,7 +11,7 @@
 <svelte:head><title>Mes tournois — Bénévoles ACGB</title></svelte:head>
 
 <div class="flex items-center justify-between gap-3">
-	<h1 class="text-2xl font-bold text-ink-strong">Mes tournois</h1>
+	<h1 class="h1">Mes tournois</h1>
 	<a href={resolve('/tournois/nouveau')}>
 		<Button size="sm">
 			<Plus size={18} /> Nouveau
@@ -37,7 +37,7 @@
 					href={resolve('/tournois/[id]', { id: t.id })}
 					class="block h-full rounded-lg border border-border bg-surface px-4 py-3 transition hover:border-brand-primary hover:shadow-sm"
 				>
-					<h2 class="font-semibold text-ink-strong">{t.name}</h2>
+					<h2 class="h3">{t.name}</h2>
 					<p class="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
 						<CalendarDays size={15} />
 						{formatDateRange(t.startDate, t.endDate)}
