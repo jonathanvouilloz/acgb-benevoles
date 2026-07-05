@@ -3,6 +3,24 @@
 **Complexité** : L
 **Statut** : À VALIDER (livré 2026-07-02)
 
+## État session 2026-07-05 (gate d'installation PWA obligatoire + polish icônes)
+
+**Fait :**
+
+- **Gate d'installation PWA bloquant sur l'espace connecté mobile** (`PwaInstallGate.svelte`, overlay plein écran non-fermable monté dans `+layout.svelte`). Objectif : forcer l'app installée là où les rappels push comptent (le Web Push iOS n'existe qu'en standalone). Actif **uniquement** sur `/compte`, `/tournois*`, `/admin*` (pages publiques + `/t/[token]` restent libres), **mobile non-standalone connecté** ; desktop exempté.
+- **3 issues selon le contexte** : webview in-app (WhatsApp/Instagram… → « ouvre dans Safari/Chrome » + copier le lien, car install impossible dans ces webviews) ; iOS Safari (tuto « Partager → Sur l'écran d'accueil ») ; Android/Chrome (bouton d'install natif via `beforeinstallprompt`, sinon menu). Aperçu design desktop via `?pwa-gate-preview=1`.
+- **`src/lib/pwa.ts`** : helpers de détection (`isStandalone`, `isIOS`, `isAndroid`, `isMobile`, `inAppBrowser`). `EnableNotifications.svelte` refactorisé pour les réutiliser (source unique).
+- **`src/lib/pwa-install.svelte.ts`** : capture `beforeinstallprompt` / `appinstalled` (état réactif, `promptInstall()`), importé tôt dans le layout.
+- **Polish icônes** : `icon-192` / `icon-512` / `icon-maskable` générés depuis `docs/PNG/logo-square…png` (512 net) ; manifest à 3 icônes (192/512/maskable) ; meta `apple-mobile-web-app-*` + `mobile-web-app-capable` dans `app.html`. `check` + `build` verts.
+
+**Prochain :** validation manuelle Jonathan sur device réel (gate bloque bien `/compte` en navigateur mobile ; bouton install Android ; tuto iOS + réouverture standalone = plus de gate ; écran « ouvre dans Safari » depuis un lien WhatsApp).
+
+**Pièges :** `Modal.svelte` autorise croix/Escape/backdrop → **non réutilisé** pour le gate (blocage dur → overlay dédié). Le matching des routes gardées évite que `/tournois-publics` matche `/tournois` (comparaison exacte + `startsWith('/…/')`).
+
+**Commit :** [2211e41] feat(pwa): gate d'installation obligatoire sur l'espace connecté + polish icônes
+
+---
+
 ## État session 2026-07-03 (redesign nav « pill flottante » + notifications créneaux)
 
 **Fait :**
@@ -56,10 +74,13 @@
 - Doctrine mise à jour dans `docs/DESIGN.md` §5.
 
 ## Carte du code
-> Mise à jour : 2026-07-03
+> Mise à jour : 2026-07-05
 
 | Fichier | Rôle |
 |---------|------|
+| `src/lib/pwa.ts` | Détection PWA/plateforme (`isStandalone`/`isIOS`/`isAndroid`/`isMobile`/`inAppBrowser`). Source unique (aussi consommée par `EnableNotifications`). |
+| `src/lib/pwa-install.svelte.ts` | Capture `beforeinstallprompt`/`appinstalled` (état réactif) + `promptInstall()`. Importé tôt dans le layout. |
+| `src/lib/components/pwa/PwaInstallGate.svelte` | Overlay bloquant non-fermable (espace connecté mobile) : 3 issues in-app/iOS/Android + override `?pwa-gate-preview=1`. |
 | `src/lib/nav-model.ts` | Source unique nav : `isActive()`, `buildTabs()` (rôle/vue, contrainte 4-onglets super admin), types `NavTab`/`AgendaItem`. Client-safe. |
 | `src/lib/components/nav/BottomNav.svelte` | Bottom bar « pill flottante » (`lg:hidden`) : pastille active glissante mesurée + badge imminent + feedback optimiste (`navigating.to`). |
 | `src/lib/components/nav/Navbar.svelte` | Top bar sticky : logo `logo-acgb.png` (lien accueil) + liens desktop (`lg:flex`) + `<NotificationBell>` + `<AccountMenu>`. |
@@ -68,6 +89,7 @@
 | `src/routes/+layout.server.ts` | Agenda perso partagé : `imminentCount` (48 h) + `upcomingShifts` (slice 6), via `getMyUpcomingShifts` (zéro nouvelle query). |
 | `src/routes/+layout.svelte` | Shell + `contentMax(path)` + câblage props nav + padding bas barre flottante. |
 | `static/icon.png` · `src/app.html` · `static/manifest.webmanifest` · `src/service-worker.ts` | Icône carrée ACGB = favicon / apple-touch / manifest PWA / icône+badge push (remplace `icon.svg`). |
+| `static/icon-192.png` · `icon-512.png` · `icon-maskable.png` | Icônes PWA (source `docs/PNG/logo-square…png`) : manifest 3 tailles + meta `apple-mobile-web-app-*` dans `app.html`. |
 
 ### Décisions clés
 - **Indicateur glissant mesuré** (pas de largeurs de tabs égales) : onglets à largeur variable (inactif = icône, actif = icône+label), donc la pastille lit `offsetLeft`/`offsetWidth` de l'onglet actif. Labels togglés **sans** transition de largeur (seule la pastille anime `left/width`) pour éviter une mesure en cours d'animation.

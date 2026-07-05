@@ -1,7 +1,27 @@
 # Epic 6 — Push notifications & rappels
 
 **Complexité** : M
-**Statut** : DONE
+**Statut** : DONE (migré vers QStash le 2026-07-05)
+
+## État session 2026-07-05 (migration cron Vercel → QStash, événementiel)
+
+**Fait :**
+
+- **Passage du cron poll (15 min) à une planification événementielle QStash.** Au moment d'une inscription `available` (ou d'un déplacement de créneau), on publie 2 messages différés (24h + 2h avant `shift.startsAt`, `notBefore` absolu) livrés à l'heure pile. Zero-idle hors tournoi, précision à la seconde.
+- **Aucune annulation, aucune migration DB.** Chaque message porte `expectedStartsAtMs` ; l'endpoint récepteur re-valide à la livraison (existe / `available` / `startsAt` inchangé / palier pas déjà envoyé) et **drop** sinon. Couvre gratuitement désinscription, passage en `maybe`, suppressions en cascade, déplacements. Idempotence via les colonnes existantes `reminder24SentAt`/`reminder2SentAt` (QStash = at-least-once).
+- **`reminder-scheduler.ts`** (nouveau) : `scheduleForSignup` / `scheduleForShift` — client QStash lazy (no-op sans token), best-effort (n'échoue jamais l'action), reset des flags avant planif, `deduplicationId = rem:{signupId}:{kind}:{startsAtMs}`, `baseUrl = QSTASH_URL`.
+- **`reminder-service.ts`** : + `processSignupReminder(signupId, kind, expectedStartsAtMs)` (réutilise `buildPayload`/`sendPush`). `sendDueReminders`/`findDue` conservés (sweep manuel dormant).
+- **`api/qstash/reminder/+server.ts`** (nouveau) : POST, vérif signature `Receiver` (current/next signing keys), toujours 200 sauf 401 (signature)/503 (non configuré).
+- **Câblage sur 5 points de mutation** : `createSignup`, promotion `maybe→available`, `moveSignup`, `swapSignups`, `updateShift`. Aucun câblage sur les suppressions (drop à la livraison).
+- **`vercel.json`** : cron `*/15` **retiré**. Endpoint `/api/cron/reminders` gardé en sweep manuel dormant. `check` + `build` verts.
+
+**Prochain :** régler les 4 vars QStash + `BETTER_AUTH_URL` (HTTPS public) sur Vercel, puis **test bout-en-bout sur un preview Vercel** (QStash n'atteint pas localhost) : inscription → 2 messages au dashboard → push « 2h » à l'heure pile ; tester déplacement (ancien droppe) et désinscription (aucun push).
+
+**Pièges :** (1) En local `BETTER_AUTH_URL=localhost` → QStash ne peut pas livrer, les inscriptions locales créent des messages « failed » (commenter `QSTASH_TOKEN` en local pour un no-op). (2) Plan QStash **pay-as-you-go** requis (horizon 1 an ; le gratuit plafonne à 7 j — trop court pour une inscription précoce). (3) **Bascule** : les inscriptions faites avant ce déploiement n'ont aucun message planifié et le cron est retiré → prévoir un backfill one-shot si un tournoi avec inscrits existants approche.
+
+**Commit :** [b0efc02] feat(reminders): migration cron Vercel → QStash (rappels événementiels)
+
+---
 
 ## État session 2026-06-23 (validation)
 
@@ -51,20 +71,23 @@ Notifications push (PWA) pour rappeler aux bénévoles leurs créneaux à venir.
 
 ## Carte du code
 
-> Mise à jour : 2026-06-23
+> Mise à jour : 2026-07-05
 
 | Fichier                                              | Rôle                                                                                                           |
 | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `src/lib/schemas/push.ts`                            | Zod `pushSubscriptionSchema` (forme `PushSubscription.toJSON()`).                                              |
 | `src/lib/server/services/push-service.ts`            | `savePushSubscription` (upsert endpoint) / `deletePushSubscription` / `sendPush` (web-push + cleanup 404/410). |
-| `src/lib/server/services/reminder-service.ts`        | `sendDueReminders(now)` : paliers 24h/2h, idempotence via `reminder_24/2_sent_at`.                             |
+| `src/lib/server/services/reminder-scheduler.ts`      | **QStash** : `scheduleForSignup`/`scheduleForShift` — publie les 2 messages différés (client lazy, best-effort). |
+| `src/lib/server/services/reminder-service.ts`        | `processSignupReminder` (par inscription, appelé par QStash) + `sendDueReminders` (sweep manuel dormant).       |
+| `src/routes/api/qstash/reminder/+server.ts`          | **Récepteur QStash** : POST, vérif signature `Receiver`, délègue à `processSignupReminder`, toujours 200.       |
+| `src/lib/server/services/signup-service.ts`          | Mutations inscription — appelle `scheduleForSignup` (create / promotion / move / swap).                        |
+| `src/lib/server/services/shift-service.ts`           | `updateShift` → `scheduleForShift` (reprogramme les inscrits `available` du créneau déplacé).                  |
 | `src/routes/api/push/subscribe/+server.ts`           | `POST`/`DELETE` souscription (gardé `locals.user`).                                                            |
-| `src/routes/api/cron/reminders/+server.ts`           | `GET` envoi des rappels, gardé `Bearer $CRON_SECRET`.                                                          |
+| `src/routes/api/cron/reminders/+server.ts`           | `GET` sweep de secours **dormant** (plus programmé), gardé `Bearer $CRON_SECRET`.                              |
 | `src/service-worker.ts`                              | Handlers `push` + `notificationclick`.                                                                         |
-| `src/lib/components/push/EnableNotifications.svelte` | Opt-in client (support-guard, subscribe, POST).                                                                |
-| `src/routes/t/[token]/+page.svelte`                  | Bandeau « Activer les rappels » (connecté).                                                                    |
-| `src/lib/server/db/schema.ts`                        | Colonnes rappels + unique endpoint.                                                                            |
-| `vercel.json`                                        | Cron horaire.                                                                                                  |
+| `src/lib/components/push/EnableNotifications.svelte` | Opt-in client (support-guard, subscribe, POST) — détection via `$lib/pwa`.                                     |
+| `src/lib/server/db/schema.ts`                        | Colonnes rappels + unique endpoint (inchangées — QStash ne nécessite aucune migration).                       |
+| `vercel.json`                                        | Cron **retiré** (planification déportée sur QStash).                                                           |
 
 ## Décisions techniques
 
@@ -72,6 +95,7 @@ Notifications push (PWA) pour rappeler aux bénévoles leurs créneaux à venir.
 - **Idempotence** : horodatage par palier sur `signup` (`reminder_24/2_sent_at`), marqué après traitement même sans souscription → un seul envoi quelle que soit la fréquence du cron.
 - **Opt-in** : bandeau sur `/t/[token]` (pas de page réglages dédiée au MVP).
 - **Cron agnostique du déclencheur** (cf. contrainte Vercel Hobby ci-dessus).
+- **Événementiel QStash (2026-07-05)** : remplace le polling. Planification à l'inscription (précision seconde, zero-idle). Choix « fire-and-forget avec re-validation à la livraison » plutôt que « planifier + annuler » → aucune logique d'annulation, aucune migration. Contrepartie assumée : pas de filet (le sweep cron dormant reste déclenchable à la main).
 
 ## Notes & edge cases
 
