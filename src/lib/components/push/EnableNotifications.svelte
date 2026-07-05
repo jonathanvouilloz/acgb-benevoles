@@ -3,6 +3,7 @@
 	import { env } from '$env/dynamic/public';
 	import { Button } from '$lib/components/ui/button';
 	import { BellRing, BellOff, Check, Share, Plus } from 'lucide-svelte';
+	import { isIOS, isStandalone } from '$lib/pwa';
 
 	/**
 	 * Opt-in aux rappels push (Epic 6). Dégradation gracieuse : ne s'affiche que si le
@@ -27,16 +28,6 @@
 		'PushManager' in window &&
 		'Notification' in window &&
 		!!env.PUBLIC_VAPID_KEY;
-
-	/** iPhone/iPad (iPadOS récent se déclare « Macintosh » + écran tactile). */
-	const isIOS = () =>
-		/iPhone|iPad|iPod/.test(navigator.userAgent) ||
-		(navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
-
-	/** PWA installée (ajoutée à l'écran d'accueil) → Web Push devient disponible sur iOS. */
-	const isStandalone = () =>
-		window.matchMedia('(display-mode: standalone)').matches ||
-		(navigator as Navigator & { standalone?: boolean }).standalone === true;
 
 	onMount(async () => {
 		if (!supported()) {

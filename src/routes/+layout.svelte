@@ -6,6 +6,8 @@
 	import { ConfirmDialog } from '$lib/components/ui/confirm';
 	import Navbar from '$lib/components/nav/Navbar.svelte';
 	import BottomNav from '$lib/components/nav/BottomNav.svelte';
+	import PwaInstallGate from '$lib/components/pwa/PwaInstallGate.svelte';
+	import '$lib/pwa-install.svelte'; // enregistre le listener beforeinstallprompt au plus tôt
 	import type { LayoutData } from './$types';
 
 	let { children, data }: { children: import('svelte').Snippet; data: LayoutData } = $props();
@@ -58,8 +60,9 @@
 	<BottomNav user={data.user} viewMode={data.viewMode} imminentCount={data.imminentCount} />
 </div>
 
-<!-- Singletons globaux : feedback transitoire + confirmations -->
+<!-- Singletons globaux : feedback transitoire + confirmations + gate d'installation PWA -->
 <div class="print:hidden">
 	<Toaster />
 	<ConfirmDialog />
+	<PwaInstallGate user={data.user} />
 </div>
