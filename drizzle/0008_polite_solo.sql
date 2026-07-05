@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "reminder_lead_min" integer DEFAULT 30 NOT NULL;

@@ -6,12 +6,17 @@
 	import { roleLabel } from '$lib/roles';
 	import { ShieldQuestion } from 'lucide-svelte';
 	import EnableNotifications from '$lib/components/push/EnableNotifications.svelte';
+	import { REMINDER_LEAD_OPTIONS, reminderLeadLabel } from '$lib/reminders';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let submitting = $state(false);
 	let requesting = $state(false);
+	// Délai du rappel court : vérité serveur (`data`) + override optimiste au clic (`pendingLead`).
+	let pendingLead = $state<number | null>(null);
+	let savingLead = $state(false);
+	const leadMin = $derived(pendingLead ?? data.me.reminderLeadMin);
 
 	const req = $derived(data.organizerRequest);
 	// Un bénévole sans demande en cours (ni approuvée) peut soumettre une demande.
@@ -76,6 +81,44 @@
 	<p class="text-sm font-medium text-ink-strong">Rappels de créneaux</p>
 	<p class="text-xs text-ink-muted">Reçois une notification avant tes créneaux pour ne rien oublier.</p>
 	<EnableNotifications />
+
+	<!-- Délai du rappel court (le rappel 24h avant reste systématique) -->
+	<form
+		method="POST"
+		action="?/saveReminderLead"
+		class="mt-2 flex flex-col gap-1.5"
+		use:enhance={({ formData }) => {
+			savingLead = true;
+			pendingLead = Number(formData.get('reminderLeadMin')); // optimiste
+			return async ({ update, result }) => {
+				await update({ reset: false });
+				if (result.type === 'success') toast.success('Délai de rappel enregistré');
+				else pendingLead = null; // échec → on retombe sur la valeur serveur
+				savingLead = false;
+			};
+		}}
+	>
+		<span class="text-xs font-medium text-ink">Me prévenir avant le créneau</span>
+		<div class="inline-flex overflow-hidden rounded-md border border-border" role="group">
+			{#each REMINDER_LEAD_OPTIONS as opt, i (opt)}
+				<button
+					type="submit"
+					name="reminderLeadMin"
+					value={opt}
+					disabled={savingLead}
+					aria-pressed={leadMin === opt}
+					class="px-3 py-1.5 text-sm transition disabled:opacity-60 {i > 0
+						? 'border-l border-border'
+						: ''} {leadMin === opt
+						? 'bg-brand-primary font-medium text-white'
+						: 'bg-surface text-ink hover:bg-surface-subtle'}"
+				>
+					{reminderLeadLabel(opt)}
+				</button>
+			{/each}
+		</div>
+		<span class="text-xs text-ink-muted">Un rappel 24 h avant t'est aussi envoyé.</span>
+	</form>
 </section>
 
 <!-- Type de compte + demande de promotion organisateur (bénévole uniquement) -->

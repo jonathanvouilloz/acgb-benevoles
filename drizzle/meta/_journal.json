@@ -57,6 +57,13 @@
       "when": 1783258437292,
       "tag": "0007_sparkling_mockingbird",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783276165965,
+      "tag": "0008_polite_solo",
+      "breakpoints": true
     }
   ]
 }

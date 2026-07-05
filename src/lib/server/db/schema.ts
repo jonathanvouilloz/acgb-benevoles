@@ -40,6 +40,9 @@ export const user = pgTable('user', {
 	emailVerified: boolean('email_verified').notNull().default(false),
 	image: text('image'),
 	role: userRole('role').notNull().default('volunteer'),
+	// Délai du rappel court configurable par le bénévole (Epic 6), en minutes avant le créneau.
+	// Le rappel 24h reste fixe. Valeurs valides : cf. REMINDER_LEAD_OPTIONS ($lib/reminders).
+	reminderLeadMin: integer('reminder_lead_min').notNull().default(30),
 	createdAt: timestamp('created_at').notNull().defaultNow(),
 	updatedAt: timestamp('updated_at').notNull().defaultNow()
 });

@@ -42,22 +42,39 @@ export const POST: RequestHandler = async ({ request }) => {
 	const valid = await rec.verify({ body, signature, url }).catch(() => false);
 	if (!valid) throw error(401, 'Signature QStash invalide.');
 
-	let payload: { signupId?: unknown; kind?: unknown; expectedStartsAtMs?: unknown };
+	let payload: {
+		signupId?: unknown;
+		kind?: unknown;
+		expectedStartsAtMs?: unknown;
+		leadMin?: unknown;
+	};
 	try {
 		payload = JSON.parse(body);
 	} catch {
 		return new Response('bad-payload', { status: 200 });
 	}
 
-	const { signupId, kind, expectedStartsAtMs } = payload;
+	const { signupId, kind, expectedStartsAtMs, leadMin } = payload;
+	// `kind` court renommé `'30min'` → `'short'` : les messages en vol planifiés avant ce
+	// déploiement portent l'ancien `'30min'` et tombent ici en `invalid` (200 → drop propre).
 	if (
 		typeof signupId !== 'string' ||
-		(kind !== '24h' && kind !== '30min') ||
+		(kind !== '24h' && kind !== 'short') ||
 		typeof expectedStartsAtMs !== 'number'
 	) {
 		return new Response('invalid', { status: 200 });
 	}
+	// Le délai porté par le message ne sert qu'au libellé ; on accepte tout entier positif et
+	// borné (l'ensemble autorisé est verrouillé à l'écriture côté `/compte`). Absent/invalide →
+	// laisse `processSignupReminder` retomber sur le défaut.
+	const lead =
+		typeof leadMin === 'number' && leadMin > 0 && leadMin <= 1440 ? leadMin : undefined;
 
-	const result = await processSignupReminder(signupId, kind as ReminderKind, expectedStartsAtMs);
+	const result = await processSignupReminder(
+		signupId,
+		kind as ReminderKind,
+		expectedStartsAtMs,
+		lead
+	);
 	return new Response(result, { status: 200 });
 };

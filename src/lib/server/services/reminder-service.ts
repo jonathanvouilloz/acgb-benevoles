@@ -3,26 +3,30 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { db } from '$lib/server/db';
 import { signup, shift, position, tournament, pushSubscription } from '$lib/server/db/schema';
 import { sendPush, type PushPayload } from './push-service';
+import { DEFAULT_REMINDER_LEAD_MIN, reminderLeadLabel } from '$lib/reminders';
 
 /**
  * Envoi des rappels push (Epic 6). Deux paliers par inscription `available` :
- * - **24h** avant le créneau,
- * - **30min** avant le créneau.
+ * - **24h** avant le créneau (fixe),
+ * - **court** avant le créneau, délai réglable par bénévole (`user.reminder_lead_min`).
  *
  * Idempotence : chaque palier est horodaté sur la ligne `signup` (`reminder_24_sent_at` /
- * `reminder_2_sent_at` — cette dernière colonne porte désormais le palier 30min, nom conservé
+ * `reminder_2_sent_at` — cette dernière colonne porte désormais le palier court, nom conservé
  * pour éviter une migration). Une inscription due est marquée **après traitement**, même si le
  * bénévole n'a aucune souscription active — on n'essaie donc qu'une fois, quelle que soit
  * la fréquence du cron. La borne `startsAt > now` évite tout rappel sur un créneau passé.
+ *
+ * `kind` court renommé `'30min'` → `'short'` : le délai n'est plus figé, il est porté par le
+ * message QStash (`leadMin`) et sert au libellé. Le sweep dormant (cron) reste au défaut 30min.
  */
 
-export type ReminderKind = '24h' | '30min';
+export type ReminderKind = '24h' | 'short';
 
 type Palier = { col: AnyPgColumn; minutes: number; kind: ReminderKind };
 
 const PALIERS: Palier[] = [
 	{ col: signup.reminder24SentAt, minutes: 24 * 60, kind: '24h' },
-	{ col: signup.reminder2SentAt, minutes: 30, kind: '30min' }
+	{ col: signup.reminder2SentAt, minutes: DEFAULT_REMINDER_LEAD_MIN, kind: 'short' }
 ];
 
 type DueRow = {
@@ -67,12 +71,16 @@ const timeFmt = new Intl.DateTimeFormat('fr-CH', {
 	timeZone: 'Europe/Zurich'
 });
 
-function buildPayload(row: DueRow, kind: ReminderKind): PushPayload {
+function buildPayload(
+	row: DueRow,
+	kind: ReminderKind,
+	leadMin: number = DEFAULT_REMINDER_LEAD_MIN
+): PushPayload {
 	const when = timeFmt.format(row.startsAt); // ex. « samedi 14:00 »
 	const body =
 		kind === '24h'
 			? `Rappel : ${row.positionName} — ${when}.`
-			: `Dans 30 min : ${row.positionName} — ${when}.`;
+			: `Dans ${reminderLeadLabel(leadMin)} : ${row.positionName} — ${when}.`;
 	return { title: row.tournamentName, body, url: `/t/${row.shareToken}` };
 }
 
@@ -141,6 +149,7 @@ export async function processSignupReminder(
 	signupId: string,
 	kind: ReminderKind,
 	expectedStartsAtMs: number,
+	leadMin: number = DEFAULT_REMINDER_LEAD_MIN,
 	now = new Date()
 ): Promise<'sent' | 'dropped'> {
 	const rows = await db
@@ -169,7 +178,7 @@ export async function processSignupReminder(
 	if (row.startsAt.getTime() <= now.getTime()) return 'dropped';
 	if (kind === '24h' ? row.reminder24SentAt : row.reminder2SentAt) return 'dropped';
 
-	const payload = buildPayload(row, kind);
+	const payload = buildPayload(row, kind, leadMin);
 	const subs = await db
 		.select()
 		.from(pushSubscription)

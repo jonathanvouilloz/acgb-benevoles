@@ -2,7 +2,8 @@ import { and, eq } from 'drizzle-orm';
 import { Client } from '@upstash/qstash';
 import { env } from '$env/dynamic/private';
 import { db } from '$lib/server/db';
-import { signup, shift } from '$lib/server/db/schema';
+import { signup, shift, user } from '$lib/server/db/schema';
+import { DEFAULT_REMINDER_LEAD_MIN } from '$lib/reminders';
 import type { ReminderKind } from './reminder-service';
 
 /**
@@ -17,10 +18,17 @@ import type { ReminderKind } from './reminder-service';
  * local), et aucune erreur ne remonte — une panne QStash ne doit jamais bloquer une inscription.
  */
 
-const PALIERS: { kind: ReminderKind; minutes: number }[] = [
-	{ kind: '24h', minutes: 24 * 60 },
-	{ kind: '30min', minutes: 30 }
-];
+/**
+ * Paliers pour une inscription. Le 24h est fixe ; le court prend le délai choisi par le
+ * bénévole (`user.reminder_lead_min`). `leadMin` est porté par le message QStash pour que
+ * l'endpoint récepteur produise le bon libellé (« Dans 15 min »…).
+ */
+function paliersFor(leadMin: number): { kind: ReminderKind; minutes: number; leadMin?: number }[] {
+	return [
+		{ kind: '24h', minutes: 24 * 60 },
+		{ kind: 'short', minutes: leadMin, leadMin }
+	];
+}
 
 let resolved = false;
 let client: Client | null = null;
@@ -43,7 +51,12 @@ function callbackUrl(): string {
 }
 
 /** Publie les 2 messages différés pour une inscription, après remise à zéro des flags d'envoi. */
-async function schedule(qstash: Client, signupId: string, startsAt: Date): Promise<void> {
+async function schedule(
+	qstash: Client,
+	signupId: string,
+	startsAt: Date,
+	leadMin: number
+): Promise<void> {
 	// Reset des paliers : permet à un rappel de repartir après un déplacement de créneau
 	// (un palier déjà marqué serait sinon droppé par l'endpoint).
 	await db
@@ -54,12 +67,12 @@ async function schedule(qstash: Client, signupId: string, startsAt: Date): Promi
 	const startsAtMs = startsAt.getTime();
 	const url = callbackUrl();
 
-	for (const palier of PALIERS) {
+	for (const palier of paliersFor(leadMin)) {
 		const targetMs = startsAtMs - palier.minutes * 60 * 1000;
 		if (targetMs <= Date.now()) continue; // échéance déjà passée (inscription tardive)
 		await qstash.publishJSON({
 			url,
-			body: { signupId, kind: palier.kind, expectedStartsAtMs: startsAtMs },
+			body: { signupId, kind: palier.kind, expectedStartsAtMs: startsAtMs, leadMin: palier.leadMin },
 			notBefore: Math.floor(targetMs / 1000),
 			// Dédup : re-planifier à l'identique ne crée pas de doublon ; un déplacement change
 			// `startsAtMs` donc génère un nouvel id (l'ancien message droppera à sa livraison).
@@ -78,14 +91,20 @@ export async function scheduleForSignup(shiftId: string, userId: string): Promis
 	if (!qstash) return;
 	try {
 		const rows = await db
-			.select({ signupId: signup.id, status: signup.status, startsAt: shift.startsAt })
+			.select({
+				signupId: signup.id,
+				status: signup.status,
+				startsAt: shift.startsAt,
+				leadMin: user.reminderLeadMin
+			})
 			.from(signup)
 			.innerJoin(shift, eq(signup.shiftId, shift.id))
+			.innerJoin(user, eq(signup.userId, user.id))
 			.where(and(eq(signup.shiftId, shiftId), eq(signup.userId, userId)))
 			.limit(1);
 		const row = rows[0];
 		if (!row || row.status !== 'available') return;
-		await schedule(qstash, row.signupId, row.startsAt);
+		await schedule(qstash, row.signupId, row.startsAt, row.leadMin ?? DEFAULT_REMINDER_LEAD_MIN);
 	} catch (err) {
 		console.error('[reminder-scheduler] scheduleForSignup failed', err);
 	}
@@ -101,12 +120,17 @@ export async function scheduleForShift(shiftId: string): Promise<void> {
 	if (!qstash) return;
 	try {
 		const rows = await db
-			.select({ signupId: signup.id, startsAt: shift.startsAt })
+			.select({
+				signupId: signup.id,
+				startsAt: shift.startsAt,
+				leadMin: user.reminderLeadMin
+			})
 			.from(signup)
 			.innerJoin(shift, eq(signup.shiftId, shift.id))
+			.innerJoin(user, eq(signup.userId, user.id))
 			.where(and(eq(signup.shiftId, shiftId), eq(signup.status, 'available')));
 		for (const row of rows) {
-			await schedule(qstash, row.signupId, row.startsAt);
+			await schedule(qstash, row.signupId, row.startsAt, row.leadMin ?? DEFAULT_REMINDER_LEAD_MIN);
 		}
 	} catch (err) {
 		console.error('[reminder-scheduler] scheduleForShift failed', err);
