@@ -15,7 +15,9 @@ import { sendPush, type PushPayload } from './push-service';
  * la fréquence du cron. La borne `startsAt > now` évite tout rappel sur un créneau passé.
  */
 
-type Palier = { col: AnyPgColumn; hours: number; kind: '24h' | '2h' };
+export type ReminderKind = '24h' | '2h';
+
+type Palier = { col: AnyPgColumn; hours: number; kind: ReminderKind };
 
 const PALIERS: Palier[] = [
 	{ col: signup.reminder24SentAt, hours: 24, kind: '24h' },
@@ -120,4 +122,63 @@ export async function sendDueReminders(
 	const sent24 = await processPalier(PALIERS[0], now);
 	const sent2 = await processPalier(PALIERS[1], now);
 	return { sent24, sent2 };
+}
+
+/**
+ * Traite le rappel d'**une** inscription pour un palier donné — appelé par l'endpoint QStash
+ * à l'échéance planifiée (modèle événementiel). Re-valide l'état au moment de la livraison
+ * (QStash = at-least-once, et l'inscription a pu changer depuis la planification) puis **drop**
+ * silencieusement si le rappel n'est plus pertinent :
+ * - inscription supprimée / désinscrite / créneau supprimé (cascade) → introuvable ;
+ * - repassée en `maybe` → `status !== 'available'` ;
+ * - créneau déplacé → `startsAt` ne correspond plus à `expectedStartsAtMs` (les nouveaux
+ *   messages, planifiés au déplacement, portent le bon timestamp) ;
+ * - créneau déjà passé, ou palier déjà envoyé (colonne non nulle) → idempotence.
+ * Sinon envoie le push et marque la colonne. Ne lève jamais (best-effort).
+ */
+export async function processSignupReminder(
+	signupId: string,
+	kind: ReminderKind,
+	expectedStartsAtMs: number,
+	now = new Date()
+): Promise<'sent' | 'dropped'> {
+	const rows = await db
+		.select({
+			signupId: signup.id,
+			userId: signup.userId,
+			status: signup.status,
+			startsAt: shift.startsAt,
+			positionName: position.name,
+			tournamentName: tournament.name,
+			shareToken: tournament.shareToken,
+			reminder24SentAt: signup.reminder24SentAt,
+			reminder2SentAt: signup.reminder2SentAt
+		})
+		.from(signup)
+		.innerJoin(shift, eq(signup.shiftId, shift.id))
+		.innerJoin(position, eq(shift.positionId, position.id))
+		.innerJoin(tournament, eq(position.tournamentId, tournament.id))
+		.where(eq(signup.id, signupId))
+		.limit(1);
+
+	const row = rows[0];
+	if (!row) return 'dropped';
+	if (row.status !== 'available') return 'dropped';
+	if (row.startsAt.getTime() !== expectedStartsAtMs) return 'dropped';
+	if (row.startsAt.getTime() <= now.getTime()) return 'dropped';
+	if (kind === '24h' ? row.reminder24SentAt : row.reminder2SentAt) return 'dropped';
+
+	const payload = buildPayload(row, kind);
+	const subs = await db
+		.select()
+		.from(pushSubscription)
+		.where(eq(pushSubscription.userId, row.userId));
+	await Promise.all(subs.map((sub) => sendPush(sub, payload)));
+
+	await db
+		.update(signup)
+		.set(kind === '24h' ? { reminder24SentAt: now } : { reminder2SentAt: now })
+		.where(eq(signup.id, signupId));
+
+	return 'sent';
 }

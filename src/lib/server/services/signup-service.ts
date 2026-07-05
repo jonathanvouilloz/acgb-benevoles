@@ -2,6 +2,7 @@ import { and, eq, sql, type SQL } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { shift, position, tournament, signup } from '$lib/server/db/schema';
 import type { SignupStatus } from '$lib/schemas/signup';
+import { scheduleForSignup } from './reminder-scheduler';
 
 /**
  * Couche métier de l'inscription bénévole (page publique /t/[token]).
@@ -359,6 +360,10 @@ export async function createSignup(
 		if (isUniqueViolation(err)) throw new Error('DUPLICATE');
 		throw err;
 	}
+
+	// Inscription `available` créée → planifie les rappels QStash (best-effort, seul `available`
+	// atteint ce point ; la branche `maybe` a déjà `return`).
+	if (status === 'available') await scheduleForSignup(shiftId, userId);
 }
 
 /**
@@ -419,6 +424,9 @@ export async function changeSignupStatus(
 		RETURNING id
 	`);
 	if (res.rows.length === 0) throw new Error('FULL');
+
+	// Promotion `maybe` → `available` réussie → planifie les rappels QStash.
+	await scheduleForSignup(shiftId, userId);
 }
 
 /**
@@ -511,6 +519,10 @@ export async function moveSignup(
 		.update(signup)
 		.set({ shiftId: targetShiftId })
 		.where(and(eq(signup.shiftId, source.shiftId), eq(signup.userId, source.userId)));
+
+	// Le bénévole a changé de créneau → reprogramme ses rappels sur le nouveau `startsAt`
+	// (no-op interne si son statut est `maybe`).
+	await scheduleForSignup(targetShiftId, source.userId);
 }
 
 /**
@@ -558,4 +570,8 @@ export async function swapSignups(
 		WHERE (user_id = ${a.userId} AND shift_id = ${a.shiftId}::uuid)
 			OR (user_id = ${b.userId} AND shift_id = ${b.shiftId}::uuid)
 	`);
+
+	// Chaque bénévole a changé de créneau → reprogramme les deux (a → b.shiftId, b → a.shiftId).
+	await scheduleForSignup(b.shiftId, a.userId);
+	await scheduleForSignup(a.shiftId, b.userId);
 }
