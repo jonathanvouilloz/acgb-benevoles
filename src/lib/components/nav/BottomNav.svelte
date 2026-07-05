@@ -26,10 +26,19 @@
 	function measure() {
 		const el = tabEls[activeIndex];
 		if (!el) {
-			pill = { ...pill, ready: false };
+			// Aucun onglet actif (page hors bottom bar : /t/[token], détail tournoi…).
+			// On masque la pastille SANS réécrire si l'état est déjà correct : réécrire un
+			// nouvel objet `pill` à chaque passage relancerait l'effect à l'infini
+			// (effect_update_depth_exceeded), puisque cette branche lit `pill`.
+			if (pill.ready) pill = { left: pill.left, width: pill.width, ready: false };
 			return;
 		}
-		pill = { left: el.offsetLeft, width: el.offsetWidth, ready: true };
+		const left = el.offsetLeft;
+		const width = el.offsetWidth;
+		// Écriture gardée : on ne crée un nouvel objet que si la géométrie a changé.
+		if (!pill.ready || pill.left !== left || pill.width !== width) {
+			pill = { left, width, ready: true };
+		}
 	}
 
 	// Recalcule au changement de route / d'onglets (switch de vue, rôle).
