@@ -3,6 +3,15 @@
 **Complexité** : M
 **Statut** : DONE (migré vers QStash le 2026-07-05)
 
+## État session 2026-07-05 (délai du 2e rappel : 2h → 30min)
+
+**Fait :** 2ᵉ palier de rappel passé de **2h → 30min** avant le créneau (24h conservé). `kind` renommé `'2h'` → `'30min'` dans `reminder-scheduler.ts`, `reminder-service.ts` et l'endpoint QStash ; paliers exprimés en minutes (1440 / 30). Colonne `reminder_2_sent_at` **conservée** comme flag d'idempotence (aucune migration). Libellé push : « Dans 30 min : … ». `check` + `build` verts.
+**Prochain :** test bout-en-bout du timing 30min sur preview (env QStash + `BETTER_AUTH_URL`).
+**Pièges :** les messages QStash déjà planifiés en `kind:'2h'` droppent proprement à la livraison (endpoint → 200 « invalid ») ; le 30min ne vaut que pour les inscriptions créées/déplacées après déploiement.
+**Commit :** [a2967de] feat(reminders): 2e palier de rappel 2h → 30min avant le créneau
+
+---
+
 ## État session 2026-07-05 (migration cron Vercel → QStash, événementiel)
 
 **Fait :**
@@ -91,7 +100,7 @@ Notifications push (PWA) pour rappeler aux bénévoles leurs créneaux à venir.
 
 ## Décisions techniques
 
-- **Délai** : deux rappels par inscription — **24h** puis **2h** avant le créneau.
+- **Délai** : deux rappels par inscription — **24h** puis **30min** avant le créneau (le palier de proximité était à 2h jusqu'au 2026-07-05).
 - **Idempotence** : horodatage par palier sur `signup` (`reminder_24/2_sent_at`), marqué après traitement même sans souscription → un seul envoi quelle que soit la fréquence du cron.
 - **Opt-in** : bandeau sur `/t/[token]` (pas de page réglages dédiée au MVP).
 - **Cron agnostique du déclencheur** (cf. contrainte Vercel Hobby ci-dessus).
