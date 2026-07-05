@@ -34,7 +34,7 @@
 		{#if hasImminent}
 			<BellRing size={18} class="shrink-0" />
 			<span
-				class="absolute -top-1 -right-1 flex min-w-[1.05rem] items-center justify-center rounded-full bg-error px-1 py-px text-[0.6rem] font-bold leading-none text-white shadow-sm"
+				class="absolute -top-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-error text-[0.6rem] font-bold leading-none text-white shadow-sm"
 			>
 				{imminentCount > 9 ? '9+' : imminentCount}
 			</span>

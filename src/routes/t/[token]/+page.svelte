@@ -33,6 +33,7 @@
 		Phone,
 		Clock,
 		LayoutGrid,
+		Settings,
 		X
 	} from 'lucide-svelte';
 	import type { PageData, ActionData } from './$types';
@@ -161,6 +162,22 @@
 		</p>
 	{/if}
 </header>
+
+{#if t.isOwner}
+	<!-- Raccourci gestion : cette page est le lien de partage public, mais l'organisateur y arrive
+	     parfois directement — on lui offre un accès explicite à sa page de gestion. -->
+	<section
+		class="mt-4 flex flex-col gap-3 rounded-lg border border-brand-primary/30 bg-brand-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between"
+	>
+		<p class="flex items-center gap-2 text-sm text-ink">
+			<Settings size={16} class="shrink-0 text-brand-primary" />
+			<span>Tu organises ce tournoi.</span>
+		</p>
+		<a href={resolve('/tournois/[id]', { id: t.id })} class="shrink-0">
+			<Button size="sm" class="w-full sm:w-auto"><Settings size={16} /> Gérer ce tournoi</Button>
+		</a>
+	</section>
+{/if}
 
 <!-- Contact organisateur — pour joindre la personne qui gère le tournoi -->
 <section class="mt-4 rounded-lg border border-border bg-surface-subtle p-4">

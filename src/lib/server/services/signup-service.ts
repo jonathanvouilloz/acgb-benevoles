@@ -60,6 +60,8 @@ export type VolunteerTournament = {
 	startDate: Date;
 	endDate: Date;
 	shareToken: string;
+	/** L'utilisateur courant est-il l'organisateur (propriétaire) de ce tournoi ? */
+	isOwner: boolean;
 	organizer: TournamentOrganizer;
 	positions: VolunteerPosition[];
 };
@@ -123,6 +125,8 @@ function mapTournamentRow(
 		startDate: row.startDate,
 		endDate: row.endDate,
 		shareToken: row.shareToken,
+		// Ownership calculé serveur (jamais l'`organizerId` brut vers le client).
+		isOwner: userId !== null && row.organizerId === userId,
 		organizer: {
 			name: row.organizer.name,
 			email: row.organizer.email,

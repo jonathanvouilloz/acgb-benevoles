@@ -37,6 +37,17 @@ export function isActive(path: string, href: string): boolean {
 }
 
 /**
+ * Normalise le path pour le calcul de l'onglet actif : les pages détail sans onglet propre
+ * sont rattachées à leur onglet parent, pour ne pas « perdre » la sélection dans la nav.
+ * - `/t/[token]` (inscription bénévole) → « Tournois » (`/tournois-publics`).
+ * - `/tournois/[id]` (gestion) matche déjà « Mes tournois » via le préfixe de segment → inchangé.
+ */
+export function navMatchPath(path: string): string {
+	if (path === '/t' || path.startsWith('/t/')) return resolve('/tournois-publics');
+	return path;
+}
+
+/**
  * Onglets de la bottom bar dérivés du rôle + de la vue (max 4 pour le super admin :
  * le « Tournois » public est retiré au profit d'« Admin »). Le premier onglet devient
  * « Créneaux » (avec badge) en vue bénévole, « Accueil » sinon.

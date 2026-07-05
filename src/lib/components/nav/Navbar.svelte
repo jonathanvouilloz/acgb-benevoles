@@ -2,10 +2,11 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { hasOrganizerAccess, isSuperAdmin } from '$lib/roles';
-	import { isActive, type AgendaItem } from '$lib/nav-model';
+	import { isActive, navMatchPath, type AgendaItem } from '$lib/nav-model';
 	import { Shield, Trophy, CalendarRange } from 'lucide-svelte';
 	import AccountMenu from './AccountMenu.svelte';
 	import NotificationBell from './NotificationBell.svelte';
+	import ViewChip from './ViewChip.svelte';
 	import logoAcgb from '$lib/assets/logo-acgb.png';
 
 	type NavUser = { name?: string; email?: string; role: string } | null;
@@ -23,14 +24,16 @@
 
 	const showOrgaNav = $derived(!!user && hasOrganizerAccess(user.role) && viewMode !== 'volunteer');
 	const path = $derived(page.url.pathname);
+	// Path normalisé : garde l'onglet parent actif sur les pages détail (/t/[token] → Tournois).
+	const matchPath = $derived(navMatchPath(path));
 </script>
 
 {#snippet navLink(href: string, label: string, Icon: typeof Trophy)}
 	<a
 		{href}
-		aria-current={isActive(path, href) ? 'page' : undefined}
+		aria-current={isActive(matchPath, href) ? 'page' : undefined}
 		class="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition
-			{isActive(path, href)
+			{isActive(matchPath, href)
 			? 'bg-brand-primary/10 text-brand-primary'
 			: 'text-ink-muted hover:bg-surface-subtle hover:text-ink'}"
 	>
@@ -57,8 +60,9 @@
 			</nav>
 		</div>
 
-		<!-- Notifications + compte / session -->
+		<!-- Vue active + notifications + compte / session -->
 		<div class="flex items-center gap-2">
+			<ViewChip {user} {viewMode} {path} />
 			{#if user}
 				<NotificationBell {upcomingShifts} {imminentCount} {path} />
 			{/if}

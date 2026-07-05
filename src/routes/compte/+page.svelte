@@ -5,6 +5,7 @@
 	import { toast } from '$lib/toast.svelte';
 	import { roleLabel } from '$lib/roles';
 	import { ShieldQuestion } from 'lucide-svelte';
+	import EnableNotifications from '$lib/components/push/EnableNotifications.svelte';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -69,6 +70,12 @@
 		{submitting ? 'Enregistrement…' : 'Enregistrer'}
 	</Button>
 </form>
+
+<!-- Rappels push : point d'activation global (cible du lien « Activer les rappels » de la cloche) -->
+<section class="mt-8 flex flex-col gap-2">
+	<p class="text-sm font-medium text-ink-strong">Rappels de créneaux</p>
+	<EnableNotifications />
+</section>
 
 <!-- Type de compte + demande de promotion organisateur (bénévole uniquement) -->
 <div class="mt-8 rounded-lg border border-border bg-surface-subtle p-4">

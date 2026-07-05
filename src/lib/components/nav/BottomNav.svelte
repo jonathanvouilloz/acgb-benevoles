@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page, navigating } from '$app/state';
-	import { buildTabs, isActive, type NavUser, type ViewMode } from '$lib/nav-model';
+	import { buildTabs, isActive, navMatchPath, type NavUser, type ViewMode } from '$lib/nav-model';
 
 	let {
 		user,
@@ -12,8 +12,11 @@
 	// que la page soit chargée), sinon l'URL committée. La pastille glisse tout de
 	// suite, sans attendre le `load` de la page de destination.
 	const path = $derived(navigating.to?.url.pathname ?? page.url.pathname);
+	// Path normalisé : rattache les pages détail (/t/[token]) à leur onglet parent, pour que
+	// la sélection ne disparaisse pas en entrant dans un tournoi.
+	const matchPath = $derived(navMatchPath(path));
 	const tabs = $derived(buildTabs(user, viewMode));
-	const activeIndex = $derived(tabs.findIndex((t) => isActive(path, t.href)));
+	const activeIndex = $derived(tabs.findIndex((t) => isActive(matchPath, t.href)));
 
 	// Indicateur (pastille) glissant : mesure de la géométrie de l'onglet actif,
 	// animée en CSS (left/width). Fallback propre tant que la mesure n'est pas prête.
@@ -82,7 +85,7 @@
 		></span>
 
 		{#each tabs as tab, i (tab.href + tab.label)}
-			{@const active = isActive(path, tab.href)}
+			{@const active = isActive(matchPath, tab.href)}
 			{@const badge = badgeFor(tab.badgeKey)}
 			<a
 				bind:this={tabEls[i]}
@@ -95,7 +98,7 @@
 					<tab.Icon size={22} strokeWidth={active ? 2.25 : 1.75} />
 					{#if badge > 0}
 						<span
-							class="absolute -top-1.5 -right-2 flex min-w-[1.05rem] items-center justify-center rounded-full bg-error px-1 py-px text-[0.6rem] font-bold leading-none text-white shadow-sm"
+							class="absolute -top-1.5 -right-2 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-error text-[0.6rem] font-bold leading-none text-white shadow-sm"
 						>
 							{badge > 9 ? '9+' : badge}
 							<span class="sr-only"> créneaux imminents</span>
