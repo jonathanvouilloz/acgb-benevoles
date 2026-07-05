@@ -7,21 +7,22 @@ import { sendPush, type PushPayload } from './push-service';
 /**
  * Envoi des rappels push (Epic 6). Deux paliers par inscription `available` :
  * - **24h** avant le créneau,
- * - **2h** avant le créneau.
+ * - **30min** avant le créneau.
  *
  * Idempotence : chaque palier est horodaté sur la ligne `signup` (`reminder_24_sent_at` /
- * `reminder_2_sent_at`). Une inscription due est marquée **après traitement**, même si le
+ * `reminder_2_sent_at` — cette dernière colonne porte désormais le palier 30min, nom conservé
+ * pour éviter une migration). Une inscription due est marquée **après traitement**, même si le
  * bénévole n'a aucune souscription active — on n'essaie donc qu'une fois, quelle que soit
  * la fréquence du cron. La borne `startsAt > now` évite tout rappel sur un créneau passé.
  */
 
-export type ReminderKind = '24h' | '2h';
+export type ReminderKind = '24h' | '30min';
 
-type Palier = { col: AnyPgColumn; hours: number; kind: ReminderKind };
+type Palier = { col: AnyPgColumn; minutes: number; kind: ReminderKind };
 
 const PALIERS: Palier[] = [
-	{ col: signup.reminder24SentAt, hours: 24, kind: '24h' },
-	{ col: signup.reminder2SentAt, hours: 2, kind: '2h' }
+	{ col: signup.reminder24SentAt, minutes: 24 * 60, kind: '24h' },
+	{ col: signup.reminder2SentAt, minutes: 30, kind: '30min' }
 ];
 
 type DueRow = {
@@ -35,7 +36,7 @@ type DueRow = {
 
 /** Inscriptions `available` dont le créneau tombe dans la fenêtre [now, now + hours] et non encore notifiées pour ce palier. */
 function findDue(palier: Palier, now: Date): Promise<DueRow[]> {
-	const horizon = new Date(now.getTime() + palier.hours * 60 * 60 * 1000);
+	const horizon = new Date(now.getTime() + palier.minutes * 60 * 1000);
 	return db
 		.select({
 			signupId: signup.id,
@@ -66,12 +67,12 @@ const timeFmt = new Intl.DateTimeFormat('fr-CH', {
 	timeZone: 'Europe/Zurich'
 });
 
-function buildPayload(row: DueRow, kind: '24h' | '2h'): PushPayload {
+function buildPayload(row: DueRow, kind: ReminderKind): PushPayload {
 	const when = timeFmt.format(row.startsAt); // ex. « samedi 14:00 »
 	const body =
 		kind === '24h'
 			? `Rappel : ${row.positionName} — ${when}.`
-			: `C'est bientôt : ${row.positionName} — ${when}.`;
+			: `Dans 30 min : ${row.positionName} — ${when}.`;
 	return { title: row.tournamentName, body, url: `/t/${row.shareToken}` };
 }
 

@@ -9,7 +9,7 @@ import type { ReminderKind } from './reminder-service';
  * Planification événementielle des rappels via Upstash QStash (remplace le cron poll).
  *
  * Au moment où une inscription `available` naît ou que son créneau bouge, on publie 2 messages
- * différés (24h et 2h avant `shift.startsAt`) que QStash livrera à l'heure pile sur
+ * différés (24h et 30min avant `shift.startsAt`) que QStash livrera à l'heure pile sur
  * `POST /api/qstash/reminder`. On ne planifie **que** ; jamais on n'annule : l'endpoint
  * re-valide l'état à la livraison et drop si le rappel n'est plus pertinent (cf. reminder-service).
  *
@@ -17,9 +17,9 @@ import type { ReminderKind } from './reminder-service';
  * local), et aucune erreur ne remonte — une panne QStash ne doit jamais bloquer une inscription.
  */
 
-const PALIERS: { kind: ReminderKind; hours: number }[] = [
-	{ kind: '24h', hours: 24 },
-	{ kind: '2h', hours: 2 }
+const PALIERS: { kind: ReminderKind; minutes: number }[] = [
+	{ kind: '24h', minutes: 24 * 60 },
+	{ kind: '30min', minutes: 30 }
 ];
 
 let resolved = false;
@@ -55,7 +55,7 @@ async function schedule(qstash: Client, signupId: string, startsAt: Date): Promi
 	const url = callbackUrl();
 
 	for (const palier of PALIERS) {
-		const targetMs = startsAtMs - palier.hours * 60 * 60 * 1000;
+		const targetMs = startsAtMs - palier.minutes * 60 * 1000;
 		if (targetMs <= Date.now()) continue; // échéance déjà passée (inscription tardive)
 		await qstash.publishJSON({
 			url,

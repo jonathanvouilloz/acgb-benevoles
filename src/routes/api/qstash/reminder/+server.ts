@@ -52,7 +52,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const { signupId, kind, expectedStartsAtMs } = payload;
 	if (
 		typeof signupId !== 'string' ||
-		(kind !== '24h' && kind !== '2h') ||
+		(kind !== '24h' && kind !== '30min') ||
 		typeof expectedStartsAtMs !== 'number'
 	) {
 		return new Response('invalid', { status: 200 });
