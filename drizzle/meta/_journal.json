@@ -50,6 +50,13 @@
       "when": 1782968678192,
       "tag": "0006_roles_drop_is_organizer",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783258437292,
+      "tag": "0007_sparkling_mockingbird",
+      "breakpoints": true
     }
   ]
 }

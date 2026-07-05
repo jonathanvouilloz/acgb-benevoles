@@ -114,6 +114,20 @@ export const verification = pgTable('verification', {
 	updatedAt: timestamp('updated_at').notNull().defaultNow()
 });
 
+/**
+ * Compteur de rate-limit générique (fenêtre fixe). Utilisé pour throttler l'envoi de
+ * magic links (par email et par IP) car `auth.api.signInMagicLink` contourne le rate-limit
+ * HTTP natif de Better Auth. Une ligne par `key` (ex. `magic:email:x@y`, `magic:ip:1.2.3.4`) ;
+ * `expires_at` = fin de la fenêtre courante. Adossé à Postgres (et non à un compteur mémoire)
+ * pour rester fiable sur serverless multi-instances (Vercel). Purge : lazy (réinitialisée à la
+ * première requête après expiration) — aucune tâche de nettoyage requise au MVP.
+ */
+export const rateLimit = pgTable('rate_limit', {
+	key: text('key').primaryKey(),
+	count: integer('count').notNull().default(0),
+	expiresAt: timestamp('expires_at').notNull()
+});
+
 export const tournament = pgTable('tournament', {
 	id: uuid('id').primaryKey().defaultRandom(),
 	name: text('name').notNull(),
@@ -253,4 +267,5 @@ export type Shift = typeof shift.$inferSelect;
 export type Signup = typeof signup.$inferSelect;
 export type PushSubscription = typeof pushSubscription.$inferSelect;
 export type OrganizerRequest = typeof organizerRequest.$inferSelect;
+export type RateLimit = typeof rateLimit.$inferSelect;
 export type UserRole = (typeof userRole.enumValues)[number];

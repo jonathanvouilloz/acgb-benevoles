@@ -6,7 +6,41 @@ import { user } from '$lib/server/db/schema';
 import { loginSchema, emailLoginSchema, fullName } from '$lib/schemas/auth';
 import { safeRedirect } from '$lib/server/auth-guard';
 import { isPrototype, takePrototypeLink } from '$lib/server/prototype';
+import { consumeRateLimit } from '$lib/server/services/rate-limit';
 import type { Actions, PageServerLoad } from './$types';
+
+/**
+ * Quotas d'envoi de magic link (anti email-bombing / coût Resend). L'appel serveur
+ * `auth.api.signInMagicLink` contourne le rate-limit HTTP de Better Auth : on borne donc
+ * ici, par IP (source) et par email (victime ciblée depuis plusieurs IP).
+ */
+const THROTTLE = {
+	ipLimit: 12, // envois par heure et par IP
+	emailLimit: 4, // envois par heure et par email
+	windowSec: 60 * 60
+};
+
+function retryMessage(sec: number): string {
+	const min = Math.max(1, Math.ceil(sec / 60));
+	return `Trop de tentatives. Réessaie dans ${min} minute${min > 1 ? 's' : ''}.`;
+}
+
+/**
+ * Vérifie les quotas (IP puis email) avant d'envoyer un magic link. Renvoie un message
+ * d'erreur si un quota est dépassé, sinon `null`. No-op en mode prototype (aucun email envoyé).
+ */
+async function throttleMagicLink(ip: string, email: string): Promise<string | null> {
+	if (isPrototype) return null;
+	const byIp = await consumeRateLimit(`magic:ip:${ip}`, THROTTLE.ipLimit, THROTTLE.windowSec);
+	if (!byIp.ok) return retryMessage(byIp.retryAfterSec);
+	const byEmail = await consumeRateLimit(
+		`magic:email:${email}`,
+		THROTTLE.emailLimit,
+		THROTTLE.windowSec
+	);
+	if (!byEmail.ok) return retryMessage(byEmail.retryAfterSec);
+	return null;
+}
 
 /** Déjà connecté → pas de raison de rester sur /login (on rejoint la cible éventuelle). */
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -76,10 +110,11 @@ async function sendLink(
 }
 
 export const actions: Actions = {
-	default: async ({ request }) => {
+	default: async ({ request, getClientAddress }) => {
 		const form = await request.formData();
 		const mode: Mode = form.get('mode') === 'signup' ? 'signup' : 'login';
 		const redirectTo = safeRedirect(form.get('redirect')) ?? '/';
+		const ip = getClientAddress();
 
 		// --- Connexion simple (compte existant) : email seul ---
 		if (mode === 'login') {
@@ -106,6 +141,11 @@ export const actions: Actions = {
 					formError: 'Aucun compte avec cet email. Crée ton compte ci-dessous.',
 					values: emptyValues({ email })
 				});
+			}
+
+			const throttled = await throttleMagicLink(ip, email);
+			if (throttled) {
+				return failure(429, { mode, formError: throttled, values: emptyValues({ email }) });
 			}
 
 			let link: string | null;
@@ -144,6 +184,20 @@ export const actions: Actions = {
 		}
 
 		const { email, phone } = parsed.data;
+
+		const throttled = await throttleMagicLink(ip, email);
+		if (throttled) {
+			return failure(429, {
+				mode,
+				formError: throttled,
+				values: emptyValues({
+					prenom: parsed.data.prenom,
+					nom: parsed.data.nom,
+					email,
+					phone: phone ?? ''
+				})
+			});
+		}
 
 		let link: string | null;
 		try {
