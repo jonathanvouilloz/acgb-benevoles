@@ -76,7 +76,8 @@ async function schedule(
 			notBefore: Math.floor(targetMs / 1000),
 			// Dédup : re-planifier à l'identique ne crée pas de doublon ; un déplacement change
 			// `startsAtMs` donc génère un nouvel id (l'ancien message droppera à sa livraison).
-			deduplicationId: `rem:${signupId}:${palier.kind}:${startsAtMs}`
+			// Séparateur `_` et non `:` : QStash rejette les `:` dans un deduplicationId (400).
+			deduplicationId: `rem_${signupId}_${palier.kind}_${startsAtMs}`
 		});
 	}
 }
