@@ -64,11 +64,13 @@ function findDue(palier: Palier, now: Date): Promise<DueRow[]> {
 		);
 }
 
+// `timeZone: 'UTC'` : les horaires sont stockés en heure murale UTC-naïve (cf. src/lib/format.ts).
+// Lire en 'UTC' réaffiche l'heure exacte saisie (« 21:00 »), cohérent avec tout le reste de l'app.
 const timeFmt = new Intl.DateTimeFormat('fr-CH', {
 	weekday: 'long',
 	hour: '2-digit',
 	minute: '2-digit',
-	timeZone: 'Europe/Zurich'
+	timeZone: 'UTC'
 });
 
 function buildPayload(

@@ -4,6 +4,7 @@ import { env } from '$env/dynamic/private';
 import { db } from '$lib/server/db';
 import { signup, shift, user } from '$lib/server/db/schema';
 import { DEFAULT_REMINDER_LEAD_MIN } from '$lib/reminders';
+import { zurichWallClockToInstant } from '$lib/time';
 import type { ReminderKind } from './reminder-service';
 
 /**
@@ -64,20 +65,27 @@ async function schedule(
 		.set({ reminder24SentAt: null, reminder2SentAt: null })
 		.where(eq(signup.id, signupId));
 
-	const startsAtMs = startsAt.getTime();
+	// `startsAt` porte une heure **murale UTC-naïve** (cf. src/lib/schemas/shift.ts). Deux usages :
+	// - `wallMs` (valeur murale brute) → identité du message : le récepteur re-valide via
+	//   `row.startsAt.getTime() !== expectedStartsAtMs` (les deux côtés muraux → égalité valide),
+	//   et sert de clé de dédup.
+	// - `realMs` (instant réel Europe/Zurich) → échéances absolues (`notBefore`), sinon le rappel
+	//   part avec l'offset Genève de retard (~2h l'été) et tombe après le créneau.
+	const wallMs = startsAt.getTime();
+	const realMs = zurichWallClockToInstant(startsAt);
 	const url = callbackUrl();
 
 	for (const palier of paliersFor(leadMin)) {
-		const targetMs = startsAtMs - palier.minutes * 60 * 1000;
+		const targetMs = realMs - palier.minutes * 60 * 1000;
 		if (targetMs <= Date.now()) continue; // échéance déjà passée (inscription tardive)
 		await qstash.publishJSON({
 			url,
-			body: { signupId, kind: palier.kind, expectedStartsAtMs: startsAtMs, leadMin: palier.leadMin },
+			body: { signupId, kind: palier.kind, expectedStartsAtMs: wallMs, leadMin: palier.leadMin },
 			notBefore: Math.floor(targetMs / 1000),
 			// Dédup : re-planifier à l'identique ne crée pas de doublon ; un déplacement change
-			// `startsAtMs` donc génère un nouvel id (l'ancien message droppera à sa livraison).
+			// `wallMs` donc génère un nouvel id (l'ancien message droppera à sa livraison).
 			// Séparateur `_` et non `:` : QStash rejette les `:` dans un deduplicationId (400).
-			deduplicationId: `rem_${signupId}_${palier.kind}_${startsAtMs}`
+			deduplicationId: `rem_${signupId}_${palier.kind}_${wallMs}`
 		});
 	}
 }
