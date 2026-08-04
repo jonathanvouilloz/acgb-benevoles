@@ -1,7 +1,28 @@
 # Epic 6 — Push notifications & rappels
 
 **Complexité** : M
-**Statut** : DONE (migré vers QStash le 2026-07-05)
+**Statut** : DONE (migré vers QStash le 2026-07-05) — **QStash actif en prod depuis 2026-07-05**
+
+## État session 2026-07-05 (diagnostic rappel + bascule prod sur QStash)
+
+**Fait :**
+
+- **Diagnostic du « rappel 24h qui n'est pas parti »** (test prod, Android). Cause racine trouvée : la prod tournait encore sur `master` **sans le code QStash** (ancien cron), et **`CRON_SECRET` n'était pas réglé sur Vercel** → l'endpoint `/api/cron/reminders` renvoyait `503`, aucun rappel jamais traité (tous les `reminder_*_sent_at` NULL en base prod, confirmé par requête directe Neon). `CRON_SECRET` ajouté par Jonathan.
+- **Merge de `feat/nav-redesign` → `master` + déploiement prod.** La branche était 15 commits en avance ; `origin/master` n'avait reçu que les PR #1/#2 (état ancien, base `b0efc02`) → **12 commits récents manquants = la régression constatée**. Réconcilié par merge propre (zéro conflit, arbre identique à la branche complète), poussé, **déploiement Production Ready**.
+- **Branche `feat/nav-redesign` supprimée** (locale + remote). `preview/prototype` laissée intacte.
+- **Prod bascule donc du cron vers QStash** : les 4 vars `QSTASH_*` + VAPID sont déjà sur Vercel (posées plus tôt). Le cron `*/15` a disparu avec le merge.
+
+**Prochain :** (Jonathan, demain) tester le rappel en **se désinscrivant/réinscrivant** sur un créneau (les inscriptions antérieures au déploiement n'ont aucun message QStash planifié), puis vérifier dans **Upstash → QStash → Logs** que 2 messages partent vers `https://benevoles.acgb.ch/api/qstash/reminder` en statut *delivered*. **Confirmer `BETTER_AUTH_URL=https://benevoles.acgb.ch`** sur Vercel (non vérifié — critique pour le callback QStash).
+
+**Pièges :**
+
+- **`PROTOTYPE_MODE` est TOUJOURS présent en prod (Production + Preview) — bypass d'auth volontaire** tant que Resend n'est pas branché (sinon login impossible). **À retirer dès que Resend est configuré** (Epic 2). Preview partage `DATABASE_URL` prod → bypass ouvert sur les vraies données.
+- Prod = QStash désormais ; le cron `/api/cron/reminders` reste un **sweep dormant** (plus programmé). `CRON_SECRET` devient inutile mais inoffensif.
+- Bascule : aucune inscription pré-déploiement n'a de message QStash (cron retiré) → backfill manuel si un tournoi avec inscrits existants approche.
+
+**Commit :** [52107fc] merge: réconcilie origin/master (PR #1/#2) avec les 12 derniers commits de la branche
+
+---
 
 ## État session 2026-07-05 (délai du 2e rappel : 2h → 30min)
 

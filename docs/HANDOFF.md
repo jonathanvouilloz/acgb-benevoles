@@ -1,16 +1,21 @@
-# HANDOFF — 2026-07-05
+# HANDOFF — 2026-08-04
 
 ## Features actives
 
 | Feature | Fichier | Statut |
 | ------- | ------- | ------ |
-| Refonte responsive + nav + gate PWA + **fix boucle + polish nav/rôles/rappels** | docs/features/12-responsive.md | **À VALIDER** (branche `feat/nav-redesign`, PR vers `master`) |
-| Rappels push **migrés vers QStash** | docs/features/06-notifications.md | À CONFIGURER (vars Vercel + test preview) |
-| Rate-limit magic links (transverse Auth) | docs/features/12-responsive.md (session 2026-07-05) | Migration `0007` appliquée ✅ |
-
-Épics DONE : 1 · 3 · 4 · 5 · 6 · 7→12 (livrés, à valider). Branche `feat/nav-redesign` en avance sur `master`.
+| Fondation rôles + admin + demande orga + navbar + listing public + responsive (épics 7-12) | docs/features/07-roles.md à 12-responsive.md | **Déployé en prod, QA manuelle restante** |
+| Push notifications & rappels (QStash actif en prod) | docs/features/06-notifications.md | À retester après le déploiement rôles |
+| Auth magic link (Resend branché, `PROTOTYPE_MODE` retiré) | docs/features/02-auth.md | **Déployé en prod** |
 
 ## Reprendre ici
 
-Valider sur device réel PWA le dernier lot nav (chip vue, focus onglet `/t/…`, cloche→/compte→Activer les rappels, bandeau « Gérer » sur ses tournois, badge rond). Puis merger `feat/nav-redesign` → `master` et **config prod Vercel** : env `QSTASH_*` / `BETTER_AUTH_URL=https://benevoles.acgb.ch` / clés VAPID + **migration `0007` (`rate_limit`) sur base PROD** + vérifier `PROTOTYPE_MODE` absent en prod.
-Commit : [0f27f0f] feat(nav): onglet parent actif, chip de vue, badge rond, rappels /compte, raccourci gestion
+Le modèle à 3 rôles (super_admin / organizer / volunteer) était déjà entièrement codé (épics 7-12, livrés le 2026-07-02) mais jamais déployé. En session du 2026-08-04 :
+
+- Migrations `0005`→`0008` appliquées sur Neon prod, 1er super admin confirmé (`jonathan.vouilloz@gmail.com`).
+- Domaine `acgb.ch` vérifié sur Resend ; `RESEND_API_KEY`/`EMAIL_FROM` ajoutés sur Vercel (absents jusque-là — sans ça, retirer `PROTOTYPE_MODE` aurait cassé la connexion pour tout le monde).
+- `PROTOTYPE_MODE` retiré de Production + Preview, nouveau déploiement Production effectué (nécessaire pour que les env vars prennent effet), fumée testée en prod (connexion réelle email OK, rôle `super_admin` affiché).
+
+**Reste à faire** : confirmer la réception du magic link réel, dérouler la checklist QA des 6 épics (bénévole → demande promotion → approbation → organisateur crée un tournoi → bénévole s'inscrit), retester les rappels QStash, puis passer les statuts 7-12 en DONE. Détail dans `docs/PLAN.md`.
+
+Commit : (à venir — clôture docs de cette session)

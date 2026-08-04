@@ -11,7 +11,7 @@ Plan d'exécution maître. Statuts : `TODO` · `EN COURS` · `DONE`.
 | 3   | Tournois, postes & créneaux (orga) | L          | DONE     | [features/03-tournois.md](features/03-tournois.md)           |
 | 4   | Inscription bénévole               | M          | DONE     | [features/04-inscription.md](features/04-inscription.md)     |
 | 5   | Suivi du remplissage (orga)        | S          | DONE     | [features/05-suivi.md](features/05-suivi.md)                 |
-| 6   | Push notifications & rappels       | M          | DONE     | [features/06-notifications.md](features/06-notifications.md) |
+| 6   | Push notifications & rappels       | M          | DONE     | [features/06-notifications.md](features/06-notifications.md) — QStash actif en prod, à tester |
 | 7   | Fondation rôles (admin/orga/bénév) | M          | À VALIDER | [features/07-roles.md](features/07-roles.md)                 |
 | 8   | Espace super admin (`/admin`)      | L          | À VALIDER | [features/08-admin.md](features/08-admin.md)                 |
 | 9   | Demande organisateur (bénévole)    | S          | À VALIDER | [features/09-demande-orga.md](features/09-demande-orga.md)   |
@@ -19,18 +19,24 @@ Plan d'exécution maître. Statuts : `TODO` · `EN COURS` · `DONE`.
 | 11  | Listing tournois public            | M          | À VALIDER | [features/11-listing-public.md](features/11-listing-public.md) |
 | 12  | Refonte responsive desktop/iPad    | L          | À VALIDER | [features/12-responsive.md](features/12-responsive.md)       |
 
-> **À VALIDER** = code livré (check + build verts), en attente de : (1) application des migrations `0005`/`0006`, (2) promotion du 1er super admin en DB, (3) test manuel Jonathan. Détail des étapes manuelles ci-dessous.
+> **À VALIDER** = code livré (check + build verts), en attente de test manuel Jonathan sur les 6 épics (7→12) en conditions réelles. Étapes de déploiement ci-dessous.
 
-### ⚠️ Étapes manuelles avant test
+### ✅ Étapes de déploiement (faites le 2026-08-04)
 
-```sql
--- 1. Appliquer les migrations (côté Jonathan) :
---    npx drizzle-kit migrate   (inclut 0007 rate_limit — déjà appliquée sur la base courante)
--- 2. Promouvoir le 1er super admin :
-UPDATE "user" SET role = 'super_admin' WHERE email = 'jonathan.vouilloz@gmail.com';
-```
+- [x] Migrations `0005`→`0008` appliquées sur Neon prod (`npx drizzle-kit migrate`).
+- [x] 1er super admin confirmé en DB (`jonathan.vouilloz@gmail.com` → `super_admin`).
+- [x] Domaine `acgb.ch` vérifié sur Resend ; `RESEND_API_KEY` + `EMAIL_FROM=noreply@acgb.ch` ajoutés sur Vercel Production **et** Preview (absents jusqu'ici — blocage identifié en session).
+- [x] `PROTOTYPE_MODE` retiré de Production et Preview.
+- [x] `BETTER_AUTH_URL=https://benevoles.acgb.ch` confirmé (Production + Preview).
+- [x] Nouveau déploiement Production déclenché (les env vars Vercel ne s'appliquent qu'aux nouveaux builds) — `benevoles.acgb.ch` tourne sur le build à jour.
+- [x] Fumée testée en prod : bandeau « Mode démo » disparu, connexion réelle par email (`/login` → `/login/sent` sans erreur), rôle `super_admin` affiché dans le menu compte.
 
-> Sécurité (2026-07-05) : rate-limit des magic links ajouté (`rate-limit.ts`, migration `0007`). Bien appliquer `0007` sur la base **prod** avant le passage en production.
+### Reste à valider manuellement (Jonathan)
+
+- [ ] Recevoir et cliquer le magic link réel envoyé à `jonathan.vouilloz@gmail.com` (test de connexion lancé en session, à confirmer côté boîte mail).
+- [ ] Parcours complet des 3 rôles (bénévole → demande promotion → approbation admin → organisateur crée un tournoi → bénévole s'inscrit) — cf. checklist détaillée dans `docs/features/07-roles.md` à `12-responsive.md`.
+- [ ] Retester les rappels QStash de bout en bout (désinscription/réinscription sur un créneau réel, vérifier 2 messages *delivered* dans Upstash → QStash → Logs).
+- [ ] Une fois tout validé sans écart : statuts 7-12 → `DONE`.
 
 ## Ordre d'exécution
 

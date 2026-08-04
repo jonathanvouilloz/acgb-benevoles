@@ -42,10 +42,13 @@ Une **PWA simple** où l'organisateur crée un tournoi, définit des **créneaux
 
 ### Utilisateurs
 
-- **Organisateur** : staff du club / de l'ACGB. Crée le tournoi, les postes, les créneaux, suit le remplissage.
-- **Bénévole** : membre d'un club. Consulte les créneaux disponibles et s'inscrit lui-même.
+Modèle à 3 rôles (`user.role` : `volunteer` / `organizer` / `super_admin`), promotion par demande validée — voir `docs/features/07-roles.md`.
 
-Pas de rôle intermédiaire. Le bénévole s'inscrit de façon autonome (aucune assignation manuelle par l'orga).
+- **Super admin** : tout accès + espace `/admin` (utilisateurs, rôles, tous les tournois). Seul rôle habilité à promouvoir un compte. 1er super admin promu manuellement en DB.
+- **Organisateur** : staff du club / de l'ACGB. Crée le tournoi, les postes, les créneaux, suit le remplissage. Accès organisateur **et** bénévole sur le même compte (switch de vue). Promu depuis `volunteer` via une demande approuvée par le super admin.
+- **Bénévole** (`volunteer`, rôle par défaut) : membre d'un club. Consulte les créneaux disponibles et s'inscrit lui-même. Peut demander à devenir organisateur.
+
+Le bénévole s'inscrit de façon autonome (aucune assignation manuelle par l'orga).
 
 ### Échelle
 
@@ -221,7 +224,7 @@ Un tournoi entier géré sans Excel ni WhatsApp : l'orga crée la structure, par
 
 | Entité                   | Champs                                                                                          | Notes                                     |
 | ------------------------ | ----------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| **User**                 | id, email (unique), name, is_organizer (bool), created_at                                       | Compte léger.                             |
+| **User**                 | id, email (unique), name, role (enum: `volunteer`\|`organizer`\|`super_admin`), created_at       | Compte léger. Voir aussi `OrganizerRequest` (demande de promotion). |
 | **Tournament**           | id, name, location, start_date, end_date, organizer_id → User, share_token (unique), created_at | Multi-jours. `share_token` = lien public. |
 | **Position** (poste)     | id, tournament_id → Tournament, name, description?, color, created_at                           | `color` auto-assignée depuis une palette. |
 | **Shift** (créneau)      | id, position_id → Position, starts_at, ends_at, capacity, created_at                            | Unité flexible de staffing.               |

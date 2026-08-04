@@ -1,7 +1,19 @@
 # Epic 7 — Fondation rôles (super_admin / organizer / volunteer)
 
 **Complexité** : M
-**Statut** : À VALIDER (livré 2026-07-02)
+**Statut** : À VALIDER (livré 2026-07-02, déployé en prod le 2026-08-04)
+
+## État session 2026-08-04 (déploiement prod)
+
+**Fait :** Migrations `0005`→`0008` appliquées sur Neon prod ; 1er super admin confirmé (`jonathan.vouilloz@gmail.com`). Découverte en route : `RESEND_API_KEY`/`EMAIL_FROM` n'existaient sur aucun environnement Vercel — ajoutés (Production + Preview, domaine `acgb.ch` vérifié sur Resend, `EMAIL_FROM=noreply@acgb.ch`) avant de retirer `PROTOTYPE_MODE`, sinon plus personne ne pouvait se connecter. `BETTER_AUTH_URL=https://benevoles.acgb.ch` reconfirmé sur les deux environnements (son retrait accidentel lors du nettoyage a été corrigé immédiatement). Nouveau déploiement Production déclenché (les env vars Vercel ne s'appliquent qu'aux builds neufs, pas aux instances déjà déployées). Fumée testée en prod via navigateur : bandeau « Mode démo » disparu, `/login` → `/login/sent` sans erreur, menu compte affiche « Rôle : Administrateur » pour Jonathan.
+
+**Prochain :** confirmer la réception du magic link réel (test lancé en session), puis dérouler la QA manuelle complète des épics 7-12 (cf. `docs/PLAN.md`) avant de passer les statuts en DONE.
+
+**Pièges :** un `vercel env rm <var> production` supprime aussi la valeur `preview` quand la variable est partagée entre les deux environnements (enregistrement unique côté Vercel) — vérifier après coup que les env vars encore nécessaires sur Preview n'ont pas disparu avec.
+
+**Commit :** (à venir)
+
+---
 
 ## État session 2026-07-02 (livraison chantier rôles+accès+desktop, épics 7→12)
 
