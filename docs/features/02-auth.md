@@ -1,7 +1,24 @@
 # Epic 2 — Auth magic link
 
 **Complexité** : M
-**Statut** : EN COURS
+**Statut** : DONE (2026-08-04)
+
+## Etat session 2026-08-04 (Resend branché en prod, PROTOTYPE_MODE retiré)
+
+**Fait :**
+
+- `RESEND_API_KEY` + `EMAIL_FROM=noreply@acgb.ch` ajoutés sur Vercel Production **et** Preview (absents jusqu'ici — non détecté avant cette session, aurait cassé la connexion pour tout le monde si `PROTOTYPE_MODE` avait été retiré sans ça).
+- Domaine `acgb.ch` vérifié sur Resend.
+- `PROTOTYPE_MODE` retiré de Production et Preview ; redéploiement Production pour que les env vars prennent effet (elles ne s'appliquent pas aux instances déjà déployées).
+- Testé en prod : `/login` → `/login/sent` sans erreur, email réel envoyé.
+
+**Prochain :** aucun côté auth — epic clôturé. Le reste du go-live (QA rôles, QStash) est suivi dans `docs/features/07-roles.md` et `docs/PLAN.md`.
+
+**Pièges :** RAS.
+
+**Commit :** [d79f3da] docs(roles): déploie et documente le chantier rôles 7-12 en prod
+
+---
 
 ## Etat session 2026-06-24 (déconnexion serveur + dev port-agnostique)
 
@@ -71,8 +88,8 @@ Authentification sans mot de passe via magic link (Better Auth + Resend). Compte
 - [x] Migration `drizzle/0001_wakeful_johnny_storm.sql` appliquée sur Neon.
 - [x] `RESEND_API_KEY` renseignée (domaine non encore vérifié → lien loggé en console en dev).
 - [x] Flow de connexion testé OK (login → lien console → session).
-- [ ] Vérifier déconnexion + passage `is_organizer = true` en DB.
-- [ ] Prod : vérifier un domaine sur Resend (`EMAIL_FROM`) pour envoyer à tout email.
+- [x] Vérifier déconnexion — fait (état session 2026-06-24). `is_organizer` obsolète, remplacé par l'enum `role` (epic 7).
+- [x] Prod : domaine `acgb.ch` vérifié sur Resend, `EMAIL_FROM` configuré (état session 2026-08-04).
 
 ## Décisions techniques
 

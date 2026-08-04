@@ -7,7 +7,7 @@ Plan d'exécution maître. Statuts : `TODO` · `EN COURS` · `DONE`.
 | #   | Epic                               | Complexité | Statut   | Détail                                                       |
 | --- | ---------------------------------- | ---------- | -------- | ------------------------------------------------------------ |
 | 1   | Socle technique & design           | M          | DONE     | [features/01-socle.md](features/01-socle.md)                 |
-| 2   | Auth magic link                    | M          | EN COURS | [features/02-auth.md](features/02-auth.md)                   |
+| 2   | Auth magic link                    | M          | DONE     | [features/02-auth.md](features/02-auth.md)                   |
 | 3   | Tournois, postes & créneaux (orga) | L          | DONE     | [features/03-tournois.md](features/03-tournois.md)           |
 | 4   | Inscription bénévole               | M          | DONE     | [features/04-inscription.md](features/04-inscription.md)     |
 | 5   | Suivi du remplissage (orga)        | S          | DONE     | [features/05-suivi.md](features/05-suivi.md)                 |
@@ -61,7 +61,7 @@ Chantier post-MVP (7-12) — refonte rôles + accès + desktop :
 ## Prochaines étapes prioritaires
 
 - [x] Epic 1 : socle SvelteKit + Neon/Drizzle (6 tables migrées) + Tailwind + PWA + design system. **DONE**.
-- [ ] Epic 2 : Auth magic link (Better Auth + Resend).
+- [x] Epic 2 : Auth magic link (Better Auth + Resend). **DONE** (2026-08-04).
 
 ## Archive
 
