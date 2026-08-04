@@ -187,6 +187,18 @@ export async function listAllTournaments(): Promise<AdminTournamentRow[]> {
 	return rows.map((r) => ({ ...r, phase: tournamentPhase(r.startDate, r.endDate, now) }));
 }
 
+/**
+ * Supprime n'importe quel tournoi (cascade postes → créneaux → inscriptions), sans filtre de
+ * propriétaire. Accès super admin uniquement (gardé par la route).
+ */
+export async function deleteTournamentAsAdmin(id: string): Promise<boolean> {
+	const rows = await db
+		.delete(tournament)
+		.where(eq(tournament.id, id))
+		.returning({ id: tournament.id });
+	return rows.length > 0;
+}
+
 /* ─────────────────────────── Demandes organisateur ─────────────────────────── */
 
 export type OrganizerRequestRow = {

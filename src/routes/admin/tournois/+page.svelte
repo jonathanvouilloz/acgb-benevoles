@@ -1,8 +1,11 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import { PhaseBadge } from '$lib/components/ui/phase-badge';
+	import { confirmAction } from '$lib/confirm.svelte';
+	import { toast } from '$lib/toast.svelte';
 	import { formatDateRange } from '$lib/format';
-	import { CalendarDays, MapPin, User, ExternalLink } from 'lucide-svelte';
+	import { CalendarDays, MapPin, User, ExternalLink, Trash2 } from 'lucide-svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -49,6 +52,35 @@
 						>
 							Voir <ExternalLink size={13} />
 						</a>
+						<form
+							method="POST"
+							action="?/deleteTournament"
+							use:enhance={() =>
+								async ({ update, result }) => {
+									if (result.type === 'success') toast.success('Tournoi supprimé');
+									await update();
+								}}
+						>
+							<input type="hidden" name="tournamentId" value={t.id} />
+							<button
+								type="submit"
+								title="Supprimer le tournoi"
+								onclick={async (e) => {
+									e.preventDefault();
+									const f = e.currentTarget.form;
+									const ok = await confirmAction({
+										title: 'Supprimer le tournoi',
+										message: `« ${t.name} » (organisé par ${t.organizerEmail}) et tout son contenu (postes, créneaux, inscriptions) seront supprimés définitivement.`,
+										confirmLabel: 'Supprimer',
+										variant: 'danger'
+									});
+									if (ok) f?.requestSubmit();
+								}}
+								class="inline-flex items-center gap-1 text-xs font-medium text-ink-muted hover:text-error"
+							>
+								<Trash2 size={13} /> Supprimer
+							</button>
+						</form>
 					</div>
 				</div>
 			</li>

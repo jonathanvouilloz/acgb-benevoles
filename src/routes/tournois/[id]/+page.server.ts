@@ -53,7 +53,8 @@ export const actions: Actions = {
 
 	deleteTournament: async ({ locals, params }) => {
 		const user = requireOrganizer(locals);
-		await deleteTournament(params.id, user.id);
+		const ok = await deleteTournament(params.id, user.id);
+		if (!ok) return fail(404, { action: 'deleteTournament', formError: 'Tournoi introuvable.' });
 		throw redirect(303, '/tournois');
 	},
 
