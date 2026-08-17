@@ -2,13 +2,13 @@
 
 ## Features actives
 
-| Feature | Fichier | Statut |
-| ------- | ------- | ------ |
-| Retours Anne : consignes, chevauchements, places restantes (epic 13) | docs/features/13-retours-anne-lisibilite.md | **À VALIDER** — livré, migration `0009` appliquée |
-| Affectations orga : inscrire, retirer, tracer (epic 14) | docs/features/14-affectations-orga.md | EN ATTENTE — plan écrit, rien de codé |
-| Fondation rôles + admin + responsive (épics 7-12) | docs/features/07-roles.md à 12-responsive.md | À VALIDER — QA manuelle restante |
+| Feature                                                              | Fichier                                    | Statut                                                   |
+| -------------------------------------------------------------------- | ------------------------------------------ | -------------------------------------------------------- |
+| Affectations orga : inscrire, retirer, tracer (epic 14)              | docs/features/14-affectations-orga.md      | **À VALIDER** — livré, migration `0010` appliquée         |
+| Retours Anne : consignes, chevauchements, places restantes (epic 13) | docs/features/13-retours-anne-lisibilite.md | À VALIDER — livré, migration `0009` appliquée             |
+| Fondation rôles + admin + responsive (épics 7-12)                    | docs/features/07-roles.md à 12-responsive.md | À VALIDER — QA manuelle restante                         |
 
 ## Reprendre ici
 
-Epic 13 — QA manuelle des 3 parcours (blocs **Vérif** du fichier feature), puis statut `DONE` et attaque de l'epic 14.
-Commit : [ea11417] feat(tournois): consignes, alerte de chevauchement et places restantes
+Epic 14 — QA manuelle des 9 parcours (§ Vérification du fichier feature), en priorité le n°3 : inscrire avec un vrai email, se connecter depuis une autre session, retrouver ses créneaux.
+Commit : [3edb0e2] feat(affectations): inscrire, retirer et tracer depuis la matrice
