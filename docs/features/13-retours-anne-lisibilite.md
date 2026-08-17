@@ -1,8 +1,59 @@
 # Epic 13 — Retours Anne : consignes, chevauchements, places restantes
 
 **Complexité** : M
-**Statut** : LIVRÉ (build vert) — migration 0009 à appliquer, QA manuelle restante
+**Statut** : À VALIDER — code livré, migration `0009` appliquée en prod, QA manuelle restante
 **Origine** : retour d'Anne (client ACGB) du 2026-08-17 — 3 des 6 points, ceux qui ne touchent pas au modèle d'affectation.
+
+## État session 2026-08-17
+
+**Fait :**
+
+- T1 — `tournament.instructions` (migration `0009`, appliquée) : textarea à la création et à l'édition du tournoi, encart « À savoir avant de t'inscrire » sur `/t/[token]`, reprise en tête du planning imprimé.
+- T2 — `src/lib/overlap.ts` : détection de chevauchement à bornes strictes, tous tournois confondus. Bandeau ambre visible sans déplier la ligne + confirmation avant inscription sur les 4 boutons d'engagement.
+- T3 — correction du bug remonté par Anne : `flattenTournament` émet une ligne « À pourvoir » **par place libre** (au lieu d'une seule pour un créneau vide). Ligne « À pourvoir » ajoutée en bas de la matrice, colonne ajoutée aux exports xlsx.
+- `npm run check` et `npm run build` verts ; commit `ea11417` poussé.
+
+**Prochain :** QA manuelle des 3 parcours (cf. les blocs **Vérif** de chaque tâche ci-dessous), en particulier le rendu de la ligne « À pourvoir » de `RecapMatrix.svelte` sur large écran et la confirmation de chevauchement depuis le raccourci « Dispo ». Sans écart : statut → `DONE`, puis attaquer l'epic 14 (`docs/features/14-affectations-orga.md`).
+
+**Pièges :**
+
+- La confirmation de chevauchement passe par `onclick` + `preventDefault` + `form.requestSubmit(btn)` (motif de `ShiftRow.svelte:107`), **pas** par une interception dans `use:enhance` — le submitter doit être repassé à `requestSubmit` pour préserver le `formaction` des boutons partageant un formulaire.
+- Clé du `{#each}` de `RecapTable.svelte` : plusieurs lignes vides coexistent désormais pour un même créneau → la clé inclut `row.slot`, ne pas la simplifier.
+- `getMyUpcomingShifts` compare des heures murales UTC-naïves à `Date.now()` réel (décalage ~2 h l'été) : un créneau qui se termine dans les 2 h peut sortir de la liste des conflits. Comportement préexistant, non corrigé ici.
+
+**Commit :** [ea11417] feat(tournois): consignes, alerte de chevauchement et places restantes
+
+---
+
+## Carte du code
+
+> Mise à jour : 2026-08-17
+
+| Fichier | Rôle |
+|---------|------|
+| `src/lib/overlap.ts` | **Nouveau** — `overlaps` (bornes strictes) et `findConflicts` ; type `BusyShift`. |
+| `src/lib/recap.ts` | `flattenTournament` émet une ligne `empty` par place libre (`slot` en clé d'affichage). |
+| `src/lib/server/db/schema.ts` | Colonne `tournament.instructions` (text, nullable). |
+| `src/lib/schemas/tournament.ts` | Validation `instructions` (2000 car. max, optionnel). |
+| `src/lib/server/services/tournament-service.ts` | Persistance de `instructions` (création + mise à jour). |
+| `src/lib/server/services/signup-service.ts` | `instructions` exposé dans `VolunteerTournament` / `mapTournamentRow`. |
+| `src/routes/t/[token]/+page.server.ts` | Charge `myOtherShifts` (créneaux pris sur les autres tournois) pour la détection de conflits. |
+| `src/routes/t/[token]/+page.svelte` | Encart consignes + calcul de `busy` et `conflictsFor()` passés à chaque ligne. |
+| `src/lib/components/tournament/VolunteerShiftRow.svelte` | Bandeau de chevauchement + garde `guardOverlap` sur les boutons d'inscription. |
+| `src/lib/components/tracking/RecapMatrix.svelte` | Ligne « À pourvoir » (`+N` / coche) en bas de la grille. |
+| `src/lib/components/tracking/RecapTable.svelte` | Clé du `{#each}` élargie aux lignes vides multiples. |
+| `src/lib/export-xlsx.ts` | Colonne « À pourvoir » sur les formats « Par poste » et « Par créneau ». |
+| `src/lib/components/tracking/PrintPlanning.svelte` | Consignes reprises dans l'en-tête du planning imprimé. |
+| `src/routes/tournois/nouveau/+page.{server.ts,svelte}` · `src/routes/tournois/[id]/+page.{server.ts,svelte}` | Champ « Consignes aux bénévoles » (création et édition). |
+
+### Décisions clés
+
+- Le chevauchement **avertit sans bloquer** : aucune règle serveur, seulement l'UI. Un recouvrement peut être volontaire et l'organisateur doit pouvoir le forcer depuis la matrice (epic 14).
+- Le bandeau de conflit s'affiche **aussi quand le bénévole est déjà inscrit** : c'est la relecture de son propre agenda, le point exact soulevé par Anne.
+- `instructions` est du texte brut (ni markdown ni HTML), rendu en `whitespace-pre-line` — aucune surface XSS.
+- Les `maybe` ne consomment pas de place : un `maybe` ne retire pas de ligne « À pourvoir » (règle de capacité du PRD, inchangée).
+
+---
 
 ## Objectif
 
@@ -73,19 +124,6 @@ par Anne.
 **Vérif** : tournoi de test avec un créneau capacité 2 et 1 inscrit `available` → le tableau récap affiche 1 ligne bénévole + 1 ligne « À pourvoir » ; filtre statut « À pourvoir » → la ligne apparaît ; matrice → ligne fantôme avec 1 case restante ; export xlsx → colonne « À pourvoir » = 1.
 
 ---
-
-## Carte du code (anticipée)
-
-- `src/lib/server/db/schema.ts` — `tournament.instructions`.
-- `src/lib/schemas/tournament.ts` — validation `instructions`.
-- `src/lib/server/services/tournament-service.ts` — persistance.
-- `src/lib/server/services/signup-service.ts` — `instructions` dans `VolunteerTournament`.
-- `src/lib/overlap.ts` — **nouveau**, détection de chevauchement.
-- `src/lib/recap.ts` — lignes `empty` par place restante.
-- `src/routes/t/[token]/+page.{server.ts,svelte}` — consignes + conflits.
-- `src/lib/components/tournament/VolunteerShiftRow.svelte` — badge + confirmation.
-- `src/lib/components/tracking/{RecapTable,RecapMatrix}.svelte` — places restantes.
-- `src/lib/export-xlsx.ts` — colonne « À pourvoir ».
 
 ## Notes / décisions
 
