@@ -408,6 +408,33 @@
 						{/each}
 					</tr>
 				{/each}
+				<!-- Places encore libres, colonne par colonne. Sans cette ligne, un créneau de 2 places
+				     dont 1 est déjà prise ne montrait plus son trou dans la grille. -->
+				<tr class="bg-warning/5">
+					<th
+						class="sticky left-0 z-10 border-t border-r border-border bg-surface-subtle px-3 py-2 text-left text-xs font-semibold text-ink-strong"
+					>
+						À pourvoir
+					</th>
+					{#each matrix.groups as g (g.name)}
+						{#each g.shifts as s (s.id)}
+							<td class="border-t border-r border-border/60 px-2 py-1.5 text-center">
+								{#if s.remaining > 0}
+									<span
+										title="{s.remaining} place{s.remaining > 1 ? 's' : ''} encore à pourvoir"
+										class="inline-block rounded bg-warning/15 px-1.5 py-0.5 text-xs font-semibold text-warning"
+									>
+										+{s.remaining}
+									</span>
+								{:else}
+									<span title="Créneau complet" class="text-xs text-success">
+										<Check size={14} strokeWidth={2.75} class="mx-auto" />
+									</span>
+								{/if}
+							</td>
+						{/each}
+					{/each}
+				</tr>
 			</tbody>
 		</table>
 	</div>

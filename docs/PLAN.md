@@ -18,6 +18,8 @@ Plan d'exécution maître. Statuts : `TODO` · `EN COURS` · `DONE`.
 | 10  | Rôle en navbar + switch de vue     | S          | À VALIDER | [features/10-navbar-role.md](features/10-navbar-role.md)     |
 | 11  | Listing tournois public            | M          | À VALIDER | [features/11-listing-public.md](features/11-listing-public.md) |
 | 12  | Refonte responsive desktop/iPad    | L          | À VALIDER | [features/12-responsive.md](features/12-responsive.md)       |
+| 13  | Retours Anne : consignes, chevauchements, places restantes | M | À VALIDER | [features/13-retours-anne-lisibilite.md](features/13-retours-anne-lisibilite.md) — migration `0009` à appliquer |
+| 14  | Affectations orga : inscrire, retirer, tracer | L | TODO | [features/14-affectations-orga.md](features/14-affectations-orga.md) |
 
 > **À VALIDER** = code livré (check + build verts), en attente de test manuel Jonathan sur les 6 épics (7→12) en conditions réelles. Étapes de déploiement ci-dessous.
 

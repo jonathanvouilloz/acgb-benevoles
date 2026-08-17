@@ -57,6 +57,8 @@ export type VolunteerTournament = {
 	id: string;
 	name: string;
 	location: string | null;
+	/** Consignes libres de l'organisateur, affichées en tête de la page d'inscription. */
+	instructions: string | null;
 	startDate: Date;
 	endDate: Date;
 	shareToken: string;
@@ -122,6 +124,7 @@ function mapTournamentRow(
 		id: row.id,
 		name: row.name,
 		location: row.location,
+		instructions: row.instructions,
 		startDate: row.startDate,
 		endDate: row.endDate,
 		shareToken: row.shareToken,

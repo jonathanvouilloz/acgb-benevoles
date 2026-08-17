@@ -3,11 +3,13 @@ import { requireLogin } from '$lib/server/auth-guard';
 import { signupSchema, noteUpdateSchema } from '$lib/schemas/signup';
 import {
 	getTournamentByShareToken,
+	getMyUpcomingShifts,
 	createSignup,
 	changeSignupStatus,
 	deleteSignup,
 	setSignupNote
 } from '$lib/server/services/signup-service';
+import type { BusyShift } from '$lib/overlap';
 import type { Actions, PageServerLoad } from './$types';
 
 /** Lecture publique : pas de garde. Si connecté, `myStatus` est calculé par le service. */
@@ -15,8 +17,24 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const tournament = await getTournamentByShareToken(params.token, locals.user?.id ?? null);
 	if (!tournament) throw error(404, 'Tournoi introuvable.');
 
+	// Créneaux déjà pris par le bénévole sur les **autres** tournois — pour signaler un
+	// chevauchement d'agenda. Ceux du tournoi courant sont déjà connus via `myStatus`.
+	const myOtherShifts: BusyShift[] = locals.user
+		? (await getMyUpcomingShifts(locals.user.id))
+				.filter((s) => s.shareToken !== tournament.shareToken)
+				.map((s) => ({
+					shiftId: s.shiftId,
+					startsAt: s.startsAt,
+					endsAt: s.endsAt,
+					status: s.status,
+					positionName: s.positionName,
+					tournamentName: s.tournamentName
+				}))
+		: [];
+
 	return {
 		tournament,
+		myOtherShifts,
 		isLoggedIn: !!locals.user,
 		me: locals.user ? { id: locals.user.id, name: locals.user.name } : null,
 		// Téléphone désormais obligatoire : on invite les comptes existants sans numéro à

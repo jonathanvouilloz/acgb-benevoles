@@ -83,7 +83,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each sorted as row (row.shiftId + row.volunteerName)}
+				{#each sorted as row (row.shiftId + ':' + (row.userId || `empty-${row.slot}`))}
 					<tr
 						class="border-b border-border/60 transition-colors last:border-0 hover:bg-surface-subtle"
 					>

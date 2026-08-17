@@ -21,6 +21,7 @@
 		shiftHourBounds,
 		needDensity
 	} from '$lib/volunteer-shifts';
+	import { findConflicts, type BusyShift } from '$lib/overlap';
 	import {
 		CalendarDays,
 		MapPin,
@@ -34,6 +35,7 @@
 		Clock,
 		LayoutGrid,
 		Settings,
+		Info,
 		X
 	} from 'lucide-svelte';
 	import type { PageData, ActionData } from './$types';
@@ -50,6 +52,29 @@
 	const split = $derived(splitByTime(all, now));
 	const upcoming = $derived(split.upcoming);
 	const next = $derived(nextOwnShift(upcoming));
+
+	/**
+	 * Agenda occupé du bénévole : ses créneaux de CE tournoi + ceux des autres tournois
+	 * (chargés par le serveur). Sert à signaler les chevauchements avant inscription.
+	 */
+	const busy = $derived<BusyShift[]>([
+		...upcoming
+			.filter((s) => s.myStatus !== null)
+			.map((s) => ({
+				shiftId: s.id,
+				startsAt: s.startsAt,
+				endsAt: s.endsAt,
+				status: s.myStatus!,
+				positionName: s.positionName,
+				tournamentName: null
+			})),
+		...data.myOtherShifts
+	]);
+
+	/** Créneaux déjà pris qui recouvrent celui-ci (vide si aucun conflit). */
+	function conflictsFor(s: { id: string; startsAt: Date; endsAt: Date }) {
+		return findConflicts(s, busy);
+	}
 
 	// --- Onglets : « Mes créneaux » (agenda perso) vs « S'inscrire » (liste ouverte) ---
 	const myCount = $derived(upcoming.filter((s) => s.myStatus !== null).length);
@@ -205,6 +230,16 @@
 	</div>
 </section>
 
+{#if t.instructions}
+	<!-- Consignes de l'organisateur — texte brut saisi côté gestion, retours à la ligne conservés. -->
+	<section class="mt-4 rounded-lg border border-info/40 bg-info/10 p-4">
+		<h2 class="flex items-center gap-1.5 h2">
+			<Info size={15} /> À savoir avant de t'inscrire
+		</h2>
+		<p class="mt-2 whitespace-pre-line text-sm text-ink">{t.instructions}</p>
+	</section>
+{/if}
+
 {#if data.needsPhone}
 	<div class="mt-4 rounded-lg border border-warning/40 bg-warning/10 p-4">
 		<p class="text-sm text-ink">
@@ -287,6 +322,7 @@
 								positionColor={shift.positionColor}
 								showDay={false}
 								featured={shift.id === next?.id}
+								conflicts={conflictsFor(shift)}
 							/>
 						{/each}
 					</section>
@@ -408,6 +444,7 @@
 								positionName={shift.positionName}
 								positionColor={shift.positionColor}
 								showDay={false}
+								conflicts={conflictsFor(shift)}
 							/>
 						{/each}
 					</section>
@@ -434,6 +471,7 @@
 								positionName={shift.positionName}
 								positionColor={shift.positionColor}
 								showPosition={false}
+								conflicts={conflictsFor(shift)}
 							/>
 						{/each}
 					</section>

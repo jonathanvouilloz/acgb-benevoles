@@ -11,6 +11,8 @@ export const tournamentSchema = z
 	.object({
 		name: z.string().trim().min(1, 'Nom requis').max(100, 'Nom trop long'),
 		location: z.string().trim().max(120, 'Lieu trop long').optional(),
+		// Consignes affichées aux bénévoles (texte brut, multi-lignes).
+		instructions: z.string().trim().max(2000, 'Consignes trop longues').optional(),
 		startDate: dateString,
 		endDate: dateString
 	})

@@ -135,6 +135,10 @@ export const tournament = pgTable('tournament', {
 	id: uuid('id').primaryKey().defaultRandom(),
 	name: text('name').notNull(),
 	location: text('location'),
+	// Consignes libres de l'organisateur, affichées en tête de la page d'inscription
+	// (« minimum 6 h par bénévole », « laissez un commentaire »…). Texte brut, retours
+	// à la ligne conservés à l'affichage.
+	instructions: text('instructions'),
 	startDate: timestamp('start_date', { mode: 'date' }).notNull(),
 	endDate: timestamp('end_date', { mode: 'date' }).notNull(),
 	organizerId: text('organizer_id')

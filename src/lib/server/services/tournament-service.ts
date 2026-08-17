@@ -62,6 +62,7 @@ export async function createTournament(organizerId: string, input: TournamentInp
 		.values({
 			name: input.name,
 			location: input.location?.length ? input.location : null,
+			instructions: input.instructions?.length ? input.instructions : null,
 			startDate: new Date(input.startDate),
 			endDate: new Date(input.endDate),
 			organizerId,
@@ -108,6 +109,7 @@ export async function updateTournament(id: string, organizerId: string, input: T
 		.set({
 			name: input.name,
 			location: input.location?.length ? input.location : null,
+			instructions: input.instructions?.length ? input.instructions : null,
 			startDate: new Date(input.startDate),
 			endDate: new Date(input.endDate)
 		})

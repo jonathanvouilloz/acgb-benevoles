@@ -116,6 +116,9 @@
 				· {tournament.organizer.email}{/if}{#if tournament.organizer.phone}
 				· {tournament.organizer.phone}{/if}
 		</p>
+		{#if tournament.instructions}
+			<p class="instructions">{tournament.instructions}</p>
+		{/if}
 		<p class="legend">
 			<span class="dot ok"></span> Disponible
 			<span class="dot maybe"></span> Peut-être
@@ -259,6 +262,14 @@
 		font-size: 9pt;
 		color: #333;
 		margin: 2pt 0 0;
+	}
+	.print-head .instructions {
+		font-size: 9pt;
+		color: #111;
+		margin: 5pt 0 0;
+		padding: 4pt 6pt;
+		border-left: 2pt solid #cfd5de;
+		white-space: pre-line;
 	}
 	.print-head .legend {
 		font-size: 8.5pt;

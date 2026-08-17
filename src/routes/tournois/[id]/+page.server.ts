@@ -35,6 +35,7 @@ export const actions: Actions = {
 		const values = {
 			name: String(form.get('name') ?? ''),
 			location: String(form.get('location') ?? ''),
+			instructions: String(form.get('instructions') ?? ''),
 			startDate: String(form.get('startDate') ?? ''),
 			endDate: String(form.get('endDate') ?? '')
 		};

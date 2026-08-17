@@ -4,7 +4,9 @@
 	import StatusBadge from '$lib/components/ui/status-badge/StatusBadge.svelte';
 	import { formatDay, formatTimeRange } from '$lib/format';
 	import { toast } from '$lib/toast.svelte';
-	import { Check, CircleHelp, ChevronDown } from 'lucide-svelte';
+	import { confirmAction } from '$lib/confirm.svelte';
+	import type { BusyShift } from '$lib/overlap';
+	import { Check, CircleHelp, ChevronDown, TriangleAlert } from 'lucide-svelte';
 	import type { VolunteerShift } from '$lib/server/services/signup-service';
 
 	let {
@@ -17,7 +19,8 @@
 		past = false,
 		featured = false,
 		showPosition = true,
-		showDay = true
+		showDay = true,
+		conflicts = []
 	}: {
 		shift: VolunteerShift;
 		isLoggedIn: boolean;
@@ -32,6 +35,8 @@
 		showPosition?: boolean;
 		/** Affiche le jour sur la ligne (masqué quand l'en-tête de groupe porte déjà le jour). */
 		showDay?: boolean;
+		/** Créneaux déjà pris par le bénévole qui recouvrent celui-ci (cf. $lib/overlap). */
+		conflicts?: BusyShift[];
 	} = $props();
 
 	const formError = $derived(
@@ -60,6 +65,32 @@
 			? [...shift.signups].sort((a, b) => (a.userId === myId ? -1 : b.userId === myId ? 1 : 0))
 			: shift.signups
 	);
+
+	/** Conflits d'agenda à signaler : jamais sur un créneau passé. */
+	const activeConflicts = $derived(past ? [] : conflicts);
+
+	function conflictLabel(c: BusyShift): string {
+		const when = `${formatDay(c.startsAt)} · ${formatTimeRange(c.startsAt, c.endsAt)}`;
+		const where = c.tournamentName ? `${c.positionName} (${c.tournamentName})` : c.positionName;
+		return `${where} — ${when}`;
+	}
+
+	/**
+	 * Garde de chevauchement : on **avertit sans bloquer** (cf. $lib/overlap). Même motif que
+	 * les suppressions (`ShiftRow.svelte`) — on annule le submit natif, on demande confirmation,
+	 * puis on re-soumet avec le même bouton pour préserver son `formaction`.
+	 */
+	async function guardOverlap(e: MouseEvent & { currentTarget: HTMLButtonElement }) {
+		if (activeConflicts.length === 0) return;
+		e.preventDefault();
+		const btn = e.currentTarget;
+		const ok = await confirmAction({
+			title: 'Ce créneau en chevauche un autre',
+			message: `Tu es déjà pris sur : ${activeConflicts.map(conflictLabel).join(' · ')}. T'inscrire quand même ?`,
+			confirmLabel: "M'inscrire quand même"
+		});
+		if (ok) btn.form?.requestSubmit(btn);
+	}
 
 	/**
 	 * enhance + toast de succès. Le bouton « Me retirer » (formaction=?/unregister)
@@ -130,6 +161,7 @@
 				<input type="hidden" name="status" value="available" />
 				<button
 					type="submit"
+					onclick={guardOverlap}
 					class="skin-glossy skin-secondary inline-flex min-h-8 shrink-0 items-center gap-1 rounded px-2.5 text-sm font-semibold text-white"
 				>
 					<Check size={15} /> Dispo
@@ -137,6 +169,19 @@
 			</form>
 		{/if}
 	</div>
+
+	<!-- Chevauchement d'agenda : information, jamais un blocage (cf. $lib/overlap). -->
+	{#if activeConflicts.length > 0}
+		<div
+			class="flex items-start gap-1.5 border-t border-warning/30 bg-warning/10 px-3 py-2 text-xs text-ink"
+		>
+			<TriangleAlert size={14} class="mt-px shrink-0 text-warning" />
+			<p>
+				<span class="font-semibold">Chevauche</span>
+				{#each activeConflicts as c, i (c.shiftId)}{#if i > 0}, {/if}{conflictLabel(c)}{/each}
+			</p>
+		</div>
+	{/if}
 
 	{#if expanded}
 		<div class="flex flex-col gap-2 border-t border-border px-3 pt-2 pb-3">
@@ -211,6 +256,7 @@
 							<input type="hidden" name="note" value={note} />
 							<button
 								type="submit"
+								onclick={guardOverlap}
 								disabled={shift.isFull}
 								class="skin-glossy skin-secondary inline-flex min-h-9 items-center gap-1 rounded px-3 text-sm font-semibold text-white disabled:pointer-events-none disabled:opacity-50"
 							>
@@ -227,6 +273,7 @@
 							<input type="hidden" name="note" value={note} />
 							<button
 								type="submit"
+								onclick={guardOverlap}
 								class="inline-flex min-h-9 items-center gap-1 rounded border border-border px-3 text-sm font-semibold text-ink hover:bg-surface-muted"
 							>
 								<CircleHelp size={15} /> Peut-être
@@ -244,6 +291,7 @@
 							<input type="hidden" name="note" value={note} />
 							<button
 								type="submit"
+								onclick={guardOverlap}
 								disabled={shift.isFull}
 								class="skin-glossy skin-secondary inline-flex min-h-9 items-center gap-1 rounded px-3 text-sm font-semibold text-white disabled:pointer-events-none disabled:opacity-50"
 							>

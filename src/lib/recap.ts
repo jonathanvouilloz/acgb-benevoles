@@ -21,11 +21,18 @@ export type RecapRow = {
 	startsAt: Date;
 	endsAt: Date;
 	status: RecapStatus;
+	/** Index de la place vide dans son créneau (0 pour une ligne d'inscription) — clé d'affichage. */
+	slot: number;
 };
 
 /**
- * Une ligne par inscription. Un créneau sans inscrit produit une ligne `empty`
- * (« à pourvoir ») pour que l'organisateur voie les trous dans le tableau.
+ * Une ligne par inscription, **plus une ligne `empty` par place encore libre** du créneau
+ * (« à pourvoir »). Un créneau de 2 places avec 1 inscrit produit donc 2 lignes : l'inscrit
+ * et le trou restant — sans quoi il sortait du filtre « À pourvoir » dès la première
+ * inscription (bug remonté par l'organisatrice, cf. docs/features/13-*.md).
+ *
+ * Seules les inscriptions `available` consomment une place (règle de capacité du PRD) :
+ * un `maybe` n'enlève pas de ligne « à pourvoir ».
  */
 export function flattenTournament(t: VolunteerTournament): RecapRow[] {
 	const rows: RecapRow[] = [];
@@ -40,26 +47,27 @@ export function flattenTournament(t: VolunteerTournament): RecapRow[] {
 				startsAt: s.startsAt,
 				endsAt: s.endsAt
 			};
-			if (s.signups.length === 0) {
+			for (const su of s.signups) {
+				rows.push({
+					...base,
+					userId: su.userId,
+					volunteerName: su.name,
+					phone: su.phone,
+					note: su.note,
+					status: su.status,
+					slot: 0
+				});
+			}
+			for (let i = 0; i < s.remaining; i++) {
 				rows.push({
 					...base,
 					userId: '',
 					volunteerName: '',
 					phone: null,
 					note: null,
-					status: 'empty'
+					status: 'empty',
+					slot: i
 				});
-			} else {
-				for (const su of s.signups) {
-					rows.push({
-						...base,
-						userId: su.userId,
-						volunteerName: su.name,
-						phone: su.phone,
-						note: su.note,
-						status: su.status
-					});
-				}
 			}
 		}
 	}

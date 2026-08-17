@@ -121,6 +121,22 @@
 			Lieu <span class="font-normal text-ink-muted">(optionnel)</span>
 			<Input name="location" type="text" value={t.location ?? ''} />
 		</label>
+		<label class="flex flex-col gap-1 text-sm font-medium text-ink">
+			Consignes aux bénévoles <span class="font-normal text-ink-muted">(optionnel)</span>
+			<textarea
+				name="instructions"
+				rows="4"
+				maxlength="2000"
+				value={t.instructions ?? ''}
+				placeholder="Minimum 6 h par bénévole · précisez vos contraintes dans le commentaire"
+				class="resize-y rounded-md border border-surface-border bg-surface px-3 py-2 text-sm font-normal text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
+			></textarea>
+			<span class="text-xs font-normal text-ink-muted">
+				Affiché en tête de la page d'inscription, avant les créneaux.
+			</span>
+			{#if tErrors?.instructions}<span class="text-xs text-error">{tErrors.instructions[0]}</span
+				>{/if}
+		</label>
 		<TournamentDateFields
 			start={toDateInputValue(t.startDate)}
 			end={toDateInputValue(t.endDate)}

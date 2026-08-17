@@ -66,6 +66,7 @@ function buildPoste(wb: Workbook, t: VolunteerTournament) {
 			{ header: 'Jour', width: 16 },
 			{ header: 'Créneau', width: 16 },
 			{ header: 'Places', width: 9 },
+			{ header: 'À pourvoir', width: 11 },
 			{ header: 'Disponibles', width: 40 },
 			{ header: 'Peut-être', width: 30 }
 		];
@@ -77,6 +78,7 @@ function buildPoste(wb: Workbook, t: VolunteerTournament) {
 				formatDay(s.startsAt),
 				timeRange(s),
 				`${s.availableCount}/${s.capacity}`,
+				s.remaining,
 				available.join(', '),
 				maybe.join(', ')
 			]);
@@ -160,6 +162,7 @@ function buildShift(wb: Workbook, t: VolunteerTournament) {
 		{ header: 'Début', width: 9 },
 		{ header: 'Fin', width: 9 },
 		{ header: 'Places', width: 9 },
+		{ header: 'À pourvoir', width: 11 },
 		{ header: 'Disponibles', width: 40 },
 		{ header: 'Peut-être', width: 30 }
 	];
@@ -174,6 +177,7 @@ function buildShift(wb: Workbook, t: VolunteerTournament) {
 				formatTime(s.startsAt),
 				formatTime(s.endsAt),
 				`${s.availableCount}/${s.capacity}`,
+				s.remaining,
 				available.join(', '),
 				maybe.join(', ')
 			]);
