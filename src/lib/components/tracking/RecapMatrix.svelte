@@ -219,11 +219,14 @@
 	onkeydown={editable && selected ? (e) => e.key === 'Escape' && (selected = null) : undefined}
 />
 
-{#if matrix.volunteers.length === 0}
+<!-- La grille se tient dès qu'il y a des colonnes : sans aucun inscrit, elle montre encore les
+     créneaux et la ligne « À pourvoir » — c'est justement là que « il manque tout le monde »
+     est l'information la plus utile. Seul un tournoi sans créneau (ou tout filtré) n'a rien à dire. -->
+{#if matrix.groups.length === 0}
 	<p
 		class="rounded-lg border border-border bg-surface-subtle p-6 text-center text-sm text-ink-muted"
 	>
-		Aucune inscription pour le moment.
+		Aucun créneau à afficher.
 	</p>
 {:else}
 	<!-- Légende -->
@@ -250,7 +253,15 @@
 		</span>
 	</div>
 
-	{#if editable}
+	{#if matrix.volunteers.length === 0}
+		<p
+			class="mb-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-1.5 text-xs text-ink"
+		>
+			Aucune inscription pour le moment — toutes les places sont à pourvoir.
+		</p>
+	{/if}
+
+	{#if editable && matrix.volunteers.length > 0}
 		<div
 			class="mb-2 flex items-center gap-1.5 rounded-md border border-brand-primary/30 bg-brand-primary/5 px-3 py-1.5 text-xs text-ink"
 		>
