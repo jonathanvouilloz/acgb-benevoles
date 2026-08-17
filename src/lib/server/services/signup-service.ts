@@ -1,8 +1,13 @@
 import { and, eq, sql, type SQL } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { shift, position, tournament, signup } from '$lib/server/db/schema';
+import { shift, position, tournament, signup, user } from '$lib/server/db/schema';
 import type { SignupStatus } from '$lib/schemas/signup';
+import { formatDay, formatTime } from '$lib/format';
 import { scheduleForSignup } from './reminder-scheduler';
+import { notifyUser, type PushPayload } from './push-service';
+import { logAssignment } from './assignment-log-service';
+import { createManagedVolunteer } from './volunteer-directory';
+import type { AssignInput } from '$lib/schemas/assignment';
 
 /**
  * Couche métier de l'inscription bénévole (page publique /t/[token]).
@@ -26,6 +31,12 @@ export type VolunteerSignup = {
 	status: SignupStatus;
 	phone: string | null;
 	note: string | null;
+	/**
+	 * Fiche créée par un organisateur, sans email réel : ne se connecte pas, ne reçoit aucun
+	 * rappel. Exposé **uniquement** en vue organisateur — sans ce marqueur, l'organisateur croit
+	 * que la personne a été prévenue comme les autres.
+	 */
+	isManaged: boolean;
 };
 
 /** Coordonnées de l'organisateur, exposées aux bénévoles (depuis son compte). */
@@ -93,7 +104,11 @@ function findTournamentRow(where: SQL) {
 						with: {
 							signups: {
 								orderBy: (su, { asc }) => [asc(su.createdAt)],
-								with: { user: { columns: { id: true, name: true, phone: true } } }
+								with: {
+									user: {
+										columns: { id: true, name: true, phone: true, emailPlaceholder: true }
+									}
+								}
 							}
 						}
 					}
@@ -147,7 +162,9 @@ function mapTournamentRow(
 					status: su.status,
 					phone: organizerView ? su.user.phone : null,
 					// Note : visible pour l'orga (toutes) ou pour son propriétaire (vue publique).
-					note: organizerView || su.userId === userId ? su.note : null
+					note: organizerView || su.userId === userId ? su.note : null,
+					// Détail d'organisation : les bénévoles n'ont pas à savoir qui utilise l'app.
+					isManaged: organizerView ? su.user.emailPlaceholder : false
 				}));
 				const availableCount = signups.filter((x) => x.status === 'available').length;
 				const maybeCount = signups.filter((x) => x.status === 'maybe').length;
@@ -331,9 +348,48 @@ async function getShift(shiftId: string): Promise<{ capacity: number } | null> {
 }
 
 /**
- * Inscrit l'utilisateur sur un créneau.
+ * Insère une inscription en respectant la capacité de façon **atomique**.
  * - `maybe` : insertion directe (ne consomme pas de place).
- * - `available` : insertion conditionnelle atomique (échoue si capacité atteinte).
+ * - `available` : INSERT conditionnel en une requête — le driver neon-http ne supporte pas les
+ *   transactions interactives, donc toute fenêtre read-then-write permettrait de dépasser la
+ *   capacité sur la dernière place.
+ *
+ * Partagé par l'inscription bénévole (`createSignup`) et l'affectation organisateur
+ * (`assignVolunteer`) : dupliquer ce SQL, c'est dupliquer la garantie de concurrence.
+ * Erreurs : `FULL`, `DUPLICATE`.
+ */
+async function insertSignupAtomic(
+	shiftId: string,
+	userId: string,
+	status: SignupStatus,
+	note: string | null,
+	capacity: number
+): Promise<void> {
+	try {
+		if (status === 'maybe') {
+			await db.insert(signup).values({ shiftId, userId, status: 'maybe', note });
+			return;
+		}
+
+		// `available` : on insère seulement si le nombre d'available reste sous la capacité.
+		const res = await db.execute(sql`
+			INSERT INTO signup (shift_id, user_id, status, note)
+			SELECT ${shiftId}::uuid, ${userId}, 'available', ${note}
+			WHERE (
+				SELECT count(*) FROM signup
+				WHERE shift_id = ${shiftId}::uuid AND status = 'available'
+			) < ${capacity}
+			RETURNING id
+		`);
+		if (res.rows.length === 0) throw new Error('FULL');
+	} catch (err) {
+		if (isUniqueViolation(err)) throw new Error('DUPLICATE');
+		throw err;
+	}
+}
+
+/**
+ * Inscrit l'utilisateur sur un créneau.
  * Erreurs : `NOT_FOUND` (créneau inexistant), `FULL` (complet), `DUPLICATE` (déjà inscrit).
  */
 export async function createSignup(
@@ -344,32 +400,11 @@ export async function createSignup(
 ): Promise<void> {
 	const s = await getShift(shiftId);
 	if (!s) throw new Error('NOT_FOUND');
-	const noteValue = note ?? null;
 
-	try {
-		if (status === 'maybe') {
-			await db.insert(signup).values({ shiftId, userId, status: 'maybe', note: noteValue });
-			return;
-		}
+	await insertSignupAtomic(shiftId, userId, status, note ?? null, s.capacity);
 
-		// `available` : on insère seulement si le nombre d'available reste sous la capacité.
-		const res = await db.execute(sql`
-			INSERT INTO signup (shift_id, user_id, status, note)
-			SELECT ${shiftId}::uuid, ${userId}, 'available', ${noteValue}
-			WHERE (
-				SELECT count(*) FROM signup
-				WHERE shift_id = ${shiftId}::uuid AND status = 'available'
-			) < ${s.capacity}
-			RETURNING id
-		`);
-		if (res.rows.length === 0) throw new Error('FULL');
-	} catch (err) {
-		if (isUniqueViolation(err)) throw new Error('DUPLICATE');
-		throw err;
-	}
-
-	// Inscription `available` créée → planifie les rappels QStash (best-effort, seul `available`
-	// atteint ce point ; la branche `maybe` a déjà `return`).
+	// Inscription `available` créée → planifie les rappels QStash (best-effort ; une `maybe`
+	// ne déclenche aucun rappel).
 	if (status === 'available') await scheduleForSignup(shiftId, userId);
 }
 
@@ -461,8 +496,20 @@ export async function deleteSignup(shiftId: string, userId: string): Promise<voi
  * édite son propre tournoi) → vérifications lues puis écriture.
  * ------------------------------------------------------------------ */
 
-/** Créneau résolu pour un organisateur : capacité, tournoi parent et nb d'available courant. */
-type OrganizerShift = { capacity: number; tournamentId: string; available: number };
+/**
+ * Créneau résolu pour un organisateur : capacité, tournoi parent, nb d'available courant, et les
+ * libellés nécessaires à la trace et aux notifications (une seule requête sert les trois usages).
+ */
+type OrganizerShift = {
+	capacity: number;
+	tournamentId: string;
+	available: number;
+	positionName: string;
+	startsAt: Date;
+	endsAt: Date;
+	tournamentName: string;
+	shareToken: string;
+};
 
 /** Charge un créneau si (et seulement si) il appartient à un tournoi de `organizerId`. */
 async function getOrganizerShift(
@@ -476,7 +523,12 @@ async function getOrganizerShift(
 			available: sql<number>`(
 				SELECT count(*)::int FROM signup
 				WHERE signup.shift_id = ${shift.id} AND signup.status = 'available'
-			)`
+			)`,
+			positionName: position.name,
+			startsAt: shift.startsAt,
+			endsAt: shift.endsAt,
+			tournamentName: tournament.name,
+			shareToken: tournament.shareToken
 		})
 		.from(shift)
 		.innerJoin(position, eq(shift.positionId, position.id))
@@ -484,6 +536,61 @@ async function getOrganizerShift(
 		.where(and(eq(shift.id, shiftId), eq(tournament.organizerId, organizerId)))
 		.limit(1);
 	return rows[0] ?? null;
+}
+
+/** « Buvette · sam. 21 juin, 10:00–14:00 » — libellé stable, stocké tel quel dans l'historique. */
+function shiftLabel(s: OrganizerShift): string {
+	return `${s.positionName} · ${formatDay(s.startsAt)}, ${formatTime(s.startsAt)}–${formatTime(s.endsAt)}`;
+}
+
+/** Nom d'un utilisateur (instantané pour la trace, qui doit survivre à la suppression du compte). */
+async function getUserName(userId: string): Promise<string | null> {
+	const rows = await db.select({ name: user.name }).from(user).where(eq(user.id, userId)).limit(1);
+	return rows[0]?.name ?? null;
+}
+
+/**
+ * Résultat d'une édition d'affectation. `notified: false` signifie que le bénévole **n'a pas
+ * été prévenu** — il n'a pas d'abonnement push, ou c'est une fiche créée par l'organisateur qui
+ * n'utilise pas l'app. L'UI doit le dire (« appelez-le ») plutôt qu'annoncer un succès complet.
+ */
+export type AssignmentResult = { notified: boolean };
+
+/**
+ * Post-traitement commun aux quatre opérations : écrit la trace et prévient le bénévole.
+ * Les deux sont best-effort et ne peuvent pas faire échouer la mutation déjà commitée.
+ */
+async function traceAndNotify(
+	organizerId: string,
+	tournamentId: string,
+	entry: {
+		action: 'add' | 'remove' | 'move' | 'swap';
+		volunteerId: string;
+		/** Fourni quand l'appelant l'a déjà lu (ex. avant un DELETE), sinon relu ici. */
+		volunteerName?: string;
+		detail: string;
+		reason?: string | null;
+		push: PushPayload;
+	}
+): Promise<AssignmentResult> {
+	const [actorName, volunteerName] = await Promise.all([
+		getUserName(organizerId),
+		entry.volunteerName ? Promise.resolve(entry.volunteerName) : getUserName(entry.volunteerId)
+	]);
+
+	await logAssignment({
+		tournamentId,
+		action: entry.action,
+		actorId: organizerId,
+		actorName: actorName ?? 'Organisateur',
+		volunteerId: entry.volunteerId,
+		volunteerName: volunteerName ?? 'Bénévole',
+		detail: entry.detail,
+		reason: entry.reason ?? null
+	});
+
+	const delivered = await notifyUser(entry.volunteerId, entry.push);
+	return { notified: delivered > 0 };
 }
 
 /** Statut de l'inscription (shiftId, userId), ou `null` si elle n'existe pas. */
@@ -507,8 +614,8 @@ export async function moveSignup(
 	tournamentId: string,
 	source: { shiftId: string; userId: string },
 	targetShiftId: string
-): Promise<void> {
-	if (source.shiftId === targetShiftId) return; // no-op
+): Promise<AssignmentResult> {
+	if (source.shiftId === targetShiftId) return { notified: true }; // no-op
 
 	const src = await getOrganizerShift(source.shiftId, organizerId);
 	const tgt = await getOrganizerShift(targetShiftId, organizerId);
@@ -530,6 +637,17 @@ export async function moveSignup(
 	// Le bénévole a changé de créneau → reprogramme ses rappels sur le nouveau `startsAt`
 	// (no-op interne si son statut est `maybe`).
 	await scheduleForSignup(targetShiftId, source.userId);
+
+	return traceAndNotify(organizerId, tournamentId, {
+		action: 'move',
+		volunteerId: source.userId,
+		detail: `${shiftLabel(src)} → ${shiftLabel(tgt)}`,
+		push: {
+			title: 'Créneau modifié',
+			body: `${tgt.tournamentName} — vous passez sur ${shiftLabel(tgt)}.`,
+			url: `/t/${tgt.shareToken}`
+		}
+	});
 }
 
 /**
@@ -543,9 +661,9 @@ export async function swapSignups(
 	tournamentId: string,
 	a: { shiftId: string; userId: string },
 	b: { shiftId: string; userId: string }
-): Promise<void> {
-	if (a.userId === b.userId) return; // même bénévole : rien à échanger
-	if (a.shiftId === b.shiftId) return; // même créneau : pas de déplacement
+): Promise<AssignmentResult> {
+	if (a.userId === b.userId) return { notified: true }; // même bénévole : rien à échanger
+	if (a.shiftId === b.shiftId) return { notified: true }; // même créneau : pas de déplacement
 
 	const sa = await getOrganizerShift(a.shiftId, organizerId);
 	const sb = await getOrganizerShift(b.shiftId, organizerId);
@@ -581,4 +699,144 @@ export async function swapSignups(
 	// Chaque bénévole a changé de créneau → reprogramme les deux (a → b.shiftId, b → a.shiftId).
 	await scheduleForSignup(b.shiftId, a.userId);
 	await scheduleForSignup(a.shiftId, b.userId);
+
+	// Deux entrées d'historique et deux notifications : l'échange concerne deux personnes, et
+	// chacune doit savoir où elle atterrit. `notified` n'est vrai que si les DEUX sont prévenues.
+	const [ra, rb] = await Promise.all([
+		traceAndNotify(organizerId, tournamentId, {
+			action: 'swap',
+			volunteerId: a.userId,
+			detail: `${shiftLabel(sa)} → ${shiftLabel(sb)}`,
+			push: {
+				title: 'Créneau échangé',
+				body: `${sb.tournamentName} — vous passez sur ${shiftLabel(sb)}.`,
+				url: `/t/${sb.shareToken}`
+			}
+		}),
+		traceAndNotify(organizerId, tournamentId, {
+			action: 'swap',
+			volunteerId: b.userId,
+			detail: `${shiftLabel(sb)} → ${shiftLabel(sa)}`,
+			push: {
+				title: 'Créneau échangé',
+				body: `${sa.tournamentName} — vous passez sur ${shiftLabel(sa)}.`,
+				url: `/t/${sa.shareToken}`
+			}
+		})
+	]);
+
+	return { notified: ra.notified && rb.notified };
+}
+
+/* ------------------------------------------------------------------ *
+ * Inscription & retrait par l'organisateur (Epic 14).
+ * ------------------------------------------------------------------ */
+
+/**
+ * Inscrit un bénévole sur un créneau à l'initiative de l'organisateur.
+ *
+ * Mode `existing` : compte déjà connu. Mode `new` : on crée une fiche (cf.
+ * `volunteer-directory.createManagedVolunteer`) — avec email elle deviendra un compte utilisable
+ * à la première connexion, sans email elle n'existe que dans le tableau de l'organisateur.
+ *
+ * La capacité reste garantie en concurrence par `insertSignupAtomic` : un organisateur qui
+ * inscrit pendant qu'un bénévole s'inscrit ne peut pas faire dépasser la capacité.
+ * Erreurs : `NOT_FOUND`, `FULL`, `DUPLICATE`, `RESERVED_DOMAIN`.
+ */
+export async function assignVolunteer(
+	organizerId: string,
+	tournamentId: string,
+	input: AssignInput
+): Promise<AssignmentResult & { volunteerId: string; hasRealEmail: boolean }> {
+	const target = await getOrganizerShift(input.shiftId, organizerId);
+	if (!target || target.tournamentId !== tournamentId) throw new Error('NOT_FOUND');
+
+	// Résolution du bénévole AVANT l'insertion : en mode `new` la fiche doit exister pour que
+	// la FK `signup.user_id` tienne.
+	let volunteerId: string;
+	let hasRealEmail: boolean;
+	if (input.mode === 'existing') {
+		const name = await getUserName(input.userId);
+		if (!name) throw new Error('NOT_FOUND');
+		volunteerId = input.userId;
+		hasRealEmail = true;
+	} else {
+		const created = await createManagedVolunteer(
+			{ name: input.name, phone: input.phone, email: input.email },
+			organizerId
+		);
+		volunteerId = created.userId;
+		hasRealEmail = created.hasRealEmail;
+	}
+
+	await insertSignupAtomic(
+		input.shiftId,
+		volunteerId,
+		input.status,
+		input.note ?? null,
+		target.capacity
+	);
+
+	if (input.status === 'available') await scheduleForSignup(input.shiftId, volunteerId);
+
+	const result = await traceAndNotify(organizerId, tournamentId, {
+		action: 'add',
+		volunteerId,
+		detail: shiftLabel(target),
+		reason: input.note ?? null,
+		push: {
+			title: 'Vous avez été inscrit·e',
+			body: `${target.tournamentName} — ${shiftLabel(target)}.`,
+			url: `/t/${target.shareToken}`
+		}
+	});
+
+	return { ...result, volunteerId, hasRealEmail };
+}
+
+/**
+ * Retire un bénévole d'un créneau — « qu'on puisse également éliminer une tâche » (Anne).
+ *
+ * On lit la ligne **avant** le DELETE : le nom et le créneau sont nécessaires à la trace, et
+ * après suppression ils ne sont plus lisibles. **Aucune annulation QStash n'est nécessaire** :
+ * le récepteur de rappel re-valide l'état à la livraison et drop si l'inscription a disparu
+ * (cf. `reminder-scheduler.ts` et `reminder-service.processSignupReminder`).
+ * Erreurs : `NOT_FOUND`.
+ */
+export async function removeAssignment(
+	organizerId: string,
+	tournamentId: string,
+	target: { shiftId: string; userId: string },
+	reason?: string
+): Promise<AssignmentResult & { volunteerName: string }> {
+	const src = await getOrganizerShift(target.shiftId, organizerId);
+	if (!src || src.tournamentId !== tournamentId) throw new Error('NOT_FOUND');
+
+	const rows = await db
+		.select({ name: user.name })
+		.from(signup)
+		.innerJoin(user, eq(signup.userId, user.id))
+		.where(and(eq(signup.shiftId, target.shiftId), eq(signup.userId, target.userId)))
+		.limit(1);
+	if (rows.length === 0) throw new Error('NOT_FOUND');
+	const volunteerName = rows[0].name;
+
+	await db
+		.delete(signup)
+		.where(and(eq(signup.shiftId, target.shiftId), eq(signup.userId, target.userId)));
+
+	const result = await traceAndNotify(organizerId, tournamentId, {
+		action: 'remove',
+		volunteerId: target.userId,
+		volunteerName,
+		detail: shiftLabel(src),
+		reason: reason ?? null,
+		push: {
+			title: 'Créneau annulé',
+			body: `${src.tournamentName} — vous avez été retiré·e de ${shiftLabel(src)}.`,
+			url: `/t/${src.shareToken}`
+		}
+	});
+
+	return { ...result, volunteerName };
 }

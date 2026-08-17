@@ -3,7 +3,19 @@
 	import { formatDay, formatTime } from '$lib/format';
 	import type { VolunteerTournament } from '$lib/server/services/signup-service';
 	import type { AssignRequest, CellRef, ShiftRef } from './assignment-types';
-	import { Check, CircleHelp, Pencil, Phone, ArrowLeftRight, X, Eye } from 'lucide-svelte';
+	import {
+		Check,
+		CircleHelp,
+		Pencil,
+		Phone,
+		ArrowLeftRight,
+		X,
+		Eye,
+		UserMinus,
+		UserPlus,
+		Mail,
+		TriangleAlert
+	} from 'lucide-svelte';
 
 	let {
 		tournament,
@@ -12,7 +24,8 @@
 		volunteerIds = null,
 		statusFilter = 'all',
 		interactive = false,
-		onAssign
+		onAssign,
+		onAttachEmail
 	}: {
 		tournament: VolunteerTournament;
 		positionId?: string;
@@ -24,6 +37,8 @@
 		/** Active la sélection de cellules pour échanger / déplacer (organisateur). */
 		interactive?: boolean;
 		onAssign?: (req: AssignRequest) => void;
+		/** Rattacher un vrai email à une fiche sans email (la rend connectable). */
+		onAttachEmail?: (v: { userId: string; name: string }) => void;
 	} = $props();
 
 	type Cell = 'available' | 'maybe' | null;
@@ -36,7 +51,14 @@
 		status: 'available' | 'maybe';
 		note: string | null;
 	};
-	type Volunteer = { id: string; name: string; phone: string | null; assignments: Assignment[] };
+	type Volunteer = {
+		id: string;
+		name: string;
+		phone: string | null;
+		/** Fiche créée par un organisateur, sans email : ne se connecte pas, n'est jamais notifiée. */
+		isManaged: boolean;
+		assignments: Assignment[];
+	};
 	type MatrixShift = {
 		id: string;
 		startsAt: Date;
@@ -57,9 +79,18 @@
 	// Popover de consultation, ancré sur la cellule cliquée. Deux contenus :
 	//  - 'cell'      : clic sur une cellule occupée → statut/créneau/note + action d'échange.
 	//  - 'volunteer' : clic sur le nom (en-tête de ligne) → carte contact (tél + ses créneaux).
+	//  - 'empty'     : clic sur une cellule VIDE d'un bénévole déjà en ligne → inscription directe.
 	type Inspect =
 		| { kind: 'cell'; ref: CellRef; phone: string | null; note: string | null }
-		| { kind: 'volunteer'; name: string; phone: string | null; assignments: Assignment[] };
+		| {
+				kind: 'volunteer';
+				userId: string;
+				name: string;
+				phone: string | null;
+				isManaged: boolean;
+				assignments: Assignment[];
+		  }
+		| { kind: 'empty'; volunteer: Volunteer; target: ShiftRef };
 	let inspect = $state<Inspect | null>(null);
 	let inspectAnchor = $state<HTMLElement | null>(null);
 	let inspectOpen = $state(false);
@@ -95,7 +126,9 @@
 			shiftId: s.id,
 			positionName: g.name,
 			dayLabel: formatDay(s.startsAt),
-			timeLabel: timeLabel(s)
+			timeLabel: timeLabel(s),
+			remaining: s.remaining,
+			capacity: s.capacity
 		};
 	}
 	function isSelected(v: { id: string }, s: MatrixShift): boolean {
@@ -146,15 +179,65 @@
 			};
 			inspectAnchor = e.currentTarget as HTMLElement;
 			inspectOpen = true;
+			return;
+		}
+
+		// Rien d'armé, cellule VIDE d'un bénévole déjà présent en ligne → inscription en 2 clics.
+		// Ce cas ne faisait rien auparavant ; il n'interfère pas avec le mode armé, traité plus haut.
+		if (editable) {
+			inspect = { kind: 'empty', volunteer: v, target: makeShiftRef(g, s) };
+			inspectAnchor = e.currentTarget as HTMLElement;
+			inspectOpen = true;
 		}
 	}
 
 	/** Clic sur le nom (en-tête de ligne) → carte contact du bénévole (tél + ses créneaux). */
 	function clickName(e: MouseEvent, v: Volunteer) {
 		if (!interactive) return;
-		inspect = { kind: 'volunteer', name: v.name, phone: v.phone, assignments: v.assignments };
+		inspect = {
+			kind: 'volunteer',
+			userId: v.id,
+			name: v.name,
+			phone: v.phone,
+			isManaged: v.isManaged,
+			assignments: v.assignments
+		};
 		inspectAnchor = e.currentTarget as HTMLElement;
 		inspectOpen = true;
+	}
+
+	/** Depuis le popover de cellule : demande le retrait du bénévole de ce créneau. */
+	function removeFromInspect() {
+		if (inspect?.kind !== 'cell') return;
+		const ref = inspect.ref;
+		inspectOpen = false;
+		onAssign?.({ type: 'remove', cell: ref });
+	}
+
+	/** Depuis le popover de cellule vide : inscrit ce bénévole sur ce créneau. */
+	function assignFromInspect() {
+		if (inspect?.kind !== 'empty') return;
+		const { volunteer, target } = inspect;
+		inspectOpen = false;
+		onAssign?.({
+			type: 'assign',
+			target,
+			volunteer: { userId: volunteer.id, name: volunteer.name }
+		});
+	}
+
+	/** Depuis la ligne « À pourvoir » : ouvre l'inscription avec le créneau pré-sélectionné. */
+	function assignToShift(g: Group, s: MatrixShift) {
+		if (!editable) return;
+		onAssign?.({ type: 'assign', target: makeShiftRef(g, s) });
+	}
+
+	/** Depuis la carte contact : rattacher un vrai email à une fiche (la rend connectable). */
+	function attachEmailFromInspect() {
+		if (inspect?.kind !== 'volunteer') return;
+		const { userId, name } = inspect;
+		inspectOpen = false;
+		onAttachEmail?.({ userId, name });
 	}
 
 	/** Depuis le popover de cellule : arme la sélection pour échanger / déplacer ce bénévole. */
@@ -168,7 +251,7 @@
 		// Bénévoles uniques (ordre d'apparition), colonnes = créneaux groupés par poste.
 		const volunteers = new Map<
 			string,
-			{ name: string; phone: string | null; assignments: Assignment[] }
+			{ name: string; phone: string | null; isManaged: boolean; assignments: Assignment[] }
 		>();
 		const lookup = new Map<string, Cell>();
 		const notes = new Map<string, string>();
@@ -191,7 +274,12 @@
 				for (const su of s.signups) {
 					if (volunteerIds && !volunteerIds.has(su.userId)) continue;
 					if (!volunteers.has(su.userId))
-						volunteers.set(su.userId, { name: su.name, phone: su.phone, assignments: [] });
+						volunteers.set(su.userId, {
+							name: su.name,
+							phone: su.phone,
+							isManaged: su.isManaged,
+							assignments: []
+						});
 					volunteers.get(su.userId)!.assignments.push({
 						positionName: p.name,
 						color: p.color,
@@ -254,9 +342,7 @@
 	</div>
 
 	{#if matrix.volunteers.length === 0}
-		<p
-			class="mb-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-1.5 text-xs text-ink"
-		>
+		<p class="mb-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-1.5 text-xs text-ink">
 			Aucune inscription pour le moment — toutes les places sont à pourvoir.
 		</p>
 	{/if}
@@ -365,6 +451,16 @@
 									class="group flex w-full items-center gap-1.5 px-3 py-2 text-left transition-colors hover:bg-surface-muted"
 								>
 									<span class="truncate">{v.name}</span>
+									{#if v.isManaged}
+										<!-- Sans ce marqueur, l'organisateur croit que cette personne a reçu son
+										     rappel comme les autres. -->
+										<span
+											title="Ajouté par un organisateur, sans email : ne se connecte pas et ne reçoit aucun rappel."
+											class="shrink-0 rounded bg-warning/15 px-1 py-0.5 text-[10px] font-semibold text-warning"
+										>
+											hors app
+										</span>
+									{/if}
 									<Eye
 										size={13}
 										class="ml-auto shrink-0 text-ink-muted opacity-0 transition-opacity group-hover:opacity-100"
@@ -399,7 +495,7 @@
 												? 'bg-brand-primary/10 ring-2 ring-inset ring-brand-primary'
 												: selected
 													? 'cursor-pointer hover:bg-brand-primary/5'
-													: cell
+													: cell || editable
 														? 'cursor-pointer hover:bg-surface-muted'
 														: 'cursor-default'}"
 										>
@@ -429,14 +525,41 @@
 					</th>
 					{#each matrix.groups as g (g.name)}
 						{#each g.shifts as s (s.id)}
-							<td class="border-t border-r border-border/60 px-2 py-1.5 text-center">
+							<td
+								class="border-t border-r border-border/60 text-center {editable && s.remaining > 0
+									? 'p-0'
+									: 'px-2 py-1.5'}"
+							>
 								{#if s.remaining > 0}
-									<span
-										title="{s.remaining} place{s.remaining > 1 ? 's' : ''} encore à pourvoir"
-										class="inline-block rounded bg-warning/15 px-1.5 py-0.5 text-xs font-semibold text-warning"
-									>
-										+{s.remaining}
-									</span>
+									{#if editable}
+										<!-- La place libre est le point d'entrée naturel de l'inscription :
+										     c'est là que l'organisateur regarde quand il lui manque quelqu'un. -->
+										<button
+											type="button"
+											onclick={() => assignToShift(g, s)}
+											title="Inscrire un bénévole — {s.remaining} place{s.remaining > 1
+												? 's'
+												: ''} à pourvoir"
+											class="group flex w-full items-center justify-center gap-1 px-2 py-1.5 transition-colors hover:bg-warning/15"
+										>
+											<span
+												class="inline-block rounded bg-warning/15 px-1.5 py-0.5 text-xs font-semibold text-warning"
+											>
+												+{s.remaining}
+											</span>
+											<UserPlus
+												size={12}
+												class="shrink-0 text-warning opacity-0 transition-opacity group-hover:opacity-100"
+											/>
+										</button>
+									{:else}
+										<span
+											title="{s.remaining} place{s.remaining > 1 ? 's' : ''} encore à pourvoir"
+											class="inline-block rounded bg-warning/15 px-1.5 py-0.5 text-xs font-semibold text-warning"
+										>
+											+{s.remaining}
+										</span>
+									{/if}
 								{:else}
 									<span title="Créneau complet" class="text-xs text-success">
 										<Check size={14} strokeWidth={2.75} class="mx-auto" />
@@ -463,10 +586,15 @@
 					class="z-50 w-64 rounded-lg border border-border bg-surface p-3 text-sm"
 					style="box-shadow: var(--shadow-md)"
 				>
+					{@const who =
+						inspect.kind === 'cell'
+							? inspect.ref.name
+							: inspect.kind === 'empty'
+								? inspect.volunteer.name
+								: inspect.name}
+					{@const tel = inspect.kind === 'empty' ? inspect.volunteer.phone : inspect.phone}
 					<div class="flex items-start justify-between gap-2">
-						<p class="font-semibold text-ink-strong">
-							{inspect.kind === 'cell' ? inspect.ref.name : inspect.name}
-						</p>
+						<p class="font-semibold text-ink-strong">{who}</p>
 						<Popover.Close
 							aria-label="Fermer"
 							class="-mr-1 -mt-1 rounded p-1 text-ink-muted hover:bg-surface-muted hover:text-ink"
@@ -475,19 +603,41 @@
 						</Popover.Close>
 					</div>
 
-					{#if inspect.phone}
+					{#if tel}
 						<a
-							href="tel:{inspect.phone}"
+							href="tel:{tel}"
 							class="mt-1 inline-flex items-center gap-1.5 font-medium text-ink hover:text-brand-primary"
 						>
 							<Phone size={14} class="shrink-0" />
-							{inspect.phone}
+							{tel}
 						</a>
 					{:else}
 						<p class="mt-1 text-xs text-ink-muted/70">Pas de téléphone renseigné</p>
 					{/if}
 
-					{#if inspect.kind === 'cell'}
+					{#if inspect.kind === 'empty'}
+						<!-- Cellule vide d'un bénévole déjà en ligne : inscription en 2 clics. -->
+						<p class="mt-2 text-ink-muted">
+							{inspect.target.positionName} · {inspect.target.dayLabel}, {inspect.target.timeLabel}
+						</p>
+						{#if inspect.target.remaining === 0}
+							<p class="mt-1.5 flex items-start gap-1.5 text-xs text-warning">
+								<TriangleAlert size={13} class="mt-0.5 shrink-0" />
+								<span>Créneau complet — l'inscription ne sera possible qu'en « peut-être ».</span>
+							</p>
+						{:else}
+							<p class="mt-1 text-xs text-ink-muted">
+								{inspect.target.remaining} place{(inspect.target.remaining ?? 0) > 1 ? 's' : ''} à pourvoir
+							</p>
+						{/if}
+						<button
+							type="button"
+							onclick={assignFromInspect}
+							class="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded border border-brand-primary/40 bg-brand-primary/5 px-3 py-1.5 text-sm font-medium text-brand-primary hover:bg-brand-primary/10"
+						>
+							<UserPlus size={14} /> Inscrire {inspect.volunteer.name} ici
+						</button>
+					{:else if inspect.kind === 'cell'}
 						<!-- Consultation d'un créneau précis (clic cellule) -->
 						<p class="mt-2 flex items-center gap-1.5 text-ink-muted">
 							{#if inspect.ref.status === 'available'}
@@ -510,9 +660,38 @@
 							>
 								<ArrowLeftRight size={14} /> Déplacer / échanger…
 							</button>
+							<button
+								type="button"
+								onclick={removeFromInspect}
+								class="mt-1.5 inline-flex w-full items-center justify-center gap-1.5 rounded border border-error/40 bg-error/5 px-3 py-1.5 text-sm font-medium text-error hover:bg-error/10"
+							>
+								<UserMinus size={14} /> Retirer du créneau
+							</button>
 						{/if}
 					{:else}
 						<!-- Carte contact : tous les créneaux du bénévole -->
+						{#if inspect.isManaged}
+							<!-- Sortie de secours du « niveau 3 » : sans ce bouton, une fiche sans email le
+							     reste pour toujours. Le rattachement conserve les affectations déjà posées. -->
+							<div class="mt-2 rounded-md border border-warning/30 bg-warning/10 p-2">
+								<p class="flex items-start gap-1.5 text-xs text-ink">
+									<TriangleAlert size={13} class="mt-0.5 shrink-0 text-warning" />
+									<span>
+										Ajouté par un organisateur, sans email : ne se connecte pas et ne reçoit aucun
+										rappel.
+									</span>
+								</p>
+								{#if editable}
+									<button
+										type="button"
+										onclick={attachEmailFromInspect}
+										class="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded border border-warning/40 bg-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-warning/10"
+									>
+										<Mail size={14} /> Ajouter son email
+									</button>
+								{/if}
+							</div>
+						{/if}
 						<ul class="mt-2 flex max-h-64 flex-col gap-2 overflow-auto border-t border-border pt-2">
 							{#each inspect.assignments as a, i (i)}
 								<li class="flex flex-col gap-0.5">

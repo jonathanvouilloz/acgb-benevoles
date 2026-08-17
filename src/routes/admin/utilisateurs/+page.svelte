@@ -45,7 +45,9 @@
 					<div class="flex flex-wrap items-center justify-between gap-2">
 						<div class="min-w-0">
 							<p class="font-medium text-ink-strong">{r.userName}</p>
-							<p class="text-xs text-ink-muted">{r.userEmail}{r.userPhone ? ` · ${r.userPhone}` : ''}</p>
+							<p class="text-xs text-ink-muted">
+								{r.userEmail}{r.userPhone ? ` · ${r.userPhone}` : ''}
+							</p>
 							{#if r.message}<p class="mt-1 text-sm text-ink">« {r.message} »</p>{/if}
 						</div>
 						<div class="flex items-center gap-2">
@@ -88,12 +90,19 @@
 		<label class="flex flex-col gap-1 text-xs font-medium text-ink">
 			Nom
 			<Input name="name" type="text" value={form?.values?.name ?? ''} placeholder="Prénom Nom" />
-			{#if form?.formErrors?.name}<span class="text-xs text-error">{form.formErrors.name[0]}</span>{/if}
+			{#if form?.formErrors?.name}<span class="text-xs text-error">{form.formErrors.name[0]}</span
+				>{/if}
 		</label>
 		<label class="flex flex-col gap-1 text-xs font-medium text-ink">
 			Email
-			<Input name="email" type="email" value={form?.values?.email ?? ''} placeholder="orga@acgb.ch" />
-			{#if form?.formErrors?.email}<span class="text-xs text-error">{form.formErrors.email[0]}</span>{/if}
+			<Input
+				name="email"
+				type="email"
+				value={form?.values?.email ?? ''}
+				placeholder="orga@acgb.ch"
+			/>
+			{#if form?.formErrors?.email}<span class="text-xs text-error">{form.formErrors.email[0]}</span
+				>{/if}
 		</label>
 		<div class="flex items-end">
 			<Button type="submit" size="sm" disabled={creating}>
@@ -113,14 +122,31 @@
 					<div class="min-w-0">
 						<p class="flex items-center gap-2 font-medium text-ink-strong">
 							{u.name}
-							<span class="rounded-full bg-brand-primary/10 px-2 py-0.5 text-xs font-medium text-brand-primary">
+							<span
+								class="rounded-full bg-brand-primary/10 px-2 py-0.5 text-xs font-medium text-brand-primary"
+							>
 								{roleLabel(u.role)}
 							</span>
+							{#if u.isManaged}
+								<span
+									title="Fiche créée par un organisateur, sans email réel : ce compte ne peut pas se connecter."
+									class="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning"
+								>
+									ajouté par un organisateur
+								</span>
+							{/if}
 						</p>
-						<p class="text-xs text-ink-muted">{u.email}{u.phone ? ` · ${u.phone}` : ''}</p>
+						<p class="text-xs text-ink-muted">
+							{u.isManaged ? 'Pas d’email' : u.email}{u.phone ? ` · ${u.phone}` : ''}
+						</p>
 						<p class="mt-0.5 text-xs text-ink-muted">
-							{u.organizedCount} tournoi{u.organizedCount > 1 ? 's' : ''} organisé{u.organizedCount > 1 ? 's' : ''}
-							· {u.signupCount} inscription{u.signupCount > 1 ? 's' : ''} · inscrit le {formatDay(u.createdAt)}
+							{u.organizedCount} tournoi{u.organizedCount > 1 ? 's' : ''} organisé{u.organizedCount >
+							1
+								? 's'
+								: ''}
+							· {u.signupCount} inscription{u.signupCount > 1 ? 's' : ''} · inscrit le {formatDay(
+								u.createdAt
+							)}
 						</p>
 					</div>
 					<form method="POST" action="?/setRole" class="flex items-center gap-2" use:enhance>

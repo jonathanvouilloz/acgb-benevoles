@@ -22,6 +22,8 @@ export type AdminUserRow = {
 	createdAt: Date;
 	organizedCount: number;
 	signupCount: number;
+	/** Fiche créée par un organisateur, sans email réel : ne peut pas se connecter (Epic 14). */
+	isManaged: boolean;
 };
 
 /** Liste tous les utilisateurs avec le nb de tournois organisés et d'inscriptions bénévole. */
@@ -34,7 +36,8 @@ export async function listUsers(): Promise<AdminUserRow[]> {
 				email: user.email,
 				phone: user.phone,
 				role: user.role,
-				createdAt: user.createdAt
+				createdAt: user.createdAt,
+				isManaged: user.emailPlaceholder
 			})
 			.from(user)
 			.orderBy(desc(user.createdAt)),
@@ -101,7 +104,14 @@ export async function createOrganizer(input: {
 /* ─────────────────────────── Statistiques ─────────────────────────── */
 
 export type AdminStats = {
+	/**
+	 * Comptes **réels** uniquement. Les fiches créées par un organisateur (`emailPlaceholder`)
+	 * sont exclues : les compter gonflerait artificiellement le nombre d'utilisateurs de l'app
+	 * alors que ces personnes ne s'y connectent jamais (cf. Epic 14).
+	 */
 	users: { total: number; volunteers: number; organizers: number; superAdmins: number };
+	/** Fiches bénévoles sans email réel, comptées à part. */
+	managedVolunteers: number;
 	tournaments: { total: number; upcoming: number; ongoing: number; past: number };
 	signups: number;
 	pendingRequests: number;
@@ -109,20 +119,29 @@ export type AdminStats = {
 };
 
 export async function getStats(): Promise<AdminStats> {
-	const [roleRows, tourDates, signupCount, capacityRow, availableRow, pending] = await Promise.all([
-		db.select({ role: user.role, n: sql<number>`count(*)::int` }).from(user).groupBy(user.role),
-		db.select({ startDate: tournament.startDate, endDate: tournament.endDate }).from(tournament),
-		db.select({ n: sql<number>`count(*)::int` }).from(signup),
-		db.select({ n: sql<number>`coalesce(sum(${shift.capacity}), 0)::int` }).from(shift),
-		db
-			.select({ n: sql<number>`count(*)::int` })
-			.from(signup)
-			.where(eq(signup.status, 'available')),
-		db
-			.select({ n: sql<number>`count(*)::int` })
-			.from(organizerRequest)
-			.where(eq(organizerRequest.status, 'pending'))
-	]);
+	const [roleRows, tourDates, signupCount, capacityRow, availableRow, pending, managedRow] =
+		await Promise.all([
+			db
+				.select({ role: user.role, n: sql<number>`count(*)::int` })
+				.from(user)
+				.where(eq(user.emailPlaceholder, false))
+				.groupBy(user.role),
+			db.select({ startDate: tournament.startDate, endDate: tournament.endDate }).from(tournament),
+			db.select({ n: sql<number>`count(*)::int` }).from(signup),
+			db.select({ n: sql<number>`coalesce(sum(${shift.capacity}), 0)::int` }).from(shift),
+			db
+				.select({ n: sql<number>`count(*)::int` })
+				.from(signup)
+				.where(eq(signup.status, 'available')),
+			db
+				.select({ n: sql<number>`count(*)::int` })
+				.from(organizerRequest)
+				.where(eq(organizerRequest.status, 'pending')),
+			db
+				.select({ n: sql<number>`count(*)::int` })
+				.from(user)
+				.where(eq(user.emailPlaceholder, true))
+		]);
 
 	const byRole = new Map(roleRows.map((r) => [r.role, r.n]));
 	const now = new Date();
@@ -134,11 +153,15 @@ export async function getStats(): Promise<AdminStats> {
 
 	return {
 		users: {
-			total: (byRole.get('volunteer') ?? 0) + (byRole.get('organizer') ?? 0) + (byRole.get('super_admin') ?? 0),
+			total:
+				(byRole.get('volunteer') ?? 0) +
+				(byRole.get('organizer') ?? 0) +
+				(byRole.get('super_admin') ?? 0),
 			volunteers: byRole.get('volunteer') ?? 0,
 			organizers: byRole.get('organizer') ?? 0,
 			superAdmins: byRole.get('super_admin') ?? 0
 		},
+		managedVolunteers: managedRow[0]?.n ?? 0,
 		tournaments: { total: tourDates.length, ...phases },
 		signups: signupCount[0]?.n ?? 0,
 		pendingRequests: pending[0]?.n ?? 0,
@@ -235,7 +258,10 @@ export async function listOrganizerRequests(
 }
 
 /** Approuve une demande : promeut le demandeur en organisateur et scelle la demande. */
-export async function approveOrganizerRequest(requestId: string, reviewerId: string): Promise<void> {
+export async function approveOrganizerRequest(
+	requestId: string,
+	reviewerId: string
+): Promise<void> {
 	const [req] = await db
 		.select({ userId: organizerRequest.userId })
 		.from(organizerRequest)

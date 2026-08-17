@@ -6,8 +6,18 @@
 	import RecapMatrix from '$lib/components/tracking/RecapMatrix.svelte';
 	import RecapByVolunteer from '$lib/components/tracking/RecapByVolunteer.svelte';
 	import AssignmentDialog from '$lib/components/tracking/AssignmentDialog.svelte';
+	import AssignVolunteerDialog from '$lib/components/tracking/AssignVolunteerDialog.svelte';
+	import RemoveAssignmentDialog from '$lib/components/tracking/RemoveAssignmentDialog.svelte';
+	import AttachEmailDialog from '$lib/components/tracking/AttachEmailDialog.svelte';
+	import AssignmentHistory from '$lib/components/tracking/AssignmentHistory.svelte';
 	import ExportDialog from '$lib/components/tracking/ExportDialog.svelte';
-	import type { AssignRequest } from '$lib/components/tracking/assignment-types';
+	import type {
+		AssignRequest,
+		CellRef,
+		MoveOrSwapRequest,
+		ShiftRef,
+		VolunteerRef
+	} from '$lib/components/tracking/assignment-types';
 	import PlanningList from '$lib/components/tracking/PlanningList.svelte';
 	import PrintPlanning from '$lib/components/tracking/PrintPlanning.svelte';
 	import { formatDateRange, toDateInputValue } from '$lib/format';
@@ -78,7 +88,43 @@
 	);
 
 	/** Requête d'affectation en attente de confirmation (échange / déplacement). */
-	let pending = $state<AssignRequest | null>(null);
+	let pending = $state<MoveOrSwapRequest | null>(null);
+
+	/** Retrait en attente de confirmation. */
+	let removing = $state<CellRef | null>(null);
+
+	/** Inscription : la modale est ouverte, éventuellement pré-remplie. */
+	let assignOpen = $state(false);
+	let assignTarget = $state<ShiftRef | null>(null);
+	let assignVolunteer = $state<VolunteerRef | null>(null);
+
+	/** Rattachement d'email à une fiche sans email. */
+	let attaching = $state<VolunteerRef | null>(null);
+
+	/**
+	 * Aiguille une requête venue de la matrice. `move`/`swap` gardent leur modale de confirmation
+	 * existante ; `remove` et `assign` ouvrent la leur.
+	 */
+	function handleAssign(req: AssignRequest) {
+		if (req.type === 'remove') {
+			removing = req.cell;
+			return;
+		}
+		if (req.type === 'assign') {
+			assignTarget = req.target ?? null;
+			assignVolunteer = req.volunteer ?? null;
+			assignOpen = true;
+			return;
+		}
+		pending = req;
+	}
+
+	/** Ouvre l'inscription sans pré-sélection (bouton de la toolbar). */
+	function openAssign() {
+		assignTarget = null;
+		assignVolunteer = null;
+		assignOpen = true;
+	}
 
 	/** Ouverture de la modale d'export Excel (choix du format). */
 	let exportOpen = $state(false);
@@ -162,6 +208,7 @@
 				{dayFilterOptions}
 				onExport={() => (exportOpen = true)}
 				onPrint={print}
+				onAssign={openAssign}
 			/>
 		</div>
 
@@ -188,15 +235,40 @@
 					volunteerIds={visibleVolunteerIds}
 					{statusFilter}
 					interactive
-					onAssign={(req) => (pending = req)}
+					onAssign={handleAssign}
+					onAttachEmail={(v) => (attaching = v)}
 				/>
 			{/if}
 		</div>
 	</div>
 {/if}
 
+{#if t.positions.length > 0}
+	<!-- Historique des modifications (repliable, hors impression) -->
+	<AssignmentHistory history={data.history} />
+{/if}
+
 <!-- Confirmation d'échange / déplacement (matrice interactive) -->
 <AssignmentDialog request={pending} onclose={() => (pending = null)} />
+
+<!-- Inscription d'un bénévole par l'organisateur -->
+<AssignVolunteerDialog
+	bind:open={assignOpen}
+	tournament={t}
+	target={assignTarget}
+	volunteer={assignVolunteer}
+	onclose={() => {
+		assignOpen = false;
+		assignTarget = null;
+		assignVolunteer = null;
+	}}
+/>
+
+<!-- Retrait d'un bénévole d'un créneau -->
+<RemoveAssignmentDialog cell={removing} onclose={() => (removing = null)} />
+
+<!-- Rattachement d'un vrai email à une fiche -->
+<AttachEmailDialog volunteer={attaching} onclose={() => (attaching = null)} />
 
 <!-- Export Excel multi-format -->
 <ExportDialog bind:open={exportOpen} tournament={t} />

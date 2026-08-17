@@ -6,6 +6,7 @@ import { user } from '$lib/server/db/schema';
 import { loginSchema, emailLoginSchema, fullName } from '$lib/schemas/auth';
 import { safeRedirect } from '$lib/server/auth-guard';
 import { isPrototype, takePrototypeLink } from '$lib/server/prototype';
+import { isManagedEmail } from '$lib/server/services/email';
 import { consumeRateLimit } from '$lib/server/services/rate-limit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -128,6 +129,18 @@ export const actions: Actions = {
 			}
 			const { email } = parsed.data;
 
+			// Adresse générée (fiche créée par un organisateur) : le compte EXISTE en base, donc le
+			// lookup ci-dessous passerait et l'écran « lien envoyé » s'afficherait pour un email qui
+			// n'arrivera jamais. On coupe ici avec un message qui dit quoi faire.
+			if (isManagedEmail(email)) {
+				return failure(400, {
+					mode,
+					formError:
+						"Ce bénévole a été ajouté par un organisateur et n'a pas encore d'email personnel. Demande-lui de rattacher ton adresse, ou crée ton compte ci-dessous.",
+					values: emptyValues({ email })
+				});
+			}
+
 			// On ne crée pas de compte ici : si l'email est inconnu, on invite à créer un compte.
 			const existing = await db
 				.select({ id: user.id })
@@ -184,6 +197,21 @@ export const actions: Actions = {
 		}
 
 		const { email, phone } = parsed.data;
+
+		// Même garde à la création : personne ne doit pouvoir s'approprier une fiche en devinant
+		// son adresse générée (le compte existe, Better Auth signerait dedans).
+		if (isManagedEmail(email)) {
+			return failure(400, {
+				mode,
+				errors: { email: ['Ce domaine est réservé. Utilise ton adresse email personnelle.'] },
+				values: emptyValues({
+					prenom: parsed.data.prenom,
+					nom: parsed.data.nom,
+					email,
+					phone: phone ?? ''
+				})
+			});
+		}
 
 		const throttled = await throttleMagicLink(ip, email);
 		if (throttled) {

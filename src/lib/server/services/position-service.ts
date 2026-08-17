@@ -1,18 +1,9 @@
-import { and, eq, count } from 'drizzle-orm';
+import { eq, count } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { position, tournament } from '$lib/server/db/schema';
 import { assignPosteColor } from '$lib/poste-colors';
 import type { PositionInput } from '$lib/schemas/position';
-
-/** Vérifie que le tournoi appartient bien à l'organisateur. Throw 'FORBIDDEN' sinon. */
-async function assertTournamentOwner(tournamentId: string, organizerId: string): Promise<void> {
-	const rows = await db
-		.select({ id: tournament.id })
-		.from(tournament)
-		.where(and(eq(tournament.id, tournamentId), eq(tournament.organizerId, organizerId)))
-		.limit(1);
-	if (rows.length === 0) throw new Error('FORBIDDEN');
-}
+import { assertTournamentOwner } from './ownership';
 
 /** Vérifie qu'un poste appartient à un tournoi de l'organisateur. Throw 'FORBIDDEN' sinon. */
 async function assertPositionOwner(positionId: string, organizerId: string): Promise<void> {

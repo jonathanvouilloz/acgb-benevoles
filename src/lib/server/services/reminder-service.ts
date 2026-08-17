@@ -2,7 +2,7 @@ import { and, eq, gt, lte, isNull, inArray } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { db } from '$lib/server/db';
 import { signup, shift, position, tournament, pushSubscription } from '$lib/server/db/schema';
-import { sendPush, type PushPayload } from './push-service';
+import { sendPush, notifyUser, type PushPayload } from './push-service';
 import { DEFAULT_REMINDER_LEAD_MIN, reminderLeadLabel } from '$lib/reminders';
 
 /**
@@ -180,12 +180,7 @@ export async function processSignupReminder(
 	if (row.startsAt.getTime() <= now.getTime()) return 'dropped';
 	if (kind === '24h' ? row.reminder24SentAt : row.reminder2SentAt) return 'dropped';
 
-	const payload = buildPayload(row, kind, leadMin);
-	const subs = await db
-		.select()
-		.from(pushSubscription)
-		.where(eq(pushSubscription.userId, row.userId));
-	await Promise.all(subs.map((sub) => sendPush(sub, payload)));
+	await notifyUser(row.userId, buildPayload(row, kind, leadMin));
 
 	await db
 		.update(signup)

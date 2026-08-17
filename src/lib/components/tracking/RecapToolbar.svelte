@@ -11,7 +11,8 @@
 		Users,
 		Search,
 		Printer,
-		ChevronDown
+		ChevronDown,
+		UserPlus
 	} from 'lucide-svelte';
 
 	type View = 'table' | 'matrix' | 'byVolunteer';
@@ -25,7 +26,8 @@
 		positionOptions,
 		dayFilterOptions,
 		onExport,
-		onPrint
+		onPrint,
+		onAssign
 	}: {
 		search?: string;
 		positionFilter?: string;
@@ -36,6 +38,8 @@
 		dayFilterOptions: Option[];
 		onExport: () => void;
 		onPrint: (format: 'poste' | 'matrix') => void;
+		/** Ouvre la modale d'inscription sans pré-sélection (organisateur uniquement). */
+		onAssign?: () => void;
 	} = $props();
 
 	const views: { value: View; label: string; icon: typeof Table2 }[] = [
@@ -113,6 +117,12 @@
 		<Button type="button" variant="ghost" size="sm" onclick={onExport} class="shrink-0">
 			<FileSpreadsheet size={15} /> Excel
 		</Button>
+
+		{#if onAssign}
+			<Button type="button" size="sm" onclick={onAssign} class="shrink-0">
+				<UserPlus size={15} /> Inscrire un bénévole
+			</Button>
+		{/if}
 	</div>
 
 	<!-- Filtres -->

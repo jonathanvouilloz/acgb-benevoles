@@ -5,9 +5,9 @@
 	import { Button } from '$lib/components/ui/button';
 	import { toast } from '$lib/toast.svelte';
 	import { ArrowLeftRight, ArrowRight } from 'lucide-svelte';
-	import type { AssignRequest } from './assignment-types';
+	import type { MoveOrSwapRequest } from './assignment-types';
 
-	let { request, onclose }: { request: AssignRequest | null; onclose: () => void } = $props();
+	let { request, onclose }: { request: MoveOrSwapRequest | null; onclose: () => void } = $props();
 
 	let submitting = $state(false);
 

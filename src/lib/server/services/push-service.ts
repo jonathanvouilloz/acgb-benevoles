@@ -80,3 +80,27 @@ export async function sendPush(sub: PushSubscription, payload: PushPayload): Pro
 		return false;
 	}
 }
+
+/**
+ * Envoie une notification à **tous** les appareils d'un utilisateur. Retourne le nombre
+ * d'envois réussis — `0` signifie « personne n'a été prévenu » : pas d'abonnement push, ou
+ * bénévole créé par un organisateur qui n'utilise pas l'app. Les appelants remontent cette
+ * information à l'UI plutôt que d'annoncer un succès trompeur.
+ *
+ * Best-effort intégral : `sendPush` avale déjà ses erreurs, et une panne VAPID ne doit jamais
+ * faire échouer l'action métier qui a déclenché la notification.
+ */
+export async function notifyUser(userId: string, payload: PushPayload): Promise<number> {
+	try {
+		const subs = await db
+			.select()
+			.from(pushSubscription)
+			.where(eq(pushSubscription.userId, userId));
+		if (subs.length === 0) return 0;
+		const results = await Promise.all(subs.map((sub) => sendPush(sub, payload)));
+		return results.filter(Boolean).length;
+	} catch (err) {
+		console.error('[push-service] notifyUser failed', err);
+		return 0;
+	}
+}

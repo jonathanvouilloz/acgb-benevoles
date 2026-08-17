@@ -7,6 +7,18 @@ import { env } from '$env/dynamic/private';
  */
 const FROM = env.EMAIL_FROM ?? 'Bénévoles ACGB <onboarding@resend.dev>';
 
+/**
+ * Domaine des emails générés pour les bénévoles créés par un organisateur (Epic 14).
+ * Non routable : toute tentative d'envoi bouncerait et abîmerait la réputation du domaine
+ * expéditeur. Aucun email ne doit JAMAIS partir vers ce domaine (cf. `isManagedEmail`).
+ */
+export const MANAGED_EMAIL_DOMAIN = '@benevoles.acgb.local';
+
+/** L'adresse est-elle un email généré (bénévole hors app) plutôt qu'une vraie boîte ? */
+export function isManagedEmail(email: string): boolean {
+	return email.trim().toLowerCase().endsWith(MANAGED_EMAIL_DOMAIN);
+}
+
 /** Client Resend instancié à la demande (évite l'erreur « Missing API key » au build). */
 function client(): Resend {
 	if (!env.RESEND_API_KEY) {
@@ -20,6 +32,13 @@ function client(): Resend {
  * ne fait que la mise en forme et l'envoi (cf. conventions docs/STYLEGUIDE.md).
  */
 export async function sendMagicLinkEmail(email: string, url: string): Promise<void> {
+	// Garde dure : une fiche bénévole n'a pas de boîte réelle. On abandonne silencieusement
+	// (pas d'exception) — un envoi impossible ne doit jamais faire échouer le flux appelant.
+	if (isManagedEmail(email)) {
+		console.warn('[email] envoi ignoré : adresse générée (bénévole hors app)');
+		return;
+	}
+
 	const { error } = await client().emails.send({
 		from: FROM,
 		to: email,

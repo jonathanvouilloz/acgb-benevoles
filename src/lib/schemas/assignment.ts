@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { noteSchema, statusSchema } from './signup';
+import { phoneSchema } from './auth';
 
 /**
  * Validation des actions d'édition d'affectations (vue suivi organisateur).
@@ -24,5 +26,59 @@ export const swapSchema = z.object({
 	bUserId: userId
 });
 
+/**
+ * Inscrire un bénévole sur un créneau, à l'initiative de l'organisateur (Epic 14).
+ * Deux modes, discriminés pour que le service n'ait pas à deviner :
+ * - `existing` : le bénévole a déjà un compte (il s'est inscrit ailleurs) → `userId` ;
+ * - `new` : on crée une fiche (nom + téléphone requis). L'email est **facultatif mais décisif** :
+ *   avec lui la personne pourra se connecter et retrouver ses créneaux ; sans lui, la fiche
+ *   n'existe que dans le tableau de l'organisateur.
+ */
+export const assignSchema = z.discriminatedUnion('mode', [
+	z.object({
+		mode: z.literal('existing'),
+		shiftId,
+		status: statusSchema,
+		note: noteSchema,
+		userId
+	}),
+	z.object({
+		mode: z.literal('new'),
+		shiftId,
+		status: statusSchema,
+		note: noteSchema,
+		name: z.string().trim().min(1, 'Nom requis').max(100),
+		phone: phoneSchema,
+		email: z
+			.string()
+			.trim()
+			.toLowerCase()
+			.email('Email invalide')
+			.optional()
+			.or(z.literal('').transform(() => undefined))
+	})
+]);
+
+/** Retirer un bénévole d'un créneau, avec motif facultatif conservé dans l'historique. */
+export const removeSchema = z.object({
+	shiftId,
+	userId,
+	reason: z
+		.string()
+		.trim()
+		.max(280, 'Motif trop long (280 caractères max)')
+		.optional()
+		.or(z.literal('').transform(() => undefined))
+});
+
+/** Rattacher un vrai email à une fiche créée sans email (la rend connectable). */
+export const attachEmailSchema = z.object({
+	userId,
+	email: z.string().trim().toLowerCase().email('Email invalide')
+});
+
 export type MoveInput = z.infer<typeof moveSchema>;
 export type SwapInput = z.infer<typeof swapSchema>;
+export type AssignInput = z.infer<typeof assignSchema>;
+export type RemoveInput = z.infer<typeof removeSchema>;
+export type AttachEmailInput = z.infer<typeof attachEmailSchema>;
