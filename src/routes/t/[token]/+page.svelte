@@ -36,6 +36,7 @@
 		LayoutGrid,
 		Settings,
 		Info,
+		TriangleAlert,
 		X
 	} from 'lucide-svelte';
 	import type { PageData, ActionData } from './$types';
@@ -231,6 +232,20 @@
 		{/if}
 	</div>
 </section>
+
+{#if !t.published}
+	<!-- Le lien de partage reste actif sur un brouillon (c'est ce qui permet de tester à
+	     quelques-uns), mais il faut dire clairement que le tournoi n'est pas encore ouvert. -->
+	<section class="mt-4 rounded-lg border border-warning/40 bg-warning/10 p-4">
+		<p class="flex items-start gap-1.5 text-sm text-ink">
+			<TriangleAlert size={15} class="mt-0.5 shrink-0 text-warning" />
+			<span>
+				<span class="font-medium">Brouillon.</span> Ce tournoi n'est pas encore publié : il n'apparaît
+				pas dans la liste des tournois. Tu peux t'inscrire, mais l'organisateur peut encore tout modifier.
+			</span>
+		</p>
+	</section>
+{/if}
 
 {#if t.instructions}
 	<!-- Consignes de l'organisateur — texte brut saisi côté gestion, retours à la ligne conservés. -->

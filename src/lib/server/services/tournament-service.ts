@@ -17,9 +17,12 @@ export type PublicTournament = {
 };
 
 /**
- * Liste publique de TOUS les tournois (accès libre, même non connecté). On expose le nom de
+ * Liste publique des tournois **publiés** (accès libre, même non connecté). On expose le nom de
  * l'organisateur (déjà visible sur la page d'inscription) mais aucune donnée de contact.
  * Tri : plus récents d'abord ; la phase est calculée pour le regroupement côté page.
+ *
+ * Les brouillons sont exclus ici et **ici seulement** : leur lien de partage reste fonctionnel,
+ * c'est ce qui permet à un organisateur de tester son tournoi avant de l'ouvrir à tous.
  */
 export async function listPublicTournaments(): Promise<PublicTournament[]> {
 	const rows = await db
@@ -34,6 +37,7 @@ export async function listPublicTournaments(): Promise<PublicTournament[]> {
 		})
 		.from(tournament)
 		.innerJoin(user, eq(tournament.organizerId, user.id))
+		.where(eq(tournament.published, true))
 		.orderBy(desc(tournament.startDate));
 
 	const now = new Date();
@@ -116,6 +120,24 @@ export async function updateTournament(id: string, organizerId: string, input: T
 		.where(and(eq(tournament.id, id), eq(tournament.organizerId, organizerId)))
 		.returning();
 	return row ?? null;
+}
+
+/**
+ * Publie ou repasse en brouillon (scellé sur l'organisateur, comme `deleteTournament`).
+ * Renvoie `true` si la ligne a bien été touchée, `false` si le tournoi n'existe pas ou ne lui
+ * appartient pas — l'appelant en fait un 404 plutôt qu'un faux succès.
+ */
+export async function setPublished(
+	id: string,
+	organizerId: string,
+	published: boolean
+): Promise<boolean> {
+	const rows = await db
+		.update(tournament)
+		.set({ published })
+		.where(and(eq(tournament.id, id), eq(tournament.organizerId, organizerId)))
+		.returning({ id: tournament.id });
+	return rows.length > 0;
 }
 
 /** Supprime un tournoi (cascade postes → créneaux → inscriptions). Renvoie `true` si supprimé. */

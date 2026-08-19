@@ -37,6 +37,12 @@ export type VolunteerSignup = {
 	 * que la personne a été prévenue comme les autres.
 	 */
 	isManaged: boolean;
+	/**
+	 * Fiche créée par l'organisateur qui regarde — lui seul peut la corriger (Epic 15).
+	 * Discriminant `user.createdBy`, pas `emailPlaceholder` : une fiche à laquelle on a rattaché
+	 * un vrai email reste corrigeable, c'est justement le cas qui était bloqué.
+	 */
+	isEditable: boolean;
 };
 
 /** Coordonnées de l'organisateur, exposées aux bénévoles (depuis son compte). */
@@ -70,6 +76,8 @@ export type VolunteerTournament = {
 	location: string | null;
 	/** Consignes libres de l'organisateur, affichées en tête de la page d'inscription. */
 	instructions: string | null;
+	/** `false` = brouillon : absent du listing public, mais ce lien-ci fonctionne (bandeau). */
+	published: boolean;
 	startDate: Date;
 	endDate: Date;
 	shareToken: string;
@@ -106,7 +114,13 @@ function findTournamentRow(where: SQL) {
 								orderBy: (su, { asc }) => [asc(su.createdAt)],
 								with: {
 									user: {
-										columns: { id: true, name: true, phone: true, emailPlaceholder: true }
+										columns: {
+											id: true,
+											name: true,
+											phone: true,
+											emailPlaceholder: true,
+											createdBy: true
+										}
 									}
 								}
 							}
@@ -140,6 +154,7 @@ function mapTournamentRow(
 		name: row.name,
 		location: row.location,
 		instructions: row.instructions,
+		published: row.published,
 		startDate: row.startDate,
 		endDate: row.endDate,
 		shareToken: row.shareToken,
@@ -164,7 +179,8 @@ function mapTournamentRow(
 					// Note : visible pour l'orga (toutes) ou pour son propriétaire (vue publique).
 					note: organizerView || su.userId === userId ? su.note : null,
 					// Détail d'organisation : les bénévoles n'ont pas à savoir qui utilise l'app.
-					isManaged: organizerView ? su.user.emailPlaceholder : false
+					isManaged: organizerView ? su.user.emailPlaceholder : false,
+					isEditable: organizerView && su.user.createdBy !== null && su.user.createdBy === userId
 				}));
 				const availableCount = signups.filter((x) => x.status === 'available').length;
 				const maybeCount = signups.filter((x) => x.status === 'maybe').length;

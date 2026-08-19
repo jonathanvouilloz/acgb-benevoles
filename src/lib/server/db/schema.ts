@@ -8,6 +8,7 @@ import {
 	timestamp,
 	uuid,
 	unique,
+	primaryKey,
 	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
 
@@ -152,6 +153,9 @@ export const tournament = pgTable('tournament', {
 	// (« minimum 6 h par bénévole », « laissez un commentaire »…). Texte brut, retours
 	// à la ligne conservés à l'affichage.
 	instructions: text('instructions'),
+	// Brouillon tant que `false` : absent du listing public, mais le lien de partage reste
+	// fonctionnel — c'est ce qui permet de tester un tournoi à quelques-uns avant de l'ouvrir.
+	published: boolean('published').notNull().default(false),
 	startDate: timestamp('start_date', { mode: 'date' }).notNull(),
 	endDate: timestamp('end_date', { mode: 'date' }).notNull(),
 	organizerId: text('organizer_id')
@@ -204,6 +208,48 @@ export const signup = pgTable(
 	},
 	(t) => [unique('signup_shift_user_unique').on(t.shiftId, t.userId)]
 );
+
+/**
+ * État du récap email différé, une ligne par (bénévole, tournoi) — Epic 15.
+ *
+ * Mécanique de debounce, calquée sur la doctrine des rappels (`reminder-scheduler`) :
+ * *planifier, jamais annuler, re-valider à la livraison*. Chaque changement incrémente
+ * `revision` et publie un message QStash différé qui la porte ; à l'échéance, le message ne
+ * part que s'il porte encore la révision courante. Cinq changements en trois minutes publient
+ * cinq messages, quatre périment à la livraison, **un seul email part**.
+ *
+ * Ce n'est PAS une file d'attente balayée par un cron : c'est une table d'état. Les deux FK
+ * cascadent, donc un compte ou un tournoi supprimé fait tomber le message en vol tout seul.
+ */
+export const signupDigest = pgTable(
+	'signup_digest',
+	{
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		tournamentId: uuid('tournament_id')
+			.notNull()
+			.references(() => tournament.id, { onDelete: 'cascade' }),
+		/**
+		 * Incrémentée à CHAQUE changement. Identité de fraîcheur du message, jamais une description
+		 * du contenu : celui-ci est relu en base au moment de l'envoi.
+		 */
+		revision: integer('revision').notNull().default(0),
+		/**
+		 * Dernière révision réellement envoyée. Barrière anti double-envoi (QStash est at-least-once).
+		 * `null` = jamais envoyé — indispensable pour distinguer un premier récap vide (à taire) d'une
+		 * véritable désinscription (à annoncer).
+		 */
+		sentRevision: integer('sent_revision'),
+		/** Le dernier changement vient-il de l'organisateur ? Ne sert qu'au ton de l'email. */
+		byOrganizer: boolean('by_organizer').notNull().default(false),
+		scheduledAt: timestamp('scheduled_at'),
+		sentAt: timestamp('sent_at')
+	},
+	(t) => [primaryKey({ columns: [t.userId, t.tournamentId] })]
+);
+
+export type SignupDigest = typeof signupDigest.$inferSelect;
 
 export const pushSubscription = pgTable(
 	'push_subscription',

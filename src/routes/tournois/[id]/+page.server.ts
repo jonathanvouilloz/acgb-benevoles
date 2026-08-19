@@ -6,6 +6,7 @@ import { shiftSchema } from '$lib/schemas/shift';
 import {
 	getTournamentForOrganizer,
 	updateTournament,
+	setPublished,
 	deleteTournament
 } from '$lib/server/services/tournament-service';
 import {
@@ -50,6 +51,19 @@ export const actions: Actions = {
 		const row = await updateTournament(params.id, user.id, parsed.data);
 		if (!row) throw error(404, 'Tournoi introuvable.');
 		return { action: 'updateTournament', success: true };
+	},
+
+	/**
+	 * Publie le tournoi ou le repasse en brouillon. Le bénévole ne perçoit la différence que sur
+	 * le listing public : le lien de partage reste actif dans les deux cas (bandeau « brouillon »).
+	 */
+	togglePublished: async ({ request, locals, params }) => {
+		const user = requireOrganizer(locals);
+		const form = await request.formData();
+		const published = form.get('published') === 'true';
+		const ok = await setPublished(params.id, user.id, published);
+		if (!ok) return fail(404, { action: 'togglePublished', formError: 'Tournoi introuvable.' });
+		return { action: 'togglePublished', success: true, published };
 	},
 
 	deleteTournament: async ({ locals, params }) => {

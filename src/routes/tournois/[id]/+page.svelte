@@ -20,7 +20,9 @@
 		Check,
 		X,
 		Link2,
-		ClipboardList
+		ClipboardList,
+		Eye,
+		EyeOff
 	} from 'lucide-svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import type { PageData, ActionData } from './$types';
@@ -152,7 +154,16 @@
 {:else}
 	<div class="mt-3 flex items-start justify-between gap-3">
 		<div>
-			<h1 class="h1">{t.name}</h1>
+			<h1 class="h1">
+				{t.name}
+				{#if !t.published}
+					<span
+						class="align-middle rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-ink-muted"
+					>
+						Brouillon
+					</span>
+				{/if}
+			</h1>
 			<p class="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
 				<CalendarDays size={15} />
 				{formatDateRange(t.startDate, t.endDate)}
@@ -221,6 +232,42 @@
 			<ClipboardList size={15} />
 			Voir le suivi
 		</a>
+		<!-- Publication. Un brouillon garde son lien de partage actif : on peut le tester à
+		     quelques-uns avant de l'ouvrir à tous. -->
+		<form
+			method="POST"
+			action="?/togglePublished"
+			use:enhance={() =>
+				async ({ update, result }) => {
+					if (result.type === 'success') {
+						toast.success(t.published ? 'Repassé en brouillon' : 'Tournoi publié');
+					}
+					await update({ reset: false });
+				}}
+		>
+			<input type="hidden" name="published" value={t.published ? 'false' : 'true'} />
+			<button
+				type="submit"
+				onclick={async (e) => {
+					if (!t.published) return;
+					e.preventDefault();
+					const f = e.currentTarget.form;
+					const ok = await confirmAction({
+						title: 'Repasser en brouillon',
+						message: `« ${t.name} » disparaîtra de la liste publique des tournois. Les bénévoles déjà inscrits gardent leurs créneaux et le lien de partage continue de fonctionner.`,
+						confirmLabel: 'Repasser en brouillon'
+					});
+					if (ok) f?.requestSubmit();
+				}}
+				class="inline-flex items-center gap-1.5 rounded border border-border bg-surface px-3 py-2 text-sm text-ink-muted hover:border-brand-primary hover:text-ink"
+			>
+				{#if t.published}
+					<EyeOff size={15} /> Repasser en brouillon
+				{:else}
+					<Eye size={15} /> Publier
+				{/if}
+			</button>
+		</form>
 	</div>
 {/if}
 

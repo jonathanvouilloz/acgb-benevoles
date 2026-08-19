@@ -25,7 +25,8 @@
 		statusFilter = 'all',
 		interactive = false,
 		onAssign,
-		onAttachEmail
+		onAttachEmail,
+		onEditVolunteer
 	}: {
 		tournament: VolunteerTournament;
 		positionId?: string;
@@ -39,6 +40,12 @@
 		onAssign?: (req: AssignRequest) => void;
 		/** Rattacher un vrai email à une fiche sans email (la rend connectable). */
 		onAttachEmail?: (v: { userId: string; name: string }) => void;
+		onEditVolunteer?: (v: {
+			userId: string;
+			name: string;
+			phone: string | null;
+			isManaged: boolean;
+		}) => void;
 	} = $props();
 
 	type Cell = 'available' | 'maybe' | null;
@@ -57,6 +64,8 @@
 		phone: string | null;
 		/** Fiche créée par un organisateur, sans email : ne se connecte pas, n'est jamais notifiée. */
 		isManaged: boolean;
+		/** Fiche créée par l'organisateur qui regarde : lui seul peut la corriger (Epic 15). */
+		isEditable: boolean;
 		assignments: Assignment[];
 	};
 	type MatrixShift = {
@@ -88,6 +97,7 @@
 				name: string;
 				phone: string | null;
 				isManaged: boolean;
+				isEditable: boolean;
 				assignments: Assignment[];
 		  }
 		| { kind: 'empty'; volunteer: Volunteer; target: ShiftRef };
@@ -200,6 +210,7 @@
 			name: v.name,
 			phone: v.phone,
 			isManaged: v.isManaged,
+			isEditable: v.isEditable,
 			assignments: v.assignments
 		};
 		inspectAnchor = e.currentTarget as HTMLElement;
@@ -240,6 +251,14 @@
 		onAttachEmail?.({ userId, name });
 	}
 
+	/** Depuis la carte contact : corriger la fiche (nom, tél, email) d'un bénévole qu'on a créé. */
+	function editVolunteerFromInspect() {
+		if (inspect?.kind !== 'volunteer') return;
+		const { userId, name, phone, isManaged } = inspect;
+		inspectOpen = false;
+		onEditVolunteer?.({ userId, name, phone, isManaged });
+	}
+
 	/** Depuis le popover de cellule : arme la sélection pour échanger / déplacer ce bénévole. */
 	function armFromInspect() {
 		if (inspect?.kind !== 'cell') return;
@@ -251,7 +270,13 @@
 		// Bénévoles uniques (ordre d'apparition), colonnes = créneaux groupés par poste.
 		const volunteers = new Map<
 			string,
-			{ name: string; phone: string | null; isManaged: boolean; assignments: Assignment[] }
+			{
+				name: string;
+				phone: string | null;
+				isManaged: boolean;
+				isEditable: boolean;
+				assignments: Assignment[];
+			}
 		>();
 		const lookup = new Map<string, Cell>();
 		const notes = new Map<string, string>();
@@ -278,6 +303,7 @@
 							name: su.name,
 							phone: su.phone,
 							isManaged: su.isManaged,
+							isEditable: su.isEditable,
 							assignments: []
 						});
 					volunteers.get(su.userId)!.assignments.push({
@@ -682,15 +708,37 @@
 									</span>
 								</p>
 								{#if editable}
-									<button
-										type="button"
-										onclick={attachEmailFromInspect}
-										class="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded border border-warning/40 bg-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-warning/10"
-									>
-										<Mail size={14} /> Ajouter son email
-									</button>
+									{#if inspect.isEditable}
+										<!-- Fiche créée par cet organisateur : le dialogue d'édition couvre aussi
+										     l'email, inutile d'offrir deux chemins. -->
+										<button
+											type="button"
+											onclick={editVolunteerFromInspect}
+											class="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded border border-warning/40 bg-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-warning/10"
+										>
+											<Pencil size={14} /> Modifier la fiche
+										</button>
+									{:else}
+										<button
+											type="button"
+											onclick={attachEmailFromInspect}
+											class="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded border border-warning/40 bg-surface px-3 py-1.5 text-sm font-medium text-ink hover:bg-warning/10"
+										>
+											<Mail size={14} /> Ajouter son email
+										</button>
+									{/if}
 								{/if}
 							</div>
+						{:else if inspect.isEditable && editable}
+							<!-- Fiche créée par cet organisateur ET déjà pourvue d'un vrai email : c'est le cas
+							     qu'`attachEmail` refusait, et donc la faute de frappe autrefois définitive. -->
+							<button
+								type="button"
+								onclick={editVolunteerFromInspect}
+								class="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded border border-border bg-surface px-3 py-1.5 text-sm font-medium text-ink-muted hover:border-brand-primary hover:text-ink"
+							>
+								<Pencil size={14} /> Modifier la fiche
+							</button>
 						{/if}
 						<ul class="mt-2 flex max-h-64 flex-col gap-2 overflow-auto border-t border-border pt-2">
 							{#each inspect.assignments as a, i (i)}

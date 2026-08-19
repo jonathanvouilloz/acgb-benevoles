@@ -168,6 +168,57 @@ export async function attachEmail(userId: string, email: string): Promise<void> 
 }
 
 /**
+ * Corrige la fiche d'un bénévole **créé par cet organisateur** (Epic 15) : nom, téléphone, email.
+ *
+ * Né d'un retour terrain : une faute de frappe au nom (« Préjbanu » pour « Préjbeanu ») était
+ * définitive, `attachEmail` refusant toute fiche déjà pourvue d'un vrai email.
+ *
+ * **Périmètre volontairement étroit** : le discriminant est `createdBy`, pas `emailPlaceholder`.
+ * Un bénévole qui possède son compte gère son profil dans `/compte` ; un organisateur ne réécrit
+ * jamais l'identité de quelqu'un d'autre. Une fiche créée par un organisateur reste éditable par
+ * lui même après rattachement d'un vrai email — c'est précisément le cas qui était bloqué.
+ *
+ * Poser un email réel repasse `emailPlaceholder` à `false` : `attachEmail` devient un cas
+ * particulier de cette fonction.
+ *
+ * Erreurs : `NOT_FOUND` (compte inconnu), `NOT_MANAGED` (fiche non créée par cet organisateur),
+ * `EMAIL_TAKEN`, `RESERVED_DOMAIN`.
+ */
+export async function updateManagedVolunteer(
+	userId: string,
+	organizerId: string,
+	input: { name: string; phone?: string; email?: string }
+): Promise<void> {
+	const email = input.email?.trim().toLowerCase() || null;
+	if (email && isManagedEmail(email)) throw new Error('RESERVED_DOMAIN');
+
+	const rows = await db
+		.select({ id: user.id, createdBy: user.createdBy })
+		.from(user)
+		.where(eq(user.id, userId))
+		.limit(1);
+	if (rows.length === 0) throw new Error('NOT_FOUND');
+	if (rows[0].createdBy !== organizerId) throw new Error('NOT_MANAGED');
+
+	if (email) {
+		const taken = await db.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1);
+		if (taken.length > 0 && taken[0].id !== userId) throw new Error('EMAIL_TAKEN');
+	}
+
+	await db
+		.update(user)
+		.set({
+			name: input.name.trim(),
+			phone: input.phone?.trim() || null,
+			// Email absent du formulaire → on ne touche pas à l'adresse en place (ne jamais
+			// rétrograder une fiche connectable en fiche inerte par omission).
+			...(email ? { email, emailPlaceholder: false } : {}),
+			updatedAt: new Date()
+		})
+		.where(eq(user.id, userId));
+}
+
+/**
  * Bénévoles gérés inscrits sur ce tournoi et **sans email réel** — ceux qui ne verront jamais
  * leur planning dans l'app. Sert à alerter l'organisateur au bon moment plutôt que de le laisser
  * croire que tout le monde a reçu son rappel.

@@ -26,6 +26,13 @@
 						<div class="flex items-center gap-2">
 							<h2 class="h3">{t.name}</h2>
 							<PhaseBadge phase={t.phase} />
+							{#if !t.published}
+								<span
+									class="rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-ink-muted"
+								>
+									Brouillon
+								</span>
+							{/if}
 						</div>
 						<p class="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
 							<CalendarDays size={15} />

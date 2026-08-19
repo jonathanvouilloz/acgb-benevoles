@@ -178,6 +178,7 @@ export type AdminTournamentRow = {
 	startDate: Date;
 	endDate: Date;
 	shareToken: string;
+	published: boolean;
 	organizerName: string;
 	organizerEmail: string;
 	signupCount: number;
@@ -194,6 +195,7 @@ export async function listAllTournaments(): Promise<AdminTournamentRow[]> {
 			startDate: tournament.startDate,
 			endDate: tournament.endDate,
 			shareToken: tournament.shareToken,
+			published: tournament.published,
 			organizerName: user.name,
 			organizerEmail: user.email,
 			signupCount: sql<number>`count(distinct ${signup.id})::int`

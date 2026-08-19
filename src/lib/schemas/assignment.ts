@@ -77,8 +77,27 @@ export const attachEmailSchema = z.object({
 	email: z.string().trim().toLowerCase().email('Email invalide')
 });
 
+/**
+ * Corriger la fiche d'un bénévole créé par l'organisateur (Epic 15). Contraintes alignées sur
+ * `assignSchema` mode `new` — sauf le téléphone, facultatif ici : on doit pouvoir corriger un nom
+ * sans être bloqué par un numéro qu'on n'a pas.
+ */
+export const updateVolunteerSchema = z.object({
+	userId,
+	name: z.string().trim().min(1, 'Nom requis').max(100, 'Nom trop long'),
+	phone: phoneSchema.optional().or(z.literal('').transform(() => undefined)),
+	email: z
+		.string()
+		.trim()
+		.toLowerCase()
+		.email('Email invalide')
+		.optional()
+		.or(z.literal('').transform(() => undefined))
+});
+
 export type MoveInput = z.infer<typeof moveSchema>;
 export type SwapInput = z.infer<typeof swapSchema>;
 export type AssignInput = z.infer<typeof assignSchema>;
 export type RemoveInput = z.infer<typeof removeSchema>;
 export type AttachEmailInput = z.infer<typeof attachEmailSchema>;
+export type UpdateVolunteerInput = z.infer<typeof updateVolunteerSchema>;

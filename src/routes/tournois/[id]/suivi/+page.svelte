@@ -9,6 +9,7 @@
 	import AssignVolunteerDialog from '$lib/components/tracking/AssignVolunteerDialog.svelte';
 	import RemoveAssignmentDialog from '$lib/components/tracking/RemoveAssignmentDialog.svelte';
 	import AttachEmailDialog from '$lib/components/tracking/AttachEmailDialog.svelte';
+	import EditVolunteerDialog from '$lib/components/tracking/EditVolunteerDialog.svelte';
 	import AssignmentHistory from '$lib/components/tracking/AssignmentHistory.svelte';
 	import ExportDialog from '$lib/components/tracking/ExportDialog.svelte';
 	import type {
@@ -100,6 +101,12 @@
 
 	/** Rattachement d'email à une fiche sans email. */
 	let attaching = $state<VolunteerRef | null>(null);
+	let editingVolunteer = $state<{
+		userId: string;
+		name: string;
+		phone: string | null;
+		isManaged: boolean;
+	} | null>(null);
 
 	/**
 	 * Aiguille une requête venue de la matrice. `move`/`swap` gardent leur modale de confirmation
@@ -237,6 +244,7 @@
 					interactive
 					onAssign={handleAssign}
 					onAttachEmail={(v) => (attaching = v)}
+					onEditVolunteer={(v) => (editingVolunteer = v)}
 				/>
 			{/if}
 		</div>
@@ -269,6 +277,7 @@
 
 <!-- Rattachement d'un vrai email à une fiche -->
 <AttachEmailDialog volunteer={attaching} onclose={() => (attaching = null)} />
+<EditVolunteerDialog volunteer={editingVolunteer} onclose={() => (editingVolunteer = null)} />
 
 <!-- Export Excel multi-format -->
 <ExportDialog bind:open={exportOpen} tournament={t} />

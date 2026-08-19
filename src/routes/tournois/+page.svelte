@@ -37,7 +37,18 @@
 					href={resolve('/tournois/[id]', { id: t.id })}
 					class="block h-full rounded-lg border border-border bg-surface px-4 py-3 transition hover:border-brand-primary hover:shadow-sm"
 				>
-					<h2 class="h3">{t.name}</h2>
+					<h2 class="h3">
+						{t.name}
+						{#if !t.published}
+							<!-- Sans ce badge, l'organisateur ne comprend pas pourquoi son tournoi n'apparaît
+							     pas dans la liste publique. -->
+							<span
+								class="align-middle rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-ink-muted"
+							>
+								Brouillon
+							</span>
+						{/if}
+					</h2>
 					<p class="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
 						<CalendarDays size={15} />
 						{formatDateRange(t.startDate, t.endDate)}

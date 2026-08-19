@@ -8,10 +8,11 @@ import {
 	swapSignups
 } from '$lib/server/services/signup-service';
 import { listAssignmentLog } from '$lib/server/services/assignment-log-service';
-import { attachEmail } from '$lib/server/services/volunteer-directory';
+import { attachEmail, updateManagedVolunteer } from '$lib/server/services/volunteer-directory';
 import {
 	assignSchema,
 	attachEmailSchema,
+	updateVolunteerSchema,
 	moveSchema,
 	removeSchema,
 	swapSchema
@@ -29,7 +30,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	return { tournament, history };
 };
 
-type AssignAction = 'move' | 'swap' | 'assign' | 'remove' | 'attachEmail';
+type AssignAction = 'move' | 'swap' | 'assign' | 'remove' | 'attachEmail' | 'updateVolunteer';
 
 /** Mappe les erreurs métier d'une édition d'affectation vers une réponse de formulaire. */
 function assignError(action: AssignAction, err: unknown) {
@@ -43,7 +44,13 @@ function assignError(action: AssignAction, err: unknown) {
 		return fail(409, { action, formError: 'Cet email est déjà utilisé par un autre compte.' });
 	}
 	if (message === 'NOT_MANAGED') {
-		return fail(409, { action, formError: 'Ce bénévole a déjà une adresse email personnelle.' });
+		return fail(409, {
+			action,
+			formError:
+				action === 'updateVolunteer'
+					? 'Ce bénévole gère lui-même son compte : seul lui peut modifier ses informations.'
+					: 'Ce bénévole a déjà une adresse email personnelle.'
+		});
 	}
 	if (message === 'RESERVED_DOMAIN') {
 		return fail(400, { action, formError: 'Ce domaine est réservé. Utilise une adresse réelle.' });
@@ -210,6 +217,47 @@ export const actions: Actions = {
 			return { action: 'attachEmail', success: true };
 		} catch (err) {
 			return assignError('attachEmail', err);
+		}
+	},
+
+	/**
+	 * Corriger la fiche d'un bénévole créé par cet organisateur (Epic 15).
+	 * Même double garde que `attachEmail` : le tournoi lui appartient, ET le bénévole y est
+	 * inscrit — sans quoi la route deviendrait un éditeur d'annuaire universel. La vérification
+	 * que la fiche a bien été créée par lui vit dans le service (`createdBy`).
+	 */
+	updateVolunteer: async ({ request, locals, params }) => {
+		const user = requireOrganizer(locals);
+		const tournament = await getTournamentSignupsForOrganizer(params.id, user.id);
+		if (!tournament) throw error(404, 'Tournoi introuvable.');
+
+		const form = await request.formData();
+		const parsed = updateVolunteerSchema.safeParse({
+			userId: form.get('userId'),
+			name: form.get('name'),
+			phone: form.get('phone'),
+			email: form.get('email')
+		});
+		if (!parsed.success) {
+			return fail(400, {
+				action: 'updateVolunteer',
+				formError: 'Informations invalides.',
+				fieldErrors: parsed.error.flatten().fieldErrors
+			});
+		}
+
+		const isOnTournament = tournament.positions.some((p) =>
+			p.shifts.some((s) => s.signups.some((su) => su.userId === parsed.data.userId))
+		);
+		if (!isOnTournament) {
+			return fail(404, { action: 'updateVolunteer', formError: 'Bénévole introuvable.' });
+		}
+
+		try {
+			await updateManagedVolunteer(parsed.data.userId, user.id, parsed.data);
+			return { action: 'updateVolunteer', success: true };
+		} catch (err) {
+			return assignError('updateVolunteer', err);
 		}
 	}
 };
