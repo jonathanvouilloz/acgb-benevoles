@@ -17,7 +17,8 @@
 
 <h1 class="h1">Rappels</h1>
 <p class="mt-1 text-sm text-ink-muted">
-	Reçois une notification avant tes créneaux pour ne rien oublier.
+	Les confirmations d'inscription et le rappel de la veille te sont <strong>toujours</strong>
+	envoyés par email. Les notifications ci-dessous sont un complément, sur cet appareil.
 </p>
 
 <!-- Activation des notifications push -->

@@ -5,6 +5,8 @@ import type { SignupStatus } from '$lib/schemas/signup';
 import { formatDay, formatTime } from '$lib/format';
 import { scheduleForSignup } from './reminder-scheduler';
 import { notifyUser, type PushPayload } from './push-service';
+import { enqueueDigest } from './digest-scheduler';
+import { isManagedEmail } from './email';
 import { logAssignment } from './assignment-log-service';
 import { createManagedVolunteer } from './volunteer-directory';
 import type { AssignInput } from '$lib/schemas/assignment';
@@ -352,9 +354,13 @@ export async function getMyUpcomingShifts(userId: string): Promise<MyAgendaShift
 }
 
 /** Charge un créneau + sa capacité (existence). Retourne `null` si introuvable. */
-async function getShift(shiftId: string): Promise<{ capacity: number } | null> {
+async function getShift(
+	shiftId: string
+): Promise<{ capacity: number; tournamentId: string } | null> {
 	const rows = await db
-		.select({ capacity: shift.capacity })
+		// `tournamentId` sert au récap email : les mutations côté bénévole ne connaissent qu'un
+		// `shiftId`. Les jointures étaient déjà là, la colonne ne coûte rien.
+		.select({ capacity: shift.capacity, tournamentId: position.tournamentId })
 		.from(shift)
 		.innerJoin(position, eq(shift.positionId, position.id))
 		.innerJoin(tournament, eq(position.tournamentId, tournament.id))
@@ -422,6 +428,10 @@ export async function createSignup(
 	// Inscription `available` créée → planifie les rappels QStash (best-effort ; une `maybe`
 	// ne déclenche aucun rappel).
 	if (status === 'available') await scheduleForSignup(shiftId, userId);
+
+	// Récap email : pour LES DEUX statuts, contrairement aux rappels. Une `maybe` figure au
+	// récap — la taire donnerait au bénévole une image fausse de ses engagements.
+	await enqueueDigest(userId, s.tournamentId, { byOrganizer: false });
 }
 
 /**
@@ -448,7 +458,8 @@ export async function changeSignupStatus(
 		.where(and(eq(signup.shiftId, shiftId), eq(signup.userId, userId)))
 		.limit(1);
 
-	// Pas d'inscription existante → comportement « créer ».
+	// Pas d'inscription existante → comportement « créer ». `createSignup` planifie déjà le
+	// récap : ne pas le refaire ici, ce serait une révision brûlée pour rien.
 	if (existing.length === 0) {
 		await createSignup(shiftId, userId, status, note);
 		return;
@@ -459,6 +470,7 @@ export async function changeSignupStatus(
 			.update(signup)
 			.set({ status: 'maybe', note: noteValue })
 			.where(and(eq(signup.shiftId, shiftId), eq(signup.userId, userId)));
+		await enqueueDigest(userId, s.tournamentId, { byOrganizer: false });
 		return;
 	}
 
@@ -468,6 +480,7 @@ export async function changeSignupStatus(
 			.update(signup)
 			.set({ note: noteValue })
 			.where(and(eq(signup.shiftId, shiftId), eq(signup.userId, userId)));
+		await enqueueDigest(userId, s.tournamentId, { byOrganizer: false });
 		return;
 	}
 
@@ -485,6 +498,7 @@ export async function changeSignupStatus(
 
 	// Promotion `maybe` → `available` réussie → planifie les rappels QStash.
 	await scheduleForSignup(shiftId, userId);
+	await enqueueDigest(userId, s.tournamentId, { byOrganizer: false });
 }
 
 /**
@@ -492,10 +506,19 @@ export async function changeSignupStatus(
  * Idempotent ; le WHERE filtre sur `user_id` (le bénévole ne touche que sa propre note).
  */
 export async function setSignupNote(shiftId: string, userId: string, note?: string): Promise<void> {
-	await db
+	// `.returning()` : la fonction est idempotente, un double-submit ne doit pas brûler une
+	// révision de récap sur une écriture qui n'a rien changé.
+	const touched = await db
 		.update(signup)
 		.set({ note: note ?? null })
-		.where(and(eq(signup.shiftId, shiftId), eq(signup.userId, userId)));
+		.where(and(eq(signup.shiftId, shiftId), eq(signup.userId, userId)))
+		.returning({ id: signup.id });
+	if (touched.length === 0) return;
+
+	// La note figure au récap, donc elle le déclenche. Le debounce absorbe les retouches
+	// successives : trois éditions en deux minutes ne font toujours qu'un email.
+	const s = await getShift(shiftId);
+	if (s) await enqueueDigest(userId, s.tournamentId, { byOrganizer: false });
 }
 
 /**
@@ -503,7 +526,18 @@ export async function setSignupNote(shiftId: string, userId: string, note?: stri
  * impossible de retirer l'inscription d'autrui. Libère la place au prochain recalcul.
  */
 export async function deleteSignup(shiftId: string, userId: string): Promise<void> {
-	await db.delete(signup).where(and(eq(signup.shiftId, shiftId), eq(signup.userId, userId)));
+	// Le créneau survit à la suppression de l'inscription : on peut résoudre le tournoi après coup.
+	const s = await getShift(shiftId);
+
+	const removed = await db
+		.delete(signup)
+		.where(and(eq(signup.shiftId, shiftId), eq(signup.userId, userId)))
+		.returning({ id: signup.id });
+
+	// Rien supprimé (double-submit, UI périmée) → aucun récap : sinon on enverrait à quelqu'un
+	// un email annonçant un changement qui n'a pas eu lieu.
+	if (removed.length === 0 || !s) return;
+	await enqueueDigest(userId, s.tournamentId, { byOrganizer: false });
 }
 
 /* ------------------------------------------------------------------ *
@@ -565,10 +599,25 @@ async function getUserName(userId: string): Promise<string | null> {
 	return rows[0]?.name ?? null;
 }
 
+/** Le bénévole a-t-il une boîte réelle ? Détermine si un email peut lui parvenir. */
+async function hasRealMailbox(userId: string): Promise<boolean> {
+	const rows = await db
+		.select({ email: user.email, emailPlaceholder: user.emailPlaceholder })
+		.from(user)
+		.where(eq(user.id, userId))
+		.limit(1);
+	const row = rows[0];
+	return Boolean(row) && !row.emailPlaceholder && !isManagedEmail(row.email);
+}
+
 /**
- * Résultat d'une édition d'affectation. `notified: false` signifie que le bénévole **n'a pas
- * été prévenu** — il n'a pas d'abonnement push, ou c'est une fiche créée par l'organisateur qui
- * n'utilise pas l'app. L'UI doit le dire (« appelez-le ») plutôt qu'annoncer un succès complet.
+ * Résultat d'une édition d'affectation. `notified: false` signifie que le bénévole **n'a aucun
+ * moyen d'être prévenu** : ni abonnement push, ni boîte email réelle. L'UI doit le dire
+ * (« appelez-le ») plutôt qu'annoncer un succès complet.
+ *
+ * Depuis l'epic 15, l'email suffit à rendre `notified` vrai : c'est le canal fiable, le push ne
+ * partant que si la personne a activé les notifications sur son appareil — ce que presque
+ * personne ne fait, et ce qui faisait passer des envois réussis pour des échecs.
  */
 export type AssignmentResult = { notified: boolean };
 
@@ -605,8 +654,15 @@ async function traceAndNotify(
 		reason: entry.reason ?? null
 	});
 
-	const delivered = await notifyUser(entry.volunteerId, entry.push);
-	return { notified: delivered > 0 };
+	// Push immédiat (si abonnement) + récap email différé (si boîte réelle). Les deux sont
+	// best-effort : la mutation est déjà commitée, rien ici ne peut la faire échouer.
+	const [delivered, mailable] = await Promise.all([
+		notifyUser(entry.volunteerId, entry.push),
+		hasRealMailbox(entry.volunteerId)
+	]);
+	await enqueueDigest(entry.volunteerId, tournamentId, { byOrganizer: true });
+
+	return { notified: delivered > 0 || mailable };
 }
 
 /** Statut de l'inscription (shiftId, userId), ou `null` si elle n'existe pas. */

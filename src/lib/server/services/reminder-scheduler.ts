@@ -1,10 +1,10 @@
 import { and, eq } from 'drizzle-orm';
-import { Client } from '@upstash/qstash';
-import { env } from '$env/dynamic/private';
+import type { Client } from '@upstash/qstash';
 import { db } from '$lib/server/db';
 import { signup, shift, user } from '$lib/server/db/schema';
 import { DEFAULT_REMINDER_LEAD_MIN } from '$lib/reminders';
 import { zurichWallClockToInstant } from '$lib/time';
+import { getQstashClient, publicUrl, safeDedupId } from './qstash';
 import type { ReminderKind } from './reminder-service';
 
 /**
@@ -31,26 +31,6 @@ function paliersFor(leadMin: number): { kind: ReminderKind; minutes: number; lea
 	];
 }
 
-let resolved = false;
-let client: Client | null = null;
-
-/** Client QStash mémoïsé, ou `null` si `QSTASH_TOKEN` absent (dev sans QStash → planif ignorée). */
-function getClient(): Client | null {
-	if (!resolved) {
-		resolved = true;
-		client = env.QSTASH_TOKEN
-			? new Client({ token: env.QSTASH_TOKEN, baseUrl: env.QSTASH_URL || undefined })
-			: null;
-	}
-	return client;
-}
-
-/** URL publique appelée par QStash. QStash n'atteint pas localhost → HTTPS public requis en prod. */
-function callbackUrl(): string {
-	const base = (env.BETTER_AUTH_URL ?? '').replace(/\/$/, '');
-	return `${base}/api/qstash/reminder`;
-}
-
 /** Publie les 2 messages différés pour une inscription, après remise à zéro des flags d'envoi. */
 async function schedule(
 	qstash: Client,
@@ -73,7 +53,7 @@ async function schedule(
 	//   part avec l'offset Genève de retard (~2h l'été) et tombe après le créneau.
 	const wallMs = startsAt.getTime();
 	const realMs = zurichWallClockToInstant(startsAt);
-	const url = callbackUrl();
+	const url = publicUrl('/api/qstash/reminder');
 
 	for (const palier of paliersFor(leadMin)) {
 		const targetMs = realMs - palier.minutes * 60 * 1000;
@@ -85,7 +65,7 @@ async function schedule(
 			// Dédup : re-planifier à l'identique ne crée pas de doublon ; un déplacement change
 			// `wallMs` donc génère un nouvel id (l'ancien message droppera à sa livraison).
 			// Séparateur `_` et non `:` : QStash rejette les `:` dans un deduplicationId (400).
-			deduplicationId: `rem_${signupId}_${palier.kind}_${wallMs}`
+			deduplicationId: safeDedupId('rem', signupId, palier.kind, wallMs)
 		});
 	}
 }
@@ -96,7 +76,7 @@ async function schedule(
  * n'est pas `available`. À appeler après une création / promotion / déplacement de bénévole.
  */
 export async function scheduleForSignup(shiftId: string, userId: string): Promise<void> {
-	const qstash = getClient();
+	const qstash = getQstashClient();
 	if (!qstash) return;
 	try {
 		const rows = await db
@@ -125,7 +105,7 @@ export async function scheduleForSignup(shiftId: string, userId: string): Promis
  * l'ancien timestamp, droppent d'eux-mêmes à leur livraison.
  */
 export async function scheduleForShift(shiftId: string): Promise<void> {
-	const qstash = getClient();
+	const qstash = getQstashClient();
 	if (!qstash) return;
 	try {
 		const rows = await db

@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { shift, position, tournament } from '$lib/server/db/schema';
 import { toShiftTimestamps, type ShiftInput } from '$lib/schemas/shift';
 import { scheduleForShift } from './reminder-scheduler';
+import { enqueueDigestForShift } from './digest-scheduler';
 
 /** Vérifie qu'un poste appartient à un tournoi de l'organisateur. Throw 'FORBIDDEN' sinon. */
 async function assertPositionOwner(positionId: string, organizerId: string): Promise<void> {
@@ -52,11 +53,19 @@ export async function updateShift(shiftId: string, organizerId: string, input: S
 	// (best-effort ; les anciens messages QStash droppent à leur livraison via `expectedStartsAtMs`).
 	if (row) await scheduleForShift(shiftId);
 
+	// Un horaire qui bouge doit être annoncé : sans ça un bénévole se présente à l'ancienne heure.
+	if (row) await enqueueDigestForShift(shiftId);
+
 	return row ?? null;
 }
 
 /** Supprime un créneau (cascade inscriptions). */
 export async function deleteShift(shiftId: string, organizerId: string): Promise<void> {
 	await assertShiftOwner(shiftId, organizerId);
+
+	// AVANT le DELETE : la cascade emporte les inscriptions, après coup il n'y a plus personne à
+	// prévenir. Le récap partira 10 min plus tard et reflètera l'état post-suppression.
+	await enqueueDigestForShift(shiftId);
+
 	await db.delete(shift).where(eq(shift.id, shiftId));
 }

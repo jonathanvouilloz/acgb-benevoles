@@ -1,9 +1,11 @@
 import { and, eq, gt, lte, isNull, inArray } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { db } from '$lib/server/db';
-import { signup, shift, position, tournament, pushSubscription } from '$lib/server/db/schema';
+import { signup, shift, position, tournament, pushSubscription, user } from '$lib/server/db/schema';
 import { sendPush, notifyUser, type PushPayload } from './push-service';
 import { DEFAULT_REMINDER_LEAD_MIN, reminderLeadLabel } from '$lib/reminders';
+import { isManagedEmail, sendShiftReminderEmail } from './email';
+import { publicUrl } from './qstash';
 
 /**
  * Envoi des rappels push (Epic 6). Deux paliers par inscription `available` :
@@ -160,16 +162,21 @@ export async function processSignupReminder(
 			userId: signup.userId,
 			status: signup.status,
 			startsAt: shift.startsAt,
+			endsAt: shift.endsAt,
 			positionName: position.name,
 			tournamentName: tournament.name,
 			shareToken: tournament.shareToken,
 			reminder24SentAt: signup.reminder24SentAt,
-			reminder2SentAt: signup.reminder2SentAt
+			reminder2SentAt: signup.reminder2SentAt,
+			email: user.email,
+			emailPlaceholder: user.emailPlaceholder,
+			volunteerName: user.name
 		})
 		.from(signup)
 		.innerJoin(shift, eq(signup.shiftId, shift.id))
 		.innerJoin(position, eq(shift.positionId, position.id))
 		.innerJoin(tournament, eq(position.tournamentId, tournament.id))
+		.innerJoin(user, eq(signup.userId, user.id))
 		.where(eq(signup.id, signupId))
 		.limit(1);
 
@@ -181,6 +188,27 @@ export async function processSignupReminder(
 	if (kind === '24h' ? row.reminder24SentAt : row.reminder2SentAt) return 'dropped';
 
 	await notifyUser(row.userId, buildPayload(row, kind, leadMin));
+
+	// Le rappel de la veille part AUSSI par email : le push n'arrive que si le bénévole a activé
+	// les notifications sur son appareil, ce que presque personne ne fait. Le palier court reste
+	// push seul — un email 30 minutes avant arrive trop tard pour servir et ne fait que du bruit.
+	if (kind === '24h' && !row.emailPlaceholder && !isManagedEmail(row.email)) {
+		try {
+			await sendShiftReminderEmail({
+				to: row.email,
+				volunteerName: row.volunteerName,
+				tournamentName: row.tournamentName,
+				positionName: row.positionName,
+				startsAt: row.startsAt,
+				endsAt: row.endsAt,
+				tournamentUrl: publicUrl(`/t/${row.shareToken}`)
+			});
+		} catch (err) {
+			// Best-effort : un échec d'email ne doit pas empêcher le marquage du palier, sinon le
+			// message serait rejoué et le push partirait une seconde fois.
+			console.error('[reminder-service] email de rappel échoué', err);
+		}
+	}
 
 	await db
 		.update(signup)
