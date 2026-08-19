@@ -106,7 +106,9 @@
 	let winEnd = $state<number | null>(null);
 	let selectedPositions = $state<string[]>([]);
 	let onlyAvailable = $state(false);
-	let groupBy = $state<'time' | 'position'>('time');
+	// Groupement par poste par défaut (retour Anne 2026-08-19) : un bénévole cherche « la buvette »,
+	// pas « 10h00 ». Le toggle « Par horaire » reste disponible.
+	let groupBy = $state<'time' | 'position'>('position');
 	let showPast = $state(false);
 
 	/** Base de la liste d'inscription : tous les créneaux à venir. */
@@ -320,6 +322,7 @@
 								{form}
 								positionName={shift.positionName}
 								positionColor={shift.positionColor}
+								positionDescription={shift.positionDescription}
 								showDay={false}
 								featured={shift.id === next?.id}
 								conflicts={conflictsFor(shift)}
@@ -443,6 +446,7 @@
 								{form}
 								positionName={shift.positionName}
 								positionColor={shift.positionColor}
+								positionDescription={shift.positionDescription}
 								showDay={false}
 								conflicts={conflictsFor(shift)}
 							/>
@@ -462,6 +466,11 @@
 								· {g.remaining} place{g.remaining > 1 ? 's' : ''} à pourvoir
 							</span>
 						</h3>
+						{#if g.description}
+							<!-- Consigne du poste : le bénévole doit savoir à quoi il s'engage AVANT de cliquer
+							     (retour Anne 2026-08-19 — elle la saisissait sans qu'elle soit jamais affichée). -->
+							<p class="-mt-1 text-sm whitespace-pre-line text-ink-muted">{g.description}</p>
+						{/if}
 						{#each g.shifts as shift (shift.id)}
 							<VolunteerShiftRow
 								{shift}

@@ -106,7 +106,7 @@
 						<span class="font-normal text-ink-muted">({position.shifts.length})</span>
 					</h3>
 					{#if position.description}
-						<p class="truncate text-sm text-ink-muted">{position.description}</p>
+						<p class="text-sm whitespace-pre-line text-ink-muted">{position.description}</p>
 					{/if}
 				</div>
 			</button>

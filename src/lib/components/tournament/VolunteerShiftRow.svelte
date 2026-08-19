@@ -16,6 +16,7 @@
 		form,
 		positionName = '',
 		positionColor = '',
+		positionDescription = null,
 		past = false,
 		featured = false,
 		showPosition = true,
@@ -29,6 +30,8 @@
 		form: any;
 		positionName?: string;
 		positionColor?: string;
+		/** Consigne du poste, affichée dans le panneau déplié quand la ligne porte l'étiquette. */
+		positionDescription?: string | null;
 		past?: boolean;
 		featured?: boolean;
 		/** Affiche l'étiquette de poste sur la ligne (masquée quand on groupe déjà par poste). */
@@ -178,13 +181,20 @@
 			<TriangleAlert size={14} class="mt-px shrink-0 text-warning" />
 			<p>
 				<span class="font-semibold">Chevauche</span>
-				{#each activeConflicts as c, i (c.shiftId)}{#if i > 0}, {/if}{conflictLabel(c)}{/each}
+				{#each activeConflicts as c, i (c.shiftId)}{#if i > 0},
+					{/if}{conflictLabel(c)}{/each}
 			</p>
 		</div>
 	{/if}
 
 	{#if expanded}
 		<div class="flex flex-col gap-2 border-t border-border px-3 pt-2 pb-3">
+			<!-- Consigne du poste. Uniquement en vue « par horaire » : en vue « par poste » elle est
+			     déjà sous le titre du groupe, la répéter ici serait du bruit. -->
+			{#if showPosition && positionDescription}
+				<p class="text-sm whitespace-pre-line text-ink-muted">{positionDescription}</p>
+			{/if}
+
 			<!-- Places (détail) -->
 			<p class="text-sm text-ink-muted">
 				<span

@@ -90,7 +90,7 @@ export async function getTournamentForOrganizer(id: string, organizerId: string)
 		where: and(eq(tournament.id, id), eq(tournament.organizerId, organizerId)),
 		with: {
 			positions: {
-				orderBy: (position, { asc }) => [asc(position.createdAt)],
+				orderBy: (position, { asc }) => [asc(position.name)],
 				with: {
 					shifts: {
 						orderBy: (shift, { asc }) => [asc(shift.startsAt)]

@@ -13,6 +13,8 @@ export type FlatShift = VolunteerShift & {
 	positionId: string;
 	positionName: string;
 	positionColor: string;
+	/** Consigne du poste saisie par l'organisateur — affichee au benevole avant qu'il s'engage. */
+	positionDescription: string | null;
 };
 
 /** Tous les créneaux, triés par heure de début puis de fin (poste rattaché à chaque ligne). */
@@ -20,7 +22,13 @@ export function flattenShifts(t: VolunteerTournament): FlatShift[] {
 	const out: FlatShift[] = [];
 	for (const p of t.positions) {
 		for (const s of p.shifts) {
-			out.push({ ...s, positionId: p.id, positionName: p.name, positionColor: p.color });
+			out.push({
+				...s,
+				positionId: p.id,
+				positionName: p.name,
+				positionColor: p.color,
+				positionDescription: p.description
+			});
 		}
 	}
 	out.sort(
@@ -234,6 +242,7 @@ export type PositionGroup = {
 	id: string;
 	name: string;
 	color: string;
+	description: string | null;
 	remaining: number;
 	shifts: FlatShift[];
 };
@@ -244,7 +253,7 @@ export type PositionGroup = {
  */
 export function groupByPosition(
 	shifts: FlatShift[],
-	positions: { id: string; name: string; color: string }[]
+	positions: { id: string; name: string; color: string; description: string | null }[]
 ): PositionGroup[] {
 	const byPos = new Map<string, FlatShift[]>();
 	for (const s of shifts) {
@@ -256,7 +265,14 @@ export function groupByPosition(
 	for (const p of positions) {
 		const ps = byPos.get(p.id);
 		if (!ps || ps.length === 0) continue;
-		out.push({ id: p.id, name: p.name, color: p.color, remaining: totalRemaining(ps), shifts: ps });
+		out.push({
+			id: p.id,
+			name: p.name,
+			color: p.color,
+			description: p.description,
+			remaining: totalRemaining(ps),
+			shifts: ps
+		});
 	}
 	return out;
 }

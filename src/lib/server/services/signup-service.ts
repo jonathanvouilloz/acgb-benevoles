@@ -97,7 +97,7 @@ function findTournamentRow(where: SQL) {
 		with: {
 			organizer: { columns: { name: true, email: true, phone: true } },
 			positions: {
-				orderBy: (p, { asc }) => [asc(p.createdAt)],
+				orderBy: (p, { asc }) => [asc(p.name)],
 				with: {
 					shifts: {
 						orderBy: (s, { asc }) => [asc(s.startsAt)],
