@@ -13,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import { neon } from '@neondatabase/serverless';
 
 function loadEnv() {
-	let txt = '';
+	let txt: string;
 	try {
 		txt = readFileSync(new URL('../.env', import.meta.url), 'utf8');
 	} catch {
