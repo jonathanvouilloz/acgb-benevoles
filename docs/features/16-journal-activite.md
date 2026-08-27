@@ -25,7 +25,7 @@
 - Le repo **n'est pas prettier-clean** (62 fichiers hors norme avant cette session). Ne formater que les fichiers touchés — piège déjà documenté en epic 14.
 - `tournament.delete` n'est **pas** tracé, et c'est voulu : le journal cascade avec le tournoi.
 
-**Commit :** _(à faire)_
+**Commits :** [8965f1b] feat(journal): journal d'activite du tournoi pour les organisateurs · [7c6886b] chore(scripts)
 
 ---
 
