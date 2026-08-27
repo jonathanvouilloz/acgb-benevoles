@@ -10,7 +10,7 @@ tout ce qui décide vit ici.
 | `shift-service.ts` | Créneaux : création, horaire, capacité, suppression. |
 | `signup-service.ts` | Cœur du domaine : lecture d'un tournoi (bénévole et organisateur), inscription, capacité atomique, affectations organisateur. |
 | `volunteer-directory.ts` | Annuaire côté organisateur : recherche, fiche créée à la volée, correction de fiche. |
-| `assignment-log-service.ts` | Trace des 4 opérations d'affectation (libellés dénormalisés). |
+| `activity-log-service.ts` | Journal d'activité du tournoi : `logActivity` (best-effort), `getActor`, `listActivityLog` (gardé par l'ownership). Libellés dénormalisés. |
 | `admin-service.ts` | Espace super admin : utilisateurs, rôles, tous les tournois, stats. |
 | `organizer-request-service.ts` | Demandes de promotion organisateur. |
 | `ownership.ts` · `rate-limit.ts` | Gardes transverses. |

@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid';
 import { db } from '$lib/server/db';
 import { user, signup, shift, position } from '$lib/server/db/schema';
 import { MANAGED_EMAIL_DOMAIN, isManagedEmail } from './email';
+import { getActor, logActivity } from './activity-log-service';
 
 /**
  * Annuaire bénévole côté organisateur (Epic 14) : rechercher un compte existant, ou créer une
@@ -23,6 +24,35 @@ import { MANAGED_EMAIL_DOMAIN, isManagedEmail } from './email';
  * renvoie jamais l'email complet d'un tiers, et le téléphone est masqué à la recherche (il n'est
  * révélé que par la matrice, pour un bénévole effectivement inscrit sur son tournoi).
  */
+
+/**
+ * Entrée de journal pour une action sur une fiche bénévole. Best-effort (cf. activity-log-service).
+ *
+ * `tournamentId` est un paramètre plutôt qu'une donnée résolue ici : une fiche n'appartient à aucun
+ * tournoi, c'est le contexte d'où l'organisateur agit qui donne au journal son lecteur. Les trois
+ * appelants l'ont sous la main.
+ */
+async function trace(
+	tournamentId: string,
+	organizerId: string,
+	action: 'create' | 'update',
+	volunteerId: string,
+	volunteerName: string,
+	detail: string
+): Promise<void> {
+	const actor = await getActor(organizerId);
+	await logActivity({
+		tournamentId,
+		targetType: 'volunteer',
+		action,
+		actorId: organizerId,
+		actorName: actor.name,
+		actorRole: actor.role,
+		volunteerId,
+		volunteerName,
+		detail
+	});
+}
 
 export type VolunteerSearchResult = {
 	id: string;
@@ -100,7 +130,8 @@ export async function searchVolunteers(
  */
 export async function createManagedVolunteer(
 	input: { name: string; phone: string; email?: string },
-	createdBy: string
+	createdBy: string,
+	tournamentId: string
 ): Promise<{ userId: string; created: boolean; hasRealEmail: boolean }> {
 	const email = input.email?.trim().toLowerCase() || null;
 
@@ -130,6 +161,18 @@ export async function createManagedVolunteer(
 		createdBy,
 		emailPlaceholder: email === null
 	});
+
+	// Seule la création est tracée, pas la réutilisation d'un compte existant plus haut : celle-ci
+	// ne modifie rien, et l'affectation qui suit sera de toute façon journalisée.
+	await trace(
+		tournamentId,
+		createdBy,
+		'create',
+		id,
+		input.name.trim(),
+		email ? 'fiche créée avec email' : 'fiche créée sans email (ne recevra aucun rappel)'
+	);
+
 	return { userId: id, created: true, hasRealEmail: email !== null };
 }
 
@@ -142,12 +185,16 @@ export async function createManagedVolunteer(
  * change pas l'identité d'un compte actif depuis la matrice), `EMAIL_TAKEN` (email déjà pris),
  * `RESERVED_DOMAIN`.
  */
-export async function attachEmail(userId: string, email: string): Promise<void> {
+export async function attachEmail(
+	userId: string,
+	email: string,
+	ctx: { tournamentId: string; organizerId: string }
+): Promise<void> {
 	const normalized = email.trim().toLowerCase();
 	if (isManagedEmail(normalized)) throw new Error('RESERVED_DOMAIN');
 
 	const rows = await db
-		.select({ id: user.id, emailPlaceholder: user.emailPlaceholder })
+		.select({ id: user.id, name: user.name, emailPlaceholder: user.emailPlaceholder })
 		.from(user)
 		.where(eq(user.id, userId))
 		.limit(1);
@@ -165,6 +212,17 @@ export async function attachEmail(userId: string, email: string): Promise<void> 
 		.update(user)
 		.set({ email: normalized, emailPlaceholder: false, updatedAt: new Date() })
 		.where(eq(user.id, userId));
+
+	// L'adresse elle-même ne va pas au journal : il est lisible par l'organisateur, pas par la
+	// personne concernée, et un email est une donnée de contact, pas un événement.
+	await trace(
+		ctx.tournamentId,
+		ctx.organizerId,
+		'update',
+		userId,
+		rows[0].name,
+		'email rattaché — la fiche devient connectable'
+	);
 }
 
 /**
@@ -187,13 +245,20 @@ export async function attachEmail(userId: string, email: string): Promise<void> 
 export async function updateManagedVolunteer(
 	userId: string,
 	organizerId: string,
-	input: { name: string; phone?: string; email?: string }
+	input: { name: string; phone?: string; email?: string },
+	tournamentId: string
 ): Promise<void> {
 	const email = input.email?.trim().toLowerCase() || null;
 	if (email && isManagedEmail(email)) throw new Error('RESERVED_DOMAIN');
 
 	const rows = await db
-		.select({ id: user.id, createdBy: user.createdBy })
+		.select({
+			id: user.id,
+			createdBy: user.createdBy,
+			name: user.name,
+			phone: user.phone,
+			emailPlaceholder: user.emailPlaceholder
+		})
 		.from(user)
 		.where(eq(user.id, userId))
 		.limit(1);
@@ -216,6 +281,19 @@ export async function updateManagedVolunteer(
 			updatedAt: new Date()
 		})
 		.where(eq(user.id, userId));
+
+	const before = rows[0];
+	const changed: string[] = [];
+	if (before.name !== input.name.trim()) {
+		changed.push(`nom : « ${before.name} » → « ${input.name.trim()} »`);
+	}
+	if ((before.phone ?? '') !== (input.phone?.trim() ?? '')) changed.push('téléphone');
+	if (email && before.emailPlaceholder) changed.push('email rattaché');
+	else if (email) changed.push('email modifié');
+	// Un submit qui ne change rien ne mérite pas d'entrée.
+	if (changed.length > 0) {
+		await trace(tournamentId, organizerId, 'update', userId, input.name.trim(), changed.join(', '));
+	}
 }
 
 /**

@@ -4,6 +4,8 @@ import { db } from '$lib/server/db';
 import { tournament, user } from '$lib/server/db/schema';
 import { tournamentPhase, type TournamentPhase } from '$lib/tournament-status';
 import type { TournamentInput } from '$lib/schemas/tournament';
+import { getActor, logActivity } from './activity-log-service';
+import { formatDateRange } from '$lib/format';
 
 export type PublicTournament = {
 	id: string;
@@ -73,6 +75,9 @@ export async function createTournament(organizerId: string, input: TournamentInp
 			shareToken
 		})
 		.returning();
+
+	await trace(row.id, organizerId, 'create', row.name);
+
 	return row;
 }
 
@@ -108,6 +113,19 @@ export async function getTournamentForOrganizer(id: string, organizerId: string)
 
 /** Met à jour un tournoi (scellé sur l'organisateur). Renvoie la ligne ou `null` si non-propriétaire. */
 export async function updateTournament(id: string, organizerId: string, input: TournamentInput) {
+	// Lu AVANT l'écriture : le journal dit ce qui a changé, pas seulement qu'il y a eu un changement.
+	const before = await db
+		.select({
+			name: tournament.name,
+			location: tournament.location,
+			instructions: tournament.instructions,
+			startDate: tournament.startDate,
+			endDate: tournament.endDate
+		})
+		.from(tournament)
+		.where(and(eq(tournament.id, id), eq(tournament.organizerId, organizerId)))
+		.limit(1);
+
 	const [row] = await db
 		.update(tournament)
 		.set({
@@ -119,7 +137,43 @@ export async function updateTournament(id: string, organizerId: string, input: T
 		})
 		.where(and(eq(tournament.id, id), eq(tournament.organizerId, organizerId)))
 		.returning();
-	return row ?? null;
+	if (!row) return null;
+
+	const changes = describeChanges(before[0], input);
+	// Un submit sans modification ne mérite pas d'entrée : le journal doit rester lisible.
+	if (changes) await trace(id, organizerId, 'update', changes);
+
+	return row;
+}
+
+/** Liste les champs réellement modifiés, en clair. `null` si le formulaire n'a rien changé. */
+function describeChanges(
+	before:
+		| {
+				name: string;
+				location: string | null;
+				instructions: string | null;
+				startDate: Date;
+				endDate: Date;
+		  }
+		| undefined,
+	input: TournamentInput
+): string | null {
+	if (!before) return null;
+	const changed: string[] = [];
+	if (before.name !== input.name) {
+		changed.push(`nom : « ${before.name} » → « ${input.name} »`);
+	}
+	if ((before.location ?? '') !== (input.location ?? '')) changed.push('lieu');
+	if ((before.instructions ?? '') !== (input.instructions ?? '')) changed.push('consignes');
+	const dates = formatDateRange(new Date(input.startDate), new Date(input.endDate));
+	if (
+		before.startDate.getTime() !== new Date(input.startDate).getTime() ||
+		before.endDate.getTime() !== new Date(input.endDate).getTime()
+	) {
+		changed.push(`dates → ${dates}`);
+	}
+	return changed.length > 0 ? changed.join(', ') : null;
 }
 
 /**
@@ -137,7 +191,16 @@ export async function setPublished(
 		.set({ published })
 		.where(and(eq(tournament.id, id), eq(tournament.organizerId, organizerId)))
 		.returning({ id: tournament.id });
-	return rows.length > 0;
+	if (rows.length === 0) return false;
+
+	await trace(
+		id,
+		organizerId,
+		published ? 'publish' : 'unpublish',
+		published ? 'visible dans le listing public' : 'retiré du listing public'
+	);
+
+	return true;
 }
 
 /** Supprime un tournoi (cascade postes → créneaux → inscriptions). Renvoie `true` si supprimé. */
@@ -147,4 +210,29 @@ export async function deleteTournament(id: string, organizerId: string): Promise
 		.where(and(eq(tournament.id, id), eq(tournament.organizerId, organizerId)))
 		.returning({ id: tournament.id });
 	return rows.length > 0;
+}
+
+/**
+ * Entrée de journal pour une action sur le tournoi lui-même. Best-effort : `logActivity` avale ses
+ * erreurs, et `getActor` a des valeurs de repli — une mutation réussie ne peut pas échouer ici.
+ *
+ * `deleteTournament` n'appelle PAS ce helper, volontairement : le journal cascade avec le tournoi,
+ * la trace de sa suppression n'aurait aucun lecteur.
+ */
+async function trace(
+	tournamentId: string,
+	organizerId: string,
+	action: 'create' | 'update' | 'publish' | 'unpublish',
+	detail: string
+): Promise<void> {
+	const actor = await getActor(organizerId);
+	await logActivity({
+		tournamentId,
+		targetType: 'tournament',
+		action,
+		actorId: organizerId,
+		actorName: actor.name,
+		actorRole: actor.role,
+		detail
+	});
 }

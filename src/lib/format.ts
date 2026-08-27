@@ -56,3 +56,21 @@ export function toDateInputValue(d: Date): string {
 export function toTimeInputValue(d: Date): string {
 	return d.toISOString().slice(11, 16);
 }
+
+/**
+ * "12 août, 14:32" — horodatage d'un événement du journal d'activité.
+ *
+ * ⚠️ Seul helper du fichier SANS `timeZone: 'UTC'`, et c'est volontaire : `created_at` est un
+ * vrai instant (`defaultNow()`), pas une heure « murale » comme `shift.startsAt`. Le forcer en UTC
+ * décalerait tout le journal d'une heure ou deux pour un lecteur genevois.
+ */
+const dateTimeFmt = new Intl.DateTimeFormat(LOCALE, {
+	day: 'numeric',
+	month: 'short',
+	hour: '2-digit',
+	minute: '2-digit'
+});
+
+export function formatDateTime(d: Date): string {
+	return dateTimeFmt.format(d);
+}

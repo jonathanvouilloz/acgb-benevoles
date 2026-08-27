@@ -20,7 +20,6 @@
 		Check,
 		X,
 		Link2,
-		ClipboardList,
 		Eye,
 		EyeOff
 	} from 'lucide-svelte';
@@ -215,7 +214,8 @@
 		</div>
 	</div>
 
-	<!-- Lien de partage + accès au suivi -->
+	<!-- Lien de partage + publication. L'accès au suivi et au journal est passé dans les onglets
+	     du layout : deux chemins vers la même page brouillaient la navigation. -->
 	<div class="mt-3 flex flex-wrap gap-2">
 		<button
 			type="button"
@@ -225,13 +225,6 @@
 			<Link2 size={15} />
 			{copied ? 'Lien copié !' : 'Copier le lien de partage'}
 		</button>
-		<a
-			href={resolve('/tournois/[id]/suivi', { id: t.id })}
-			class="inline-flex items-center gap-1.5 rounded border border-border bg-surface px-3 py-2 text-sm text-ink-muted hover:border-brand-primary hover:text-ink"
-		>
-			<ClipboardList size={15} />
-			Voir le suivi
-		</a>
 		<!-- Publication. Un brouillon garde son lien de partage actif : on peut le tester à
 		     quelques-uns avant de l'ouvrir à tous. -->
 		<form

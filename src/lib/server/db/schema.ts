@@ -1,4 +1,4 @@
-import { relations } from 'drizzle-orm';
+import { relations, desc } from 'drizzle-orm';
 import {
 	pgTable,
 	pgEnum,
@@ -8,6 +8,7 @@ import {
 	timestamp,
 	uuid,
 	unique,
+	index,
 	primaryKey,
 	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
@@ -268,32 +269,53 @@ export const pushSubscription = pgTable(
 );
 
 /**
- * Trace des modifications d'affectation faites par un organisateur (Epic 14).
- * On trace les QUATRE opérations, pas seulement la suppression, sinon l'historique est borgne.
+ * Journal d'activité d'un tournoi (Epic 16 — généralisation de `assignment_log`, Epic 14).
+ * Trace TOUT ce qui touche un tournoi : ses réglages, ses postes, ses créneaux, les affectations
+ * faites par l'organisateur ET les inscriptions faites par les bénévoles depuis le lien public.
  */
-export const assignmentAction = pgEnum('assignment_action', ['add', 'remove', 'move', 'swap']);
+export const activityTarget = pgEnum('activity_target', [
+	'tournament',
+	'position',
+	'shift',
+	'signup',
+	'volunteer'
+]);
 
 /**
- * Une ligne d'historique. Les libellés (`actorName`, `volunteerName`, `detail`) sont
+ * Une ligne de journal. Les libellés (`actorName`, `volunteerName`, `detail`) sont
  * **dénormalisés exprès** : la trace doit survivre à la suppression d'un poste, d'un créneau ou
- * d'un compte. Seul le tournoi cascade — si le tournoi disparaît, son historique n'a plus d'objet.
+ * d'un compte. Seul le tournoi cascade — si le tournoi disparaît, son journal n'a plus de lecteur.
  */
-export const assignmentLog = pgTable('assignment_log', {
-	id: uuid('id').primaryKey().defaultRandom(),
-	tournamentId: uuid('tournament_id')
-		.notNull()
-		.references(() => tournament.id, { onDelete: 'cascade' }),
-	action: assignmentAction('action').notNull(),
-	actorId: text('actor_id').references(() => user.id, { onDelete: 'set null' }),
-	actorName: text('actor_name').notNull(),
-	volunteerId: text('volunteer_id').references(() => user.id, { onDelete: 'set null' }),
-	volunteerName: text('volunteer_name').notNull(),
-	// Ex. « Buvette · sam. 10:00–14:00 → Entrée · sam. 14:00–18:00 ».
-	detail: text('detail').notNull(),
-	// Motif libre saisi par l'organisateur au retrait (optionnel).
-	reason: text('reason'),
-	createdAt: timestamp('created_at').notNull().defaultNow()
-});
+export const activityLog = pgTable(
+	'activity_log',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		tournamentId: uuid('tournament_id')
+			.notNull()
+			.references(() => tournament.id, { onDelete: 'cascade' }),
+		targetType: activityTarget('target_type').notNull(),
+		/**
+		 * `text` et non `pgEnum` : un journal d'audit s'enrichit au fil des epics, et ajouter un
+		 * événement tracé ne doit pas coûter une migration. Le typage vit dans `src/lib/activity-log.ts`,
+		 * qui est aussi la table des libellés lue par l'UI.
+		 */
+		action: text('action').notNull(),
+		actorId: text('actor_id').references(() => user.id, { onDelete: 'set null' }),
+		actorName: text('actor_name').notNull(),
+		/** Rôle de l'acteur AU MOMENT de l'action — permet le filtre « organisateur / bénévoles ». */
+		actorRole: userRole('actor_role').notNull(),
+		/** Personne concernée, quand il y en a une (nullable : créer un poste ne vise personne). */
+		volunteerId: text('volunteer_id').references(() => user.id, { onDelete: 'set null' }),
+		volunteerName: text('volunteer_name'),
+		// Ex. « Buvette · sam. 10:00–14:00 → Entrée · sam. 14:00–18:00 ».
+		detail: text('detail').notNull(),
+		// Motif libre saisi par l'organisateur au retrait (optionnel).
+		reason: text('reason'),
+		createdAt: timestamp('created_at').notNull().defaultNow()
+	},
+	// La seule lecture est « le journal d'un tournoi, antéchronologique » : l'index la sert entière.
+	(t) => [index('activity_log_tournament_created_idx').on(t.tournamentId, desc(t.createdAt))]
+);
 
 /**
  * Relations (niveau applicatif — aucune migration). Permettent les requêtes imbriquées
@@ -363,5 +385,5 @@ export type PushSubscription = typeof pushSubscription.$inferSelect;
 export type OrganizerRequest = typeof organizerRequest.$inferSelect;
 export type RateLimit = typeof rateLimit.$inferSelect;
 export type UserRole = (typeof userRole.enumValues)[number];
-export type AssignmentLog = typeof assignmentLog.$inferSelect;
-export type AssignmentAction = (typeof assignmentAction.enumValues)[number];
+export type ActivityLog = typeof activityLog.$inferSelect;
+export type ActivityTarget = (typeof activityTarget.enumValues)[number];

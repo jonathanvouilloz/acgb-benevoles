@@ -7,7 +7,7 @@ import {
 	removeAssignment,
 	swapSignups
 } from '$lib/server/services/signup-service';
-import { listAssignmentLog } from '$lib/server/services/assignment-log-service';
+import { listActivityLog } from '$lib/server/services/activity-log-service';
 import { attachEmail, updateManagedVolunteer } from '$lib/server/services/volunteer-directory';
 import {
 	assignSchema,
@@ -25,7 +25,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const tournament = await getTournamentSignupsForOrganizer(params.id, user.id);
 	if (!tournament) throw error(404, 'Tournoi introuvable.');
 
-	const history = await listAssignmentLog(params.id, user.id);
+	// Aperçu seulement : le journal complet, filtrable et paginé, vit sur /tournois/[id]/journal.
+	const history = await listActivityLog(params.id, user.id, 10);
 
 	return { tournament, history };
 };
@@ -213,7 +214,10 @@ export const actions: Actions = {
 		}
 
 		try {
-			await attachEmail(parsed.data.userId, parsed.data.email);
+			await attachEmail(parsed.data.userId, parsed.data.email, {
+				tournamentId: params.id,
+				organizerId: user.id
+			});
 			return { action: 'attachEmail', success: true };
 		} catch (err) {
 			return assignError('attachEmail', err);
@@ -254,7 +258,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			await updateManagedVolunteer(parsed.data.userId, user.id, parsed.data);
+			await updateManagedVolunteer(parsed.data.userId, user.id, parsed.data, params.id);
 			return { action: 'updateVolunteer', success: true };
 		} catch (err) {
 			return assignError('updateVolunteer', err);

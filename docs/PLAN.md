@@ -21,6 +21,7 @@ Plan d'exécution maître. Statuts : `TODO` · `EN COURS` · `DONE`.
 | 13  | Retours Anne : consignes, chevauchements, places restantes | M | À VALIDER | [features/13-retours-anne-lisibilite.md](features/13-retours-anne-lisibilite.md) — migration `0009` appliquée, QA manuelle restante |
 | 14  | Affectations orga : inscrire, retirer, tracer | L | À VALIDER | [features/14-affectations-orga.md](features/14-affectations-orga.md) — migration `0010` appliquée, QA manuelle restante (T5 hors périmètre) |
 | 15  | Retours Anne #2 : emails, lisibilité, brouillons | L | À VALIDER | [features/15-retours-anne-emails.md](features/15-retours-anne-emails.md) — migration `0011` **non appliquée** + backfill `published` obligatoire |
+| 16  | Journal d'activité du tournoi | L | À VALIDER | [features/16-journal-activite.md](features/16-journal-activite.md) — migrations `0012` + `0013` appliquées et vérifiées, QA manuelle restante |
 
 > **À VALIDER** = code livré (check + build verts), en attente de test manuel Jonathan sur les 6 épics (7→12) en conditions réelles. Étapes de déploiement ci-dessous.
 

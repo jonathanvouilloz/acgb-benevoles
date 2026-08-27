@@ -7,7 +7,7 @@ import { scheduleForSignup } from './reminder-scheduler';
 import { notifyUser, type PushPayload } from './push-service';
 import { enqueueDigest } from './digest-scheduler';
 import { isManagedEmail } from './email';
-import { logAssignment } from './assignment-log-service';
+import { getActor, logActivity } from './activity-log-service';
 import { createManagedVolunteer } from './volunteer-directory';
 import type { AssignInput } from '$lib/schemas/assignment';
 
@@ -354,13 +354,24 @@ export async function getMyUpcomingShifts(userId: string): Promise<MyAgendaShift
 }
 
 /** Charge un créneau + sa capacité (existence). Retourne `null` si introuvable. */
-async function getShift(
-	shiftId: string
-): Promise<{ capacity: number; tournamentId: string } | null> {
+async function getShift(shiftId: string): Promise<{
+	capacity: number;
+	tournamentId: string;
+	positionName: string;
+	startsAt: Date;
+	endsAt: Date;
+} | null> {
 	const rows = await db
-		// `tournamentId` sert au récap email : les mutations côté bénévole ne connaissent qu'un
-		// `shiftId`. Les jointures étaient déjà là, la colonne ne coûte rien.
-		.select({ capacity: shift.capacity, tournamentId: position.tournamentId })
+		// `tournamentId` sert au récap email, le poste et les horaires au journal d'activité : les
+		// mutations côté bénévole ne connaissent qu'un `shiftId`. Les jointures étaient déjà là,
+		// les colonnes ne coûtent rien.
+		.select({
+			capacity: shift.capacity,
+			tournamentId: position.tournamentId,
+			positionName: position.name,
+			startsAt: shift.startsAt,
+			endsAt: shift.endsAt
+		})
 		.from(shift)
 		.innerJoin(position, eq(shift.positionId, position.id))
 		.innerJoin(tournament, eq(position.tournamentId, tournament.id))
@@ -411,6 +422,33 @@ async function insertSignupAtomic(
 }
 
 /**
+ * Trace un geste que le bénévole fait LUI-MÊME depuis le lien public (`self_*`).
+ * Les distinguer d'`assign`/`unassign` est tout l'intérêt du journal : sinon l'organisateur ne sait
+ * pas si une place s'est libérée toute seule ou s'il l'a libérée lui-même.
+ *
+ * Best-effort, comme toute la chaîne de journal : jamais après une mutation non commitée.
+ */
+async function traceSelf(
+	userId: string,
+	tournamentId: string,
+	action: 'self_join' | 'self_status' | 'self_note' | 'self_leave',
+	detail: string
+): Promise<void> {
+	const actor = await getActor(userId);
+	await logActivity({
+		tournamentId,
+		targetType: 'signup',
+		action,
+		actorId: userId,
+		actorName: actor.name,
+		actorRole: actor.role,
+		volunteerId: userId,
+		volunteerName: actor.name,
+		detail
+	});
+}
+
+/**
  * Inscrit l'utilisateur sur un créneau.
  * Erreurs : `NOT_FOUND` (créneau inexistant), `FULL` (complet), `DUPLICATE` (déjà inscrit).
  */
@@ -432,6 +470,13 @@ export async function createSignup(
 	// Récap email : pour LES DEUX statuts, contrairement aux rappels. Une `maybe` figure au
 	// récap — la taire donnerait au bénévole une image fausse de ses engagements.
 	await enqueueDigest(userId, s.tournamentId, { byOrganizer: false });
+
+	await traceSelf(userId, s.tournamentId, 'self_join', `${shiftLabel(s)} (${statusLabel(status)})`);
+}
+
+/** « disponible » / « peut-être » — le vocabulaire de l'UI, pas celui de la base. */
+function statusLabel(status: SignupStatus): string {
+	return status === 'available' ? 'disponible' : 'peut-être';
 }
 
 /**
@@ -471,6 +516,15 @@ export async function changeSignupStatus(
 			.set({ status: 'maybe', note: noteValue })
 			.where(and(eq(signup.shiftId, shiftId), eq(signup.userId, userId)));
 		await enqueueDigest(userId, s.tournamentId, { byOrganizer: false });
+		// Une rétrogradation libère une place : c'est l'événement le plus utile du journal.
+		if (existing[0].status !== 'maybe') {
+			await traceSelf(
+				userId,
+				s.tournamentId,
+				'self_status',
+				`${shiftLabel(s)} : disponible → peut-être`
+			);
+		}
 		return;
 	}
 
@@ -499,6 +553,12 @@ export async function changeSignupStatus(
 	// Promotion `maybe` → `available` réussie → planifie les rappels QStash.
 	await scheduleForSignup(shiftId, userId);
 	await enqueueDigest(userId, s.tournamentId, { byOrganizer: false });
+	await traceSelf(
+		userId,
+		s.tournamentId,
+		'self_status',
+		`${shiftLabel(s)} : peut-être → disponible`
+	);
 }
 
 /**
@@ -518,7 +578,9 @@ export async function setSignupNote(shiftId: string, userId: string, note?: stri
 	// La note figure au récap, donc elle le déclenche. Le debounce absorbe les retouches
 	// successives : trois éditions en deux minutes ne font toujours qu'un email.
 	const s = await getShift(shiftId);
-	if (s) await enqueueDigest(userId, s.tournamentId, { byOrganizer: false });
+	if (!s) return;
+	await enqueueDigest(userId, s.tournamentId, { byOrganizer: false });
+	await traceSelf(userId, s.tournamentId, 'self_note', shiftLabel(s));
 }
 
 /**
@@ -538,6 +600,7 @@ export async function deleteSignup(shiftId: string, userId: string): Promise<voi
 	// un email annonçant un changement qui n'a pas eu lieu.
 	if (removed.length === 0 || !s) return;
 	await enqueueDigest(userId, s.tournamentId, { byOrganizer: false });
+	await traceSelf(userId, s.tournamentId, 'self_leave', shiftLabel(s));
 }
 
 /* ------------------------------------------------------------------ *
@@ -589,7 +652,7 @@ async function getOrganizerShift(
 }
 
 /** « Buvette · sam. 21 juin, 10:00–14:00 » — libellé stable, stocké tel quel dans l'historique. */
-function shiftLabel(s: OrganizerShift): string {
+function shiftLabel(s: { positionName: string; startsAt: Date; endsAt: Date }): string {
 	return `${s.positionName} · ${formatDay(s.startsAt)}, ${formatTime(s.startsAt)}–${formatTime(s.endsAt)}`;
 }
 
@@ -629,7 +692,7 @@ async function traceAndNotify(
 	organizerId: string,
 	tournamentId: string,
 	entry: {
-		action: 'add' | 'remove' | 'move' | 'swap';
+		action: 'assign' | 'unassign' | 'move' | 'swap';
 		volunteerId: string;
 		/** Fourni quand l'appelant l'a déjà lu (ex. avant un DELETE), sinon relu ici. */
 		volunteerName?: string;
@@ -638,16 +701,18 @@ async function traceAndNotify(
 		push: PushPayload;
 	}
 ): Promise<AssignmentResult> {
-	const [actorName, volunteerName] = await Promise.all([
-		getUserName(organizerId),
+	const [actor, volunteerName] = await Promise.all([
+		getActor(organizerId),
 		entry.volunteerName ? Promise.resolve(entry.volunteerName) : getUserName(entry.volunteerId)
 	]);
 
-	await logAssignment({
+	await logActivity({
 		tournamentId,
+		targetType: 'signup',
 		action: entry.action,
 		actorId: organizerId,
-		actorName: actorName ?? 'Organisateur',
+		actorName: actor.name,
+		actorRole: actor.role,
 		volunteerId: entry.volunteerId,
 		volunteerName: volunteerName ?? 'Bénévole',
 		detail: entry.detail,
@@ -835,7 +900,8 @@ export async function assignVolunteer(
 	} else {
 		const created = await createManagedVolunteer(
 			{ name: input.name, phone: input.phone, email: input.email },
-			organizerId
+			organizerId,
+			tournamentId
 		);
 		volunteerId = created.userId;
 		hasRealEmail = created.hasRealEmail;
@@ -852,7 +918,7 @@ export async function assignVolunteer(
 	if (input.status === 'available') await scheduleForSignup(input.shiftId, volunteerId);
 
 	const result = await traceAndNotify(organizerId, tournamentId, {
-		action: 'add',
+		action: 'assign',
 		volunteerId,
 		detail: shiftLabel(target),
 		reason: input.note ?? null,
@@ -898,7 +964,7 @@ export async function removeAssignment(
 		.where(and(eq(signup.shiftId, target.shiftId), eq(signup.userId, target.userId)));
 
 	const result = await traceAndNotify(organizerId, tournamentId, {
-		action: 'remove',
+		action: 'unassign',
 		volunteerId: target.userId,
 		volunteerName,
 		detail: shiftLabel(src),

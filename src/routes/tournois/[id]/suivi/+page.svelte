@@ -10,7 +10,7 @@
 	import RemoveAssignmentDialog from '$lib/components/tracking/RemoveAssignmentDialog.svelte';
 	import AttachEmailDialog from '$lib/components/tracking/AttachEmailDialog.svelte';
 	import EditVolunteerDialog from '$lib/components/tracking/EditVolunteerDialog.svelte';
-	import AssignmentHistory from '$lib/components/tracking/AssignmentHistory.svelte';
+	import ActivityHistoryPreview from '$lib/components/tracking/ActivityHistoryPreview.svelte';
 	import ExportDialog from '$lib/components/tracking/ExportDialog.svelte';
 	import type {
 		AssignRequest,
@@ -253,7 +253,7 @@
 
 {#if t.positions.length > 0}
 	<!-- Historique des modifications (repliable, hors impression) -->
-	<AssignmentHistory history={data.history} />
+	<ActivityHistoryPreview entries={data.history} tournamentId={data.tournament.id} />
 {/if}
 
 <!-- Confirmation d'échange / déplacement (matrice interactive) -->
