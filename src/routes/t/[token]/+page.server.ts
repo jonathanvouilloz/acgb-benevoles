@@ -1,6 +1,8 @@
 import { error, fail } from '@sveltejs/kit';
 import { requireLogin } from '$lib/server/auth-guard';
 import { signupSchema, noteUpdateSchema } from '$lib/schemas/signup';
+import { phoneOnlySchema } from '$lib/schemas/account';
+import { setUserPhone } from '$lib/server/services/user-service';
 import {
 	getTournamentByShareToken,
 	getMyUpcomingShifts,
@@ -81,7 +83,7 @@ export const actions: Actions = {
 				action: 'signup',
 				shiftId: parsed.data.shiftId,
 				needsPhone: true,
-				formError: 'Ajoute ton téléphone dans « Mon compte » avant de t’inscrire.'
+				formError: 'Ajoute ton téléphone en haut de la page avant de t’inscrire.'
 			});
 		}
 
@@ -156,5 +158,23 @@ export const actions: Actions = {
 
 		await setSignupNote(parsed.data.shiftId, user.id, parsed.data.note);
 		return { action: 'setNote', shiftId: parsed.data.shiftId, success: true };
+	},
+
+	/** Téléphone saisi directement sur la page : débloque l'inscription sans passer par /compte. */
+	savePhone: async ({ request, locals, params }) => {
+		const user = requireLogin(locals, `/t/${params.token}`);
+		const form = await request.formData();
+		const phone = String(form.get('phone') ?? '');
+		const parsed = phoneOnlySchema.safeParse({ phone });
+		if (!parsed.success) {
+			return fail(400, {
+				action: 'savePhone',
+				phone,
+				phoneError: parsed.error.flatten().fieldErrors.phone?.[0] ?? 'Numéro invalide'
+			});
+		}
+
+		await setUserPhone(user.id, parsed.data.phone);
+		return { action: 'savePhone', success: true };
 	}
 };

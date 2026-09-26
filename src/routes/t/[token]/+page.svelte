@@ -1,13 +1,18 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import { enhance } from '$app/forms';
+	import { afterNavigate, replaceState } from '$app/navigation';
+	import { toast } from '$lib/toast.svelte';
+	import { confirmAction } from '$lib/confirm.svelte';
+	import { Input } from '$lib/components/ui/input';
 	import VolunteerShiftRow from '$lib/components/tournament/VolunteerShiftRow.svelte';
 	import TimeRangeSlider from '$lib/components/tournament/TimeRangeSlider.svelte';
 	import PositionMultiSelect from '$lib/components/tournament/PositionMultiSelect.svelte';
 	import EnableNotifications from '$lib/components/push/EnableNotifications.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Switch } from '$lib/components/ui/switch';
-	import { formatDateRange } from '$lib/format';
+	import { formatDateRange, formatDay, formatTimeRange } from '$lib/format';
 	import {
 		flattenShifts,
 		splitByTime,
@@ -100,6 +105,83 @@
 		tab === 'mine' ? split.past.filter((s) => s.myStatus !== null) : split.past
 	);
 
+	// --- Intention d'inscription portée par l'URL (`?prendre=<shiftId>[&statut=maybe]`) ---
+	// Posée par les boutons « Dispo » / « Peut-être » d'un visiteur non connecté (cf.
+	// VolunteerShiftRow) et conservée à travers le magic link : au retour, on inscrit d'office.
+	// Lue une seule fois au montage (non réactive) : on nettoie l'URL juste après.
+	const intentShiftId = page.url.searchParams.get('prendre');
+	const intentStatus: 'available' | 'maybe' =
+		page.url.searchParams.get('statut') === 'maybe' ? 'maybe' : 'available';
+	const intentShift = $derived(
+		intentShiftId ? (upcoming.find((s) => s.id === intentShiftId) ?? null) : null
+	);
+	let intentForm = $state<HTMLFormElement | null>(null);
+	let intentHandled = false;
+	// Le routeur n'est prêt qu'après la navigation initiale : `replaceState` et `enhance`
+	// échouent s'ils partent pendant l'hydratation (arrivée directe depuis le magic link).
+	let routerReady = $state(false);
+	afterNavigate(() => {
+		routerReady = true;
+	});
+
+	/** Retire `prendre`/`statut` de l'URL (un rechargement ne doit pas réinscrire). */
+	function clearIntentParams() {
+		replaceState(resolve('/t/[token]', { token: t.shareToken }), {});
+	}
+
+	async function runIntent() {
+		clearIntentParams();
+		const shift = intentShift;
+		if (!shift) {
+			toast.error("Ce créneau n'est plus disponible.");
+			return;
+		}
+		if (shift.myStatus !== null) {
+			tab = 'mine';
+			return;
+		}
+		if (intentStatus === 'available' && shift.isFull) {
+			toast.error('Ce créneau est complet entre-temps. Choisis-en un autre.');
+			tab = 'browse';
+			return;
+		}
+		const conflicts = conflictsFor(shift);
+		if (conflicts.length > 0) {
+			const list = conflicts
+				.map(
+					(c) =>
+						`${c.positionName} — ${formatDay(c.startsAt)} · ${formatTimeRange(c.startsAt, c.endsAt)}`
+				)
+				.join(' · ');
+			const ok = await confirmAction({
+				title: 'Ce créneau en chevauche un autre',
+				message: `Tu es déjà pris sur : ${list}. T'inscrire quand même ?`,
+				confirmLabel: "M'inscrire quand même"
+			});
+			if (!ok) {
+				tab = 'browse';
+				return;
+			}
+		}
+		intentForm?.requestSubmit();
+	}
+
+	// Déclenche dès que l'inscription est possible : connecté, téléphone renseigné (sinon on
+	// attend la saisie dans la bannière, puis on reprend automatiquement).
+	$effect(() => {
+		if (
+			intentHandled ||
+			!routerReady ||
+			!intentShiftId ||
+			!data.isLoggedIn ||
+			data.needsPhone ||
+			!intentForm
+		)
+			return;
+		intentHandled = true;
+		runIntent();
+	});
+
 	// --- État des filtres (onglet « S'inscrire ») ---
 	let day = $state<string | null>(null);
 	// Plage horaire en minutes depuis minuit ; null = pas encore touchée (toute la journée).
@@ -111,6 +193,7 @@
 	// pas « 10h00 ». Le toggle « Par horaire » reste disponible.
 	let groupBy = $state<'time' | 'position'>('position');
 	let showPast = $state(false);
+	let savingPhone = $state(false);
 
 	/** Base de la liste d'inscription : tous les créneaux à venir. */
 	const base = $derived(upcoming);
@@ -191,6 +274,54 @@
 	{/if}
 </header>
 
+{#if data.needsPhone}
+	<!-- Étape bloquante → tout en haut, avant contact et consignes. Téléphone saisi ici même :
+	     /compte est bloqué par le gate PWA sur mobile, et le bénévole doit rester sur son tournoi
+	     (et garder son intention d'inscription). -->
+	<form
+		method="POST"
+		action="?/savePhone"
+		class="mt-4 flex flex-col gap-2 rounded-lg border border-warning/40 bg-warning/10 p-4"
+		use:enhance={() => {
+			savingPhone = true;
+			return async ({ update, result }) => {
+				await update({ reset: false });
+				savingPhone = false;
+				if (result.type === 'success') toast.success('Téléphone enregistré');
+			};
+		}}
+	>
+		<label for="phone" class="text-sm text-ink">
+			{#if intentShift}
+				Dernière étape : ajoute ton numéro pour confirmer ton inscription (au cas où l'organisateur
+				doit te joindre).
+			{:else}
+				Ajoute ton numéro de téléphone pour pouvoir t'inscrire (au cas où l'organisateur doit te
+				joindre).
+			{/if}
+		</label>
+		<div class="flex gap-2">
+			<Input
+				id="phone"
+				name="phone"
+				type="tel"
+				autocomplete="tel"
+				inputmode="tel"
+				placeholder="+41 79 123 45 67"
+				value={form && 'phone' in form ? form.phone : ''}
+				class="flex-1 text-base sm:text-sm"
+			/>
+			<Button type="submit" size="sm" variant="secondary" disabled={savingPhone}>
+				<Phone size={16} />
+				{savingPhone ? 'Envoi…' : 'Enregistrer'}
+			</Button>
+		</div>
+		{#if form && 'phoneError' in form && form.phoneError}
+			<p class="text-xs text-error">{form.phoneError}</p>
+		{/if}
+	</form>
+{/if}
+
 {#if t.isOwner}
 	<!-- Raccourci gestion : cette page est le lien de partage public, mais l'organisateur y arrive
 	     parfois directement — on lui offre un accès explicite à sa page de gestion. -->
@@ -257,25 +388,18 @@
 	</section>
 {/if}
 
-{#if data.needsPhone}
-	<div class="mt-4 rounded-lg border border-warning/40 bg-warning/10 p-4">
-		<p class="text-sm text-ink">
-			Ajoute ton numéro de téléphone pour pouvoir t'inscrire (au cas où l'organisateur doit te
-			joindre).
-		</p>
-		<a href={resolve('/compte')} class="mt-2 inline-block">
-			<Button size="sm" variant="secondary"><Phone size={16} /> Compléter mon profil</Button>
-		</a>
-	</div>
-{/if}
-
 {#if !data.isLoggedIn}
 	<div
 		class="mt-4 flex flex-col gap-3 rounded-lg border border-info/40 bg-info/10 p-4 sm:flex-row sm:items-center sm:justify-between"
 	>
-		<p class="text-sm text-ink">Connecte-toi pour t'inscrire sur un créneau.</p>
+		<p class="text-sm text-ink">
+			Choisis un créneau et appuie sur <span class="font-medium">Dispo</span> : on te demande ton email,
+			puis ton inscription est enregistrée.
+		</p>
 		<a href="{resolve('/login')}?redirect={encodeURIComponent(page.url.pathname)}">
-			<Button size="sm" class="w-full sm:w-auto"><LogIn size={16} /> Se connecter</Button>
+			<Button size="sm" variant="ghost" class="w-full sm:w-auto"
+				><LogIn size={16} /> Déjà un compte ? Se connecter</Button
+			>
 		</a>
 	</div>
 {:else}
@@ -534,4 +658,30 @@
 			{/if}
 		</section>
 	{/if}
+{/if}
+
+{#if intentShiftId && data.isLoggedIn}
+	<!-- Soumission automatique de l'intention d'inscription (cf. runIntent). -->
+	<form
+		bind:this={intentForm}
+		method="POST"
+		action="?/signup"
+		class="hidden"
+		use:enhance={() =>
+			async ({ update, result }) => {
+				await update({ reset: false });
+				if (result.type === 'success') {
+					toast.success(
+						intentStatus === 'maybe' ? 'Noté : peut-être disponible' : 'Tu es inscrit — disponible'
+					);
+					tab = 'mine';
+				} else if (result.type === 'failure') {
+					toast.error(String(result.data?.formError ?? "L'inscription n'a pas abouti."));
+					tab = 'browse';
+				}
+			}}
+	>
+		<input type="hidden" name="shiftId" value={intentShiftId} />
+		<input type="hidden" name="status" value={intentStatus} />
+	</form>
 {/if}

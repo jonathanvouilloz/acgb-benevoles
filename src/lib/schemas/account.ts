@@ -8,3 +8,6 @@ export const accountSchema = z.object({
 });
 
 export type AccountInput = z.infer<typeof accountSchema>;
+
+/** Saisie du seul téléphone (bannière de la page d'inscription /t/[token]). */
+export const phoneOnlySchema = z.object({ phone: phoneSchema });

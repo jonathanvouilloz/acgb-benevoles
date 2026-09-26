@@ -7,6 +7,7 @@ import { db } from './db';
 import * as schema from './db/schema';
 import { sendMagicLinkEmail } from './services/email';
 import { isPrototype, stashPrototypeLink } from './prototype';
+import { takePendingPhone } from './services/pending-phone';
 
 /**
  * Instance Better Auth — auth sans mot de passe par magic link (cf. docs/features/02-auth.md).
@@ -26,9 +27,7 @@ export const auth = betterAuth({
 	baseURL: dev ? undefined : env.BETTER_AUTH_URL?.replace(/\/+$/, ''),
 	// Ports de dev Vite courants : tous fiables en local, pour que la connexion passe quel que
 	// soit le port choisi (utile aussi pour la redirection de vérification du magic link).
-	trustedOrigins: dev
-		? ['5173', '5174', '5175', '5176'].map((p) => `http://localhost:${p}`)
-		: [],
+	trustedOrigins: dev ? ['5173', '5174', '5175', '5176'].map((p) => `http://localhost:${p}`) : [],
 	user: {
 		additionalFields: {
 			// Rôle applicatif (volunteer | organizer | super_admin). Enum typé en `string`
@@ -36,6 +35,17 @@ export const auth = betterAuth({
 			role: { type: 'string', defaultValue: 'volunteer', input: false },
 			// Téléphone obligatoire : saisi à la création via le magic link, éditable dans /compte.
 			phone: { type: 'string', required: true, input: true }
+		}
+	},
+	databaseHooks: {
+		user: {
+			create: {
+				// Le magic link ne transmet pas `phone` : on applique celui mis de côté par /login.
+				before: async (u) => {
+					const phone = await takePendingPhone(u.email);
+					return phone ? { data: { ...u, phone } } : undefined;
+				}
+			}
 		}
 	},
 	session: {

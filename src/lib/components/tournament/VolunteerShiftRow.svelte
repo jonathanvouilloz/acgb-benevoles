@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import StatusBadge from '$lib/components/ui/status-badge/StatusBadge.svelte';
 	import { formatDay, formatTimeRange } from '$lib/format';
@@ -61,6 +63,19 @@
 
 	/** Une action rapide « Je suis dispo » est proposée directement sur la ligne repliée. */
 	const canQuickSignup = $derived(isLoggedIn && !past && shift.myStatus === null && !shift.isFull);
+
+	/** Visiteur non connecté : mêmes actions, mais elles passent par la connexion. */
+	const canLoginSignup = $derived(!isLoggedIn && !past);
+
+	/**
+	 * Cible de retour après connexion, encodée pour `?redirect=` : elle garde l'intention, que la
+	 * page /t/[token] lit (`prendre` + `statut`) pour soumettre l'inscription d'elle-même.
+	 */
+	function loginTarget(status: 'available' | 'maybe'): string {
+		const target =
+			`${page.url.pathname}?prendre=${shift.id}` + (status === 'maybe' ? '&statut=maybe' : '');
+		return encodeURIComponent(target);
+	}
 
 	/** Inscrits réordonnés : l'utilisateur connecté en tête, le reste garde l'ordre serveur. */
 	const sortedSignups = $derived(
@@ -170,6 +185,13 @@
 					<Check size={15} /> Dispo
 				</button>
 			</form>
+		{:else if canLoginSignup && !shift.isFull}
+			<a
+				href="{resolve('/login')}?redirect={loginTarget('available')}"
+				class="skin-glossy skin-secondary inline-flex min-h-8 shrink-0 items-center gap-1 rounded px-2.5 text-sm font-semibold text-white"
+			>
+				<Check size={15} /> Dispo
+			</a>
 		{/if}
 	</div>
 
@@ -332,6 +354,24 @@
 				{#if formError}
 					<p class="text-sm text-error">{formError}</p>
 				{/if}
+			{:else if canLoginSignup}
+				<!-- Non connecté : les boutons mènent à la connexion, l'inscription suit au retour. -->
+				<div class="flex flex-wrap gap-2 pt-1">
+					{#if !shift.isFull}
+						<a
+							href="{resolve('/login')}?redirect={loginTarget('available')}"
+							class="skin-glossy skin-secondary inline-flex min-h-9 items-center gap-1 rounded px-3 text-sm font-semibold text-white"
+						>
+							<Check size={15} /> Je suis dispo
+						</a>
+					{/if}
+					<a
+						href="{resolve('/login')}?redirect={loginTarget('maybe')}"
+						class="inline-flex min-h-9 items-center gap-1 rounded border border-border px-3 text-sm font-semibold text-ink hover:bg-surface-muted"
+					>
+						<CircleHelp size={15} /> Peut-être
+					</a>
+				</div>
 			{/if}
 		</div>
 	{/if}

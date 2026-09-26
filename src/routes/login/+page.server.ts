@@ -8,6 +8,7 @@ import { safeRedirect } from '$lib/server/auth-guard';
 import { isPrototype, takePrototypeLink } from '$lib/server/prototype';
 import { isManagedEmail } from '$lib/server/services/email';
 import { consumeRateLimit } from '$lib/server/services/rate-limit';
+import { stashPendingPhone } from '$lib/server/services/pending-phone';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
@@ -87,13 +88,17 @@ async function sendLink(
 	redirectTo: string,
 	extra: { name?: string; phone?: string } = {}
 ): Promise<string | null> {
+	// Le plugin magic link ignore `phone` : relais appliqué à la création (cf. pending-phone).
+	if (extra.phone) await stashPendingPhone(email, extra.phone);
 	await auth.api.signInMagicLink({
 		body: {
 			email,
 			...(extra.name ? { name: extra.name } : {}),
-			...(extra.phone ? { phone: extra.phone } : {}),
 			callbackURL: redirectTo,
-			errorCallbackURL: `/login?error=expired&redirect=${encodeURIComponent(redirectTo)}`
+			// Query de la cible retirée : Better Auth re-décode errorCallbackURL à la vérification,
+			// un `?` imbriqué (ex. `/t/x?prendre=…`) échoue alors sa validation et invalide tout le
+			// lien. Sur lien expiré, on revient donc au tournoi sans l'intention d'inscription.
+			errorCallbackURL: `/login?error=expired&redirect=${encodeURIComponent(redirectTo.split('?')[0])}`
 		},
 		headers
 	});
