@@ -9,13 +9,14 @@
 	let submitting = $state(false);
 
 	// Renvoi : on revient sur /login avec l'email pré-rempli et la cible conservée.
-	const resendHref = $derived.by(() => {
-		const q = new URLSearchParams();
-		if (data.email) q.set('email', data.email);
-		if (data.redirect) q.set('redirect', data.redirect);
-		const qs = q.toString();
-		return qs ? `${resolve('/login')}?${qs}` : resolve('/login');
-	});
+	const resendQuery = $derived(
+		[
+			data.email && `email=${encodeURIComponent(data.email)}`,
+			data.redirect && `redirect=${encodeURIComponent(data.redirect)}`
+		]
+			.filter(Boolean)
+			.join('&')
+	);
 </script>
 
 <svelte:head><title>Lien envoyé — Bénévoles ACGB</title></svelte:head>
@@ -67,5 +68,7 @@
 
 <p class="mt-6 text-sm text-ink-muted">
 	Pas reçu ? Vérifie tes spams, ou
-	<a class="font-medium text-brand-primary underline" href={resendHref}>renvoie-toi un lien</a>.
+	<a class="font-medium text-brand-primary underline" href="{resolve('/login')}?{resendQuery}"
+		>renvoie-toi un lien</a
+	>.
 </p>
