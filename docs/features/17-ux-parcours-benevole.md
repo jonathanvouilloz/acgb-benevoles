@@ -1,8 +1,34 @@
 # Epic 17 — UX du parcours bénévole (1re inscription)
 
 **Complexité** : M
-**Statut** : EN COURS — points 1-2 + 4 « D'abord » livrés et testés E2E ; reste le magic link en dev et les 5 points « Ensuite »
+**Statut** : EN COURS — « D'abord » livré (sauf magic link en dev) ; « Ensuite » : 4/5 livrés, reste l'opt-in push après 1re inscription
 **Origine** : audit UX demandé par Jonathan (2026-09-26) — « le parcours utilisateur le plus simple et logique possible, tout du long ». Constat : l'app est solide une fois inscrit, c'est le premier passage (lien WhatsApp → 1re inscription) qui perd du monde.
+
+## Etat session 2026-09-26 (3)
+
+**Fait :**
+
+- **Barre de filtres** `/t/[token]` : sticky réduite à une ligne (jours + « Filtres » avec pastille, 55 px sur iPhone 13) ; plage horaire, places libres, postes (chips) et « Afficher par » dans un sheet (`Modal variant="sheet"`, pied « Voir N créneaux »). `PositionMultiSelect` supprimé.
+- **Wording** : « N places libres » (sous l'horaire, sinon « Je prends » tronquait l'heure), « N places libres sur M », « Je prends » / « Je confirme », toast « C'est noté, ce créneau est à toi ».
+- **« Peut-être » expliqué** sous les boutons (non inscrit + statut `maybe`).
+- **Précision après inscription** : « + Ajouter une précision » / note affichée + « Modifier » (action `setNote`) ; plus de champ avant inscription.
+- E2E Playwright (preview, iPhone 13, mode prototype) : non connecté « Je prends » → login → inscrit → précision enregistrée ; compte de test + `activity_log` supprimés. Poussé sur `master`.
+- **Retour test Android de Jonathan** : le bouton « Me connecter » du mail CONNECTE bien (session créée 18:22 depuis son Chrome Android), mais `/login/sent` restée ouverte dans la PWA ne le voyait pas. `/login/sent` relance son `load` au retour dans l'app + toutes les 3 s (15 min) → redirige vers la cible. Testé E2E (2 onglets, même contexte).
+- **Bandeau « lien expiré » jamais affiché** : Better Auth écrase `error=expired` par son code (`INVALID_TOKEN`) → on teste `has('error')`.
+
+**Prochain :** iPhone — le bouton du mail ne peut pas connecter la PWA (stockage isolé de Safari) : lier la demande de la PWA au clic dans Safari (nonce dans le lien, la PWA en polling échange le nonce validé contre une session). Puis point 3 — `EnableNotifications` sur `/t/[token]` (`+page.svelte`, bloc `{:else}` après le bandeau non connecté) : ne l'afficher qu'une fois `myCount > 0` (idéalement juste après la 1re inscription, dans « Mes créneaux »). Puis le magic link en `npm run dev`.
+
+**Pieges :**
+
+- Le preview SvelteKit charge le build au démarrage : relancer `npm run preview` après chaque `npm run build`.
+- Nettoyage d'un compte de test : `activity_log` est en `SET NULL` (pas cascade) → supprimer ses lignes avant le user.
+- Non testé en E2E : « Peut-être » → « Je confirme », curseur horaire et chips postes dans le sheet (vus en capture seulement).
+- Android : PWA, Chrome et l'onglet Gmail partagent les cookies ; iOS : PWA isolée de Safari → seul le code connecte l'app.
+- Les consignes d'Anne disent « laissez un commentaire » : désormais possible seulement après inscription.
+
+**Commit :** b565311 fix(login): /login/sent detecte la connexion par lien (après e00029d)
+
+---
 
 ## Etat session 2026-09-26 (2)
 
@@ -52,28 +78,28 @@
 ---
 
 ## Carte du code
-> Mise a jour : 2026-09-26 (2)
+> Mise a jour : 2026-09-26 (3)
 
 | Fichier | Role |
 |---------|------|
-| `src/routes/t/[token]/+page.svelte` | Bannière téléphone inline en tête, lecture de `?prendre`/`?statut`, soumission automatique de l'intention (form caché + garde chevauchement) |
+| `src/routes/t/[token]/+page.svelte` | Bannière téléphone inline, intention `?prendre`/`?statut` soumise d'office, barre sticky jours + « Filtres », sheet de filtres |
 | `src/routes/t/[token]/+page.server.ts` | Action `savePhone` ; message `needsPhone` pointant vers la bannière |
-| `src/lib/components/tournament/VolunteerShiftRow.svelte` | Actions visibles non connecté : liens vers `/login` qui portent l'intention |
-| `src/lib/server/services/pending-profile.ts` | Relais nom + téléphone entre formulaire de création et création du compte (table `verification`) ; `peek` pour la connexion par code |
+| `src/lib/components/tournament/VolunteerShiftRow.svelte` | « Je prends » (liens login non connecté), places libres sous l'horaire, aide « Peut-être », précision après inscription |
+| `src/lib/components/ui/modal/Modal.svelte` | `variant="sheet"` (collé en bas sur mobile, zone défilante) + snippet `footer` |
+| `src/lib/server/services/pending-profile.ts` | Relais nom + téléphone entre formulaire et création du compte (table `verification`) ; `peek` pour la connexion par code |
 | `src/lib/server/services/login-code.ts` | Relais en mémoire du code OTP vers l'email du magic link (même requête) |
 | `src/routes/login/sent/` | Saisie du code (`signInEmailOTP`), renvoi qui garde email + cible |
-| `src/lib/server/services/email.ts` | Email de connexion : bouton + code à 6 chiffres |
 | `src/lib/server/auth.ts` | Plugins `magicLink` + `emailOTP` + `sveltekitCookies` ; hook `user.create.before` qui applique le profil en attente |
-| `src/routes/login/+page.server.ts` | Email-first (`step` email → details) ; stash du profil + création du code avant envoi du lien ; `errorCallbackURL` sans query |
-| `src/routes/login/+page.svelte` | Étape email puis « Bienvenue ! » (prénom, nom, tél), bouton « changer » |
+| `src/routes/login/+page.server.ts` / `+page.svelte` | Email-first (`step` email → details), « Bienvenue ! », stash du profil + code avant envoi |
 | `src/routes/layout.css` | Règle non-layered : champs à 16px sous 640px |
-| `src/lib/server/services/user-service.ts` | `setUserPhone` (utilisé par `savePhone`) |
 
 ### Decisions cles
-- Intention portée par l'URL et soumise côté client, jamais par un `load` GET (un lien ne doit pas inscrire à lui seul) — cf. DECISIONS 2026-09-26.
-- Téléphone relayé via `verification`, pas de pré-création de compte (squat d'email) — cf. DECISIONS 2026-09-26.
+- Intention portée par l'URL et soumise côté client, jamais par un `load` GET — cf. DECISIONS 2026-09-26.
+- Téléphone relayé via `verification`, pas de pré-création de compte — cf. DECISIONS 2026-09-26.
 - Login email-first : l'étape « Bienvenue » est un retour de succès d'action, jamais un `fail` — cf. DECISIONS 2026-09-26.
-- Un seul email lien + code ; route publique d'envoi de code désactivée (quotas) — cf. DECISIONS 2026-09-26.
+- Un seul email lien + code ; route publique d'envoi de code désactivée — cf. DECISIONS 2026-09-26.
+- Filtres secondaires dans un sheet, postes en chips (pas de dropdown bits-ui dans une modale) — cf. DECISIONS 2026-09-26.
+- La précision n'est proposée qu'après l'inscription : le premier geste reste « Je prends ».
 
 ## Tâches
 
@@ -88,6 +114,8 @@
 - [x] Champs à 16px sur mobile (zoom iOS au focus) — règle globale dans `layout.css`
 - [x] Code OTP 6 chiffres dans le mail en plus du lien (plugin `emailOTP`) — session PWA iOS isolée de Safari
 - [x] `login/sent` : « renvoie-toi un lien » garde email + `redirect`
+- [x] `/login/sent` détecte la connexion faite par le lien (Android/navigateur) ; bandeau d'erreur de lien réparé
+- [ ] iPhone : le bouton du mail connecte aussi la PWA (liaison par nonce + polling)
 - [ ] Magic link en `npm run dev` : fournir un `baseURL` en dev (déduit de la requête)
 
 ### Ensuite (clarté de `/t/[token]`)
