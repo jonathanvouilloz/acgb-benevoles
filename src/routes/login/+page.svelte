@@ -17,7 +17,9 @@
 	});
 	const step = $derived(editingEmail ? 'email' : (form?.step ?? 'email'));
 
-	const expired = $derived(page.url.searchParams.get('error') === 'expired');
+	// Better Auth écrase notre `error=expired` par son propre code (`INVALID_TOKEN`…) : toute
+	// valeur d'`error` signale un lien refusé.
+	const expired = $derived(page.url.searchParams.has('error'));
 	const inputClass =
 		'min-h-8 rounded border border-surface-border px-3 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary';
 </script>

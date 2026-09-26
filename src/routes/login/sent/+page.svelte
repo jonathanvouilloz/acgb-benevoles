@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import type { ActionData, PageData } from './$types';
 
@@ -17,6 +18,28 @@
 			.filter(Boolean)
 			.join('&')
 	);
+
+	/**
+	 * Lien cliqué ailleurs (onglet Gmail, Chrome) : sur Android, l'app installée partage les
+	 * cookies du navigateur, donc la session existe déjà ici sans que la page le sache. On relance
+	 * le `load` (qui redirige vers la cible si connecté) au retour dans l'app, puis toutes les 3 s
+	 * tant que la page est visible — jusqu'à l'expiration du lien (15 min).
+	 */
+	$effect(() => {
+		const until = Date.now() + 15 * 60 * 1000;
+		const check = () => {
+			if (document.visibilityState !== 'visible' || submitting || Date.now() > until) return;
+			invalidateAll();
+		};
+		const timer = setInterval(check, 3000);
+		document.addEventListener('visibilitychange', check);
+		window.addEventListener('focus', check);
+		return () => {
+			clearInterval(timer);
+			document.removeEventListener('visibilitychange', check);
+			window.removeEventListener('focus', check);
+		};
+	});
 </script>
 
 <svelte:head><title>Lien envoyé — Bénévoles ACGB</title></svelte:head>
