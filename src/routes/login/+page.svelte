@@ -8,9 +8,14 @@
 
 	let submitting = $state(false);
 
-	// Email inconnu en mode connexion → on bascule sur la création de compte (email pré-rempli).
-	// svelte-ignore state_referenced_locally
-	let mode = $state<'login' | 'signup'>(form?.notFound ? 'signup' : (form?.mode ?? 'login'));
+	// Email-first : l'étape vient du serveur (email inconnu → « details »). « changer » force le
+	// retour à l'étape email jusqu'à la prochaine réponse du serveur.
+	let editingEmail = $state(false);
+	$effect.pre(() => {
+		void form;
+		editingEmail = false;
+	});
+	const step = $derived(editingEmail ? 'email' : (form?.step ?? 'email'));
 
 	const expired = $derived(page.url.searchParams.get('error') === 'expired');
 	const inputClass =
@@ -20,15 +25,15 @@
 <svelte:head><title>Connexion — Bénévoles ACGB</title></svelte:head>
 
 <h1 class="h1">
-	{mode === 'login' ? 'Connexion' : 'Créer un compte'}
+	{step === 'email' ? 'Connexion' : 'Bienvenue !'}
 </h1>
 <p class="mt-2 text-ink-muted">
 	{#if data.prototype}
 		Mode démo : entre tes infos, tu es connecté immédiatement (aucun email envoyé).
-	{:else if mode === 'login'}
+	{:else if step === 'email'}
 		Entre ton email : on t'envoie un lien de connexion, sans mot de passe.
 	{:else}
-		Première fois ? On crée ton compte et on t'envoie un lien de connexion par email.
+		Première fois ici : encore 3 infos et on t'envoie ton lien.
 	{/if}
 </p>
 
@@ -50,21 +55,37 @@
 	use:enhance={() => {
 		submitting = true;
 		return async ({ update }) => {
-			await update();
+			await update({ reset: false });
 			submitting = false;
 		};
 	}}
 >
 	<input type="hidden" name="redirect" value={data.redirect ?? ''} />
-	<input type="hidden" name="mode" value={mode} />
+	<input type="hidden" name="step" value={step} />
 
-	{#if mode === 'signup'}
+	{#if step === 'details'}
+		<input type="hidden" name="email" value={form?.values?.email ?? ''} />
+		<p class="text-sm text-ink-muted">
+			<span class="font-medium text-ink">{form?.values?.email}</span> ·
+			<button
+				type="button"
+				onclick={() => (editingEmail = true)}
+				class="font-medium text-brand-primary underline underline-offset-2 hover:text-brand-primary-700"
+			>
+				changer
+			</button>
+			{#if form?.errors?.email}<span class="block text-xs text-error">{form.errors.email[0]}</span
+				>{/if}
+		</p>
+
 		<label class="flex flex-col gap-1 text-sm font-medium text-ink">
 			Prénom
+			<!-- svelte-ignore a11y_autofocus -->
 			<input
 				name="prenom"
 				type="text"
 				autocomplete="given-name"
+				autofocus
 				value={form?.values?.prenom ?? ''}
 				class={inputClass}
 			/>
@@ -82,22 +103,7 @@
 			/>
 			{#if form?.errors?.nom}<span class="text-xs text-error">{form.errors.nom[0]}</span>{/if}
 		</label>
-	{/if}
 
-	<label class="flex flex-col gap-1 text-sm font-medium text-ink">
-		Email
-		<input
-			name="email"
-			type="email"
-			autocomplete="email"
-			inputmode="email"
-			value={form?.values?.email ?? ''}
-			class={inputClass}
-		/>
-		{#if form?.errors?.email}<span class="text-xs text-error">{form.errors.email[0]}</span>{/if}
-	</label>
-
-	{#if mode === 'signup'}
 		<label class="flex flex-col gap-1 text-sm font-medium text-ink">
 			Téléphone
 			<input
@@ -111,37 +117,28 @@
 			/>
 			{#if form?.errors?.phone}<span class="text-xs text-error">{form.errors.phone[0]}</span>{/if}
 		</label>
+	{:else}
+		<label class="flex flex-col gap-1 text-sm font-medium text-ink">
+			Email
+			<input
+				name="email"
+				type="email"
+				autocomplete="email"
+				inputmode="email"
+				value={form?.values?.email ?? ''}
+				class={inputClass}
+			/>
+			{#if form?.errors?.email}<span class="text-xs text-error">{form.errors.email[0]}</span>{/if}
+		</label>
 	{/if}
 
 	<Button type="submit" size="sm" disabled={submitting} class="mt-2">
 		{#if submitting}
 			{data.prototype ? 'Connexion…' : 'Envoi…'}
-		{:else if data.prototype}
-			{mode === 'login' ? 'Se connecter' : 'Créer mon compte et entrer'}
+		{:else if step === 'email'}
+			Continuer
 		{:else}
-			{mode === 'login' ? 'Recevoir mon lien' : 'Créer mon compte'}
+			{data.prototype ? 'Créer mon compte et entrer' : 'Créer mon compte'}
 		{/if}
 	</Button>
 </form>
-
-<p class="mt-6 text-sm text-ink-muted">
-	{#if mode === 'login'}
-		Pas encore de compte ?
-		<button
-			type="button"
-			onclick={() => (mode = 'signup')}
-			class="font-medium text-brand-primary underline underline-offset-2 hover:text-brand-primary-700"
-		>
-			Créer un compte
-		</button>
-	{:else}
-		Tu as déjà un compte ?
-		<button
-			type="button"
-			onclick={() => (mode = 'login')}
-			class="font-medium text-brand-primary underline underline-offset-2 hover:text-brand-primary-700"
-		>
-			Se connecter
-		</button>
-	{/if}
-</p>

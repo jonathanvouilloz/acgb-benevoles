@@ -51,21 +51,20 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	return { redirect: redirectTo, prototype: isPrototype };
 };
 
-type Mode = 'login' | 'signup';
+type Step = 'email' | 'details';
 type Errors = Record<string, string[] | undefined> | undefined;
 type Values = { prenom: string; nom: string; email: string; phone: string };
 
 /** Réponse d'échec à forme uniforme (un seul type ActionData côté page). */
 function failure(
 	status: number,
-	payload: { mode: Mode; errors?: Errors; values: Values; formError?: string; notFound?: boolean }
+	payload: { step: Step; errors?: Errors; values: Values; formError?: string }
 ) {
 	return fail(status, {
-		mode: payload.mode,
+		step: payload.step,
 		errors: payload.errors ?? undefined,
 		values: payload.values,
-		formError: payload.formError ?? undefined,
-		notFound: payload.notFound ?? false
+		formError: payload.formError ?? undefined
 	});
 }
 
@@ -118,16 +117,16 @@ async function sendLink(
 export const actions: Actions = {
 	default: async ({ request, getClientAddress }) => {
 		const form = await request.formData();
-		const mode: Mode = form.get('mode') === 'signup' ? 'signup' : 'login';
+		const step: Step = form.get('step') === 'details' ? 'details' : 'email';
 		const redirectTo = safeRedirect(form.get('redirect')) ?? '/';
 		const ip = getClientAddress();
 
-		// --- Connexion simple (compte existant) : email seul ---
-		if (mode === 'login') {
+		// --- Étape 1 : email seul, le serveur décide (compte existant → lien ; inconnu → étape 2) ---
+		if (step === 'email') {
 			const parsed = emailLoginSchema.safeParse({ email: form.get('email') });
 			if (!parsed.success) {
 				return failure(400, {
-					mode,
+					step,
 					errors: parsed.error.flatten().fieldErrors,
 					values: emptyValues({ email: String(form.get('email') ?? '') })
 				});
@@ -139,31 +138,32 @@ export const actions: Actions = {
 			// n'arrivera jamais. On coupe ici avec un message qui dit quoi faire.
 			if (isManagedEmail(email)) {
 				return failure(400, {
-					mode,
+					step,
 					formError:
-						"Ce bénévole a été ajouté par un organisateur et n'a pas encore d'email personnel. Demande-lui de rattacher ton adresse, ou crée ton compte ci-dessous.",
+						"Ce bénévole a été ajouté par un organisateur et n'a pas encore d'email personnel. Demande-lui de rattacher ton adresse.",
 					values: emptyValues({ email })
 				});
 			}
 
-			// On ne crée pas de compte ici : si l'email est inconnu, on invite à créer un compte.
+			// On ne crée pas de compte ici : email inconnu → étape « encore 3 infos ». Retour de
+			// succès (pas `fail`) : c'est un accueil, pas une erreur.
 			const existing = await db
 				.select({ id: user.id })
 				.from(user)
 				.where(eq(user.email, email))
 				.limit(1);
 			if (existing.length === 0) {
-				return failure(400, {
-					mode,
-					notFound: true,
-					formError: 'Aucun compte avec cet email. Crée ton compte ci-dessous.',
-					values: emptyValues({ email })
-				});
+				return {
+					step: 'details' as const,
+					errors: undefined,
+					values: emptyValues({ email }),
+					formError: undefined
+				};
 			}
 
 			const throttled = await throttleMagicLink(ip, email);
 			if (throttled) {
-				return failure(429, { mode, formError: throttled, values: emptyValues({ email }) });
+				return failure(429, { step, formError: throttled, values: emptyValues({ email }) });
 			}
 
 			let link: string | null;
@@ -171,7 +171,7 @@ export const actions: Actions = {
 				link = await sendLink(request.headers, email, redirectTo);
 			} catch {
 				return failure(502, {
-					mode,
+					step,
 					formError: "Impossible d'envoyer le lien pour le moment. Réessaie dans un instant.",
 					values: emptyValues({ email })
 				});
@@ -180,7 +180,7 @@ export const actions: Actions = {
 			throw redirect(303, link ?? `/login/sent?email=${encodeURIComponent(email)}`);
 		}
 
-		// --- Création de compte / première connexion : prénom + nom + email + tél ---
+		// --- Étape 2 (email inconnu) : prénom + nom + tél, email repris de l'étape 1 ---
 		const parsed = loginSchema.safeParse({
 			prenom: form.get('prenom'),
 			nom: form.get('nom'),
@@ -190,7 +190,7 @@ export const actions: Actions = {
 
 		if (!parsed.success) {
 			return failure(400, {
-				mode,
+				step,
 				errors: parsed.error.flatten().fieldErrors,
 				values: emptyValues({
 					prenom: String(form.get('prenom') ?? ''),
@@ -207,7 +207,7 @@ export const actions: Actions = {
 		// son adresse générée (le compte existe, Better Auth signerait dedans).
 		if (isManagedEmail(email)) {
 			return failure(400, {
-				mode,
+				step,
 				errors: { email: ['Ce domaine est réservé. Utilise ton adresse email personnelle.'] },
 				values: emptyValues({
 					prenom: parsed.data.prenom,
@@ -221,7 +221,7 @@ export const actions: Actions = {
 		const throttled = await throttleMagicLink(ip, email);
 		if (throttled) {
 			return failure(429, {
-				mode,
+				step,
 				formError: throttled,
 				values: emptyValues({
 					prenom: parsed.data.prenom,
@@ -240,7 +240,7 @@ export const actions: Actions = {
 			});
 		} catch {
 			return failure(502, {
-				mode,
+				step,
 				formError: "Impossible d'envoyer le lien pour le moment. Réessaie dans un instant.",
 				values: emptyValues({
 					prenom: parsed.data.prenom,

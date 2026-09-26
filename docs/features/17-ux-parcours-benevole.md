@@ -38,7 +38,9 @@
 | `src/lib/components/tournament/VolunteerShiftRow.svelte` | Actions visibles non connecté : liens vers `/login` qui portent l'intention |
 | `src/lib/server/services/pending-phone.ts` | Relais du téléphone entre formulaire de création et création du compte (table `verification`) |
 | `src/lib/server/auth.ts` | Hook `databaseHooks.user.create.before` qui applique le téléphone en attente |
-| `src/routes/login/+page.server.ts` | Stash du téléphone avant envoi du lien ; `errorCallbackURL` sans query |
+| `src/routes/login/+page.server.ts` | Email-first (`step` email → details), stash du téléphone avant envoi du lien ; `errorCallbackURL` sans query |
+| `src/routes/login/+page.svelte` | Étape email puis « Bienvenue ! » (prénom, nom, tél), bouton « changer » |
+| `src/routes/layout.css` | Règle non-layered : champs à 16px sous 640px |
 | `src/lib/server/services/user-service.ts` | `setUserPhone` (utilisé par `savePhone`) |
 
 ### Decisions cles
@@ -54,8 +56,8 @@
 - [x] Fix — `errorCallbackURL` avec `?` imbriqué invalidait le lien
 
 ### D'abord (friction au premier passage)
-- [ ] Login email-first : un seul champ, branchement serveur, ton neutre pour un nouveau compte
-- [ ] Champs en `text-base` sur mobile (zoom iOS au focus sous 16px), login en priorité
+- [x] Login email-first : un seul champ, branchement serveur, ton neutre pour un nouveau compte
+- [x] Champs à 16px sur mobile (zoom iOS au focus) — règle globale dans `layout.css`
 - [ ] Code OTP 6 chiffres dans le mail en plus du lien (plugin `emailOTP`) — session PWA iOS isolée de Safari
 - [ ] `login/sent` : « renvoie-toi un lien » garde email + `redirect`
 - [ ] Magic link en `npm run dev` : fournir un `baseURL` en dev (déduit de la requête)

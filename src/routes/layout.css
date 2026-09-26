@@ -154,3 +154,13 @@
 		print-color-adjust: exact;
 	}
 }
+
+/* iOS zoome au focus d'un champ sous 16px : champs à 16px sur mobile. Hors @layer exprès —
+   une règle non-layered l'emporte sur les utilitaires Tailwind (`text-sm`) sans !important. */
+@media (max-width: 639px) {
+	input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+	select,
+	textarea {
+		font-size: 16px;
+	}
+}
