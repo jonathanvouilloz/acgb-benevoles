@@ -1,0 +1,68 @@
+# Epic 17 — UX du parcours bénévole (1re inscription)
+
+**Complexité** : M
+**Statut** : EN COURS — points 1 et 2 de l'audit livrés et testés E2E, reste la liste ci-dessous
+**Origine** : audit UX demandé par Jonathan (2026-09-26) — « le parcours utilisateur le plus simple et logique possible, tout du long ». Constat : l'app est solide une fois inscrit, c'est le premier passage (lien WhatsApp → 1re inscription) qui perd du monde.
+
+## Etat session 2026-09-26
+
+**Fait :**
+
+- **Audit UX** du parcours bénévole (`/t/[token]`, login, compte, rappels, nav, gate PWA) — points classés ci-dessous.
+- **Point 1 — téléphone inline** : bannière `needsPhone` remontée sous l'en-tête et transformée en formulaire (action `savePhone`), plus de renvoi vers `/compte` (bloqué par le gate PWA sur mobile).
+- **Cause racine trouvée** : le plugin magic link Better Auth ne transmet que `name` à la création → **tout nouveau compte naissait sans téléphone**. Relais via la table `verification` (`pending-phone:<email>`, 15 min) appliqué par le hook `user.create.before`.
+- **Point 2 — intention conservée** : « Dispo » / « Peut-être » visibles non connecté → `/login?redirect=/t/x?prendre=<id>[&statut=maybe]` → au retour, inscription soumise d'office (garde de chevauchement comprise), URL nettoyée, onglet « Mes créneaux ».
+- **Tests E2E Playwright** (iPhone 13, build `preview`) : nouveau compte + Dispo, nouveau compte + Peut-être, compte sans téléphone (validation puis auto-inscription), reload sans réinscription. Comptes de test supprimés de la base.
+
+**Prochain :** point « D'abord n°1 » — `src/routes/login/+page.svelte` + `+page.server.ts` : login email-first (un seul champ, le serveur décide ; si inconnu → « Bienvenue ! Encore 3 infos » sans bandeau rouge), en gardant `redirect`.
+
+**Pieges :**
+
+- **Magic link cassé en `npm run dev`** : `baseURL` vide en dev → `auth.api.signInMagicLink` lève `Invalid URL` (« Impossible d'envoyer le lien »). Tester l'auth via `npm run build && npm run preview -- --port 5174` (= `BETTER_AUTH_URL`). À corriger (point D'abord n°5).
+- `trustedOrigins` dev = ports 5173-5176 seulement.
+- `errorCallbackURL` ne doit jamais contenir de `?` imbriqué : Better Auth le re-décode à la vérification et invalide tout le lien → on n'y met que le chemin de la cible.
+- L'intention attend `afterNavigate` (`routerReady`) : `replaceState`/`enhance` pendant l'hydratation lèvent `reading '$set'`.
+- Les comptes créés avant `af58a1d` n'ont pas de téléphone → ils verront la bannière inline (voulu).
+
+**Commit :** af58a1d feat(inscription): reprise du creneau apres connexion et telephone inline
+
+---
+
+## Carte du code
+> Mise a jour : 2026-09-26
+
+| Fichier | Role |
+|---------|------|
+| `src/routes/t/[token]/+page.svelte` | Bannière téléphone inline en tête, lecture de `?prendre`/`?statut`, soumission automatique de l'intention (form caché + garde chevauchement) |
+| `src/routes/t/[token]/+page.server.ts` | Action `savePhone` ; message `needsPhone` pointant vers la bannière |
+| `src/lib/components/tournament/VolunteerShiftRow.svelte` | Actions visibles non connecté : liens vers `/login` qui portent l'intention |
+| `src/lib/server/services/pending-phone.ts` | Relais du téléphone entre formulaire de création et création du compte (table `verification`) |
+| `src/lib/server/auth.ts` | Hook `databaseHooks.user.create.before` qui applique le téléphone en attente |
+| `src/routes/login/+page.server.ts` | Stash du téléphone avant envoi du lien ; `errorCallbackURL` sans query |
+| `src/lib/server/services/user-service.ts` | `setUserPhone` (utilisé par `savePhone`) |
+
+### Decisions cles
+- Intention portée par l'URL et soumise côté client, jamais par un `load` GET (un lien ne doit pas inscrire à lui seul) — cf. DECISIONS 2026-09-26.
+- Téléphone relayé via `verification`, pas de pré-création de compte (squat d'email) — cf. DECISIONS 2026-09-26.
+
+## Tâches
+
+### Livré
+- [x] Point 1 — téléphone saisi sur `/t/[token]`, plus de cul-de-sac `/compte` mobile
+- [x] Fix — téléphone perdu à la création de compte (relais `pending-phone`)
+- [x] Point 2 — intention d'inscription conservée à travers le magic link
+- [x] Fix — `errorCallbackURL` avec `?` imbriqué invalidait le lien
+
+### D'abord (friction au premier passage)
+- [ ] Login email-first : un seul champ, branchement serveur, ton neutre pour un nouveau compte
+- [ ] Champs en `text-base` sur mobile (zoom iOS au focus sous 16px), login en priorité
+- [ ] Code OTP 6 chiffres dans le mail en plus du lien (plugin `emailOTP`) — session PWA iOS isolée de Safari
+- [ ] `login/sent` : « renvoie-toi un lien » garde email + `redirect`
+- [ ] Magic link en `npm run dev` : fournir un `baseURL` en dev (déduit de la requête)
+
+### Ensuite (clarté de `/t/[token]`)
+- [ ] Barre de filtres sticky trop haute (~40 % de l'écran mobile) → jours + bouton « Filtres » ouvrant un sheet
+- [ ] Opt-in push déplacé juste après la 1re inscription
+- [ ] Wording : « 2/8 dispo » → « 2 places libres », bouton « Dispo » → « Je prends »
+- [ ] « Peut-être » expliqué (« Ne bloque pas de place — confirme dès que tu sais »)
+- [ ] Champ « Précision » proposé après l'inscription (« + Ajouter une précision »)
