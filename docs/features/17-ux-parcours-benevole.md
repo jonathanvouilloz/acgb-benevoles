@@ -14,6 +14,7 @@
 - **Précision après inscription** : « + Ajouter une précision » / note affichée + « Modifier » (action `setNote`) ; plus de champ avant inscription.
 - E2E Playwright (preview, iPhone 13, mode prototype) : non connecté « Je prends » → login → inscrit → précision enregistrée ; compte de test + `activity_log` supprimés. Poussé sur `master`.
 - **Retour test Android de Jonathan** : le bouton « Me connecter » du mail CONNECTE bien (session créée 18:22 depuis son Chrome Android), mais `/login/sent` restée ouverte dans la PWA ne le voyait pas. `/login/sent` relance son `load` au retour dans l'app + toutes les 3 s (15 min) → redirige vers la cible. Testé E2E (2 onglets, même contexte).
+- **Retour Jonathan sur la barre** : deux lignes courtes (91 px) — jours, puis switch « Places libres » en accès direct + bouton « Filtres · horaire, postes » (coins carrés, teinte brand, distinct des dates). Sheet sans le switch ; scroll horizontal supprimé (poignées du curseur qui débordaient → `px-2.5`, `overflow-x-hidden`).
 - **Bandeau « lien expiré » jamais affiché** : Better Auth écrase `error=expired` par son code (`INVALID_TOKEN`) → on teste `has('error')`.
 
 **Prochain :** iPhone — le bouton du mail ne peut pas connecter la PWA (stockage isolé de Safari) : lier la demande de la PWA au clic dans Safari (nonce dans le lien, la PWA en polling échange le nonce validé contre une session). Puis point 3 — `EnableNotifications` sur `/t/[token]` (`+page.svelte`, bloc `{:else}` après le bandeau non connecté) : ne l'afficher qu'une fois `myCount > 0` (idéalement juste après la 1re inscription, dans « Mes créneaux »). Puis le magic link en `npm run dev`.
@@ -26,7 +27,7 @@
 - Android : PWA, Chrome et l'onglet Gmail partagent les cookies ; iOS : PWA isolée de Safari → seul le code connecte l'app.
 - Les consignes d'Anne disent « laissez un commentaire » : désormais possible seulement après inscription.
 
-**Commit :** b565311 fix(login): /login/sent detecte la connexion par lien (après e00029d)
+**Commit :** 80172a8 style(inscription): bouton Filtres distinct des dates et « Places libres » en acces direct
 
 ---
 
@@ -82,13 +83,13 @@
 
 | Fichier | Role |
 |---------|------|
-| `src/routes/t/[token]/+page.svelte` | Bannière téléphone inline, intention `?prendre`/`?statut` soumise d'office, barre sticky jours + « Filtres », sheet de filtres |
+| `src/routes/t/[token]/+page.svelte` | Bannière téléphone inline, intention `?prendre`/`?statut` soumise d'office, barre sticky (jours / « Places libres » + « Filtres »), sheet plage + postes |
 | `src/routes/t/[token]/+page.server.ts` | Action `savePhone` ; message `needsPhone` pointant vers la bannière |
 | `src/lib/components/tournament/VolunteerShiftRow.svelte` | « Je prends » (liens login non connecté), places libres sous l'horaire, aide « Peut-être », précision après inscription |
 | `src/lib/components/ui/modal/Modal.svelte` | `variant="sheet"` (collé en bas sur mobile, zone défilante) + snippet `footer` |
 | `src/lib/server/services/pending-profile.ts` | Relais nom + téléphone entre formulaire et création du compte (table `verification`) ; `peek` pour la connexion par code |
 | `src/lib/server/services/login-code.ts` | Relais en mémoire du code OTP vers l'email du magic link (même requête) |
-| `src/routes/login/sent/` | Saisie du code (`signInEmailOTP`), renvoi qui garde email + cible |
+| `src/routes/login/sent/` | Saisie du code (`signInEmailOTP`), renvoi qui garde email + cible, re-`load` au retour dans l'app / toutes les 3 s (lien cliqué ailleurs) |
 | `src/lib/server/auth.ts` | Plugins `magicLink` + `emailOTP` + `sveltekitCookies` ; hook `user.create.before` qui applique le profil en attente |
 | `src/routes/login/+page.server.ts` / `+page.svelte` | Email-first (`step` email → details), « Bienvenue ! », stash du profil + code avant envoi |
 | `src/routes/layout.css` | Règle non-layered : champs à 16px sous 640px |

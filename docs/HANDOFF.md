@@ -9,4 +9,4 @@
 
 ## Reprendre ici
 Epic 17 — iPhone : le bouton du mail doit connecter la PWA (nonce + polling), puis opt-in push après 1re inscription.
-Commit : b565311 fix(login): /login/sent detecte la connexion par lien
+Commit : 80172a8 style(inscription): bouton Filtres distinct des dates
