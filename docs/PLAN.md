@@ -22,7 +22,7 @@ Plan d'exécution maître. Statuts : `TODO` · `EN COURS` · `DONE`.
 | 14  | Affectations orga : inscrire, retirer, tracer | L | À VALIDER | [features/14-affectations-orga.md](features/14-affectations-orga.md) — migration `0010` appliquée, QA manuelle restante (T5 hors périmètre) |
 | 15  | Retours Anne #2 : emails, lisibilité, brouillons | L | À VALIDER | [features/15-retours-anne-emails.md](features/15-retours-anne-emails.md) — migration `0011` **non appliquée** + backfill `published` obligatoire |
 | 16  | Journal d'activité du tournoi | L | À VALIDER | [features/16-journal-activite.md](features/16-journal-activite.md) — migrations `0012` + `0013` appliquées et vérifiées, QA manuelle restante |
-| 17  | UX du parcours bénévole (1re inscription) | M | EN COURS | [features/17-ux-parcours-benevole.md](features/17-ux-parcours-benevole.md) — points 1-2 livrés (`af58a1d`), 10 points restants |
+| 17  | UX du parcours bénévole (1re inscription) | M | EN COURS | [features/17-ux-parcours-benevole.md](features/17-ux-parcours-benevole.md) — login email-first, code OTP, 16px mobile livrés (`0b9e08b`) ; restent magic link en dev + 5 points UX `/t/[token]` |
 
 > **À VALIDER** = code livré (check + build verts), en attente de test manuel Jonathan sur les 6 épics (7→12) en conditions réelles. Étapes de déploiement ci-dessous.
 
