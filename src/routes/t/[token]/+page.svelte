@@ -246,11 +246,11 @@
 		winEnd = e;
 	}
 
-	/** Filtres rangés dans le sheet (hors jour, visible dans la barre) : pastille du bouton. */
+	/** Filtres rangés dans le sheet (plage, postes) : pastille du bouton « Filtres ». */
 	const sheetFilterCount = $derived(
-		(windowActive ? 1 : 0) + (selectedPositions.length > 0 ? 1 : 0) + (onlyAvailable ? 1 : 0)
+		(windowActive ? 1 : 0) + (selectedPositions.length > 0 ? 1 : 0)
 	);
-	const anyFilter = $derived(day !== null || sheetFilterCount > 0);
+	const anyFilter = $derived(day !== null || onlyAvailable || sheetFilterCount > 0);
 	let filtersOpen = $state(false);
 
 	function togglePosition(id: string) {
@@ -262,11 +262,11 @@
 	function resetSheetFilters() {
 		resetWindow();
 		selectedPositions = [];
-		onlyAvailable = false;
 	}
 
 	function resetFilters() {
 		day = null;
+		onlyAvailable = false;
 		resetSheetFilters();
 	}
 
@@ -490,13 +490,14 @@
 			</div>
 		{/if}
 	{:else if base.length > 0}
-		<!-- Barre de filtres collante : une seule ligne (jours + « Filtres »), le reste dans un sheet
-		     — l'ancienne barre complète mangeait ~40 % de l'écran mobile. -->
+		<!-- Barre de filtres collante, deux lignes courtes : les jours, puis « Places libres » (le
+		     filtre le plus concret, en accès direct) et « Filtres » (plage horaire, postes → sheet).
+		     L'ancienne barre complète mangeait ~40 % de l'écran mobile. -->
 		<section
-			class="sticky top-0 z-10 -mx-4 mt-6 flex items-center gap-2 border-b border-border bg-surface px-4 py-2.5"
+			class="sticky top-0 z-10 -mx-4 mt-6 flex flex-col gap-2 border-b border-border bg-surface px-4 py-2"
 		>
-			<div class="-mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1 pb-0.5">
-				{#if dayOpts.length > 1}
+			{#if dayOpts.length > 1}
+				<div class="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
 					<button class="{chipBase} {day === null ? chipOn : chipOff}" onclick={() => (day = null)}>
 						Tout
 					</button>
@@ -508,20 +509,29 @@
 							{d.label}
 						</button>
 					{/each}
-				{/if}
+				</div>
+			{/if}
+			<div class="flex items-center justify-between gap-3">
+				<Switch bind:checked={onlyAvailable} label="Places libres" />
+				<!-- Forme (coins carrés) et teinte propres : ne se confond pas avec une date. -->
+				<button
+					class="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded border px-3 text-sm font-medium whitespace-nowrap transition-colors {sheetFilterCount >
+					0
+						? 'border-brand-primary bg-brand-primary text-white'
+						: 'border-brand-primary/30 bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/15'}"
+					onclick={() => (filtersOpen = true)}
+				>
+					<SlidersHorizontal size={14} /> Filtres
+					{#if sheetFilterCount > 0}
+						<span
+							class="inline-flex size-5 items-center justify-center rounded-full bg-white text-xs font-semibold text-brand-primary"
+							>{sheetFilterCount}</span
+						>
+					{:else}
+						<span class="text-xs font-normal opacity-80">· horaire, postes</span>
+					{/if}
+				</button>
 			</div>
-			<button
-				class="{chipBase} shrink-0 {sheetFilterCount > 0 ? chipOn : chipOff}"
-				onclick={() => (filtersOpen = true)}
-			>
-				<SlidersHorizontal size={14} /> Filtres
-				{#if sheetFilterCount > 0}
-					<span
-						class="inline-flex size-5 items-center justify-center rounded-full bg-white text-xs font-semibold text-brand-primary"
-						>{sheetFilterCount}</span
-					>
-				{/if}
-			</button>
 		</section>
 
 		<!-- Compteur (hors barre collante) -->
@@ -557,18 +567,19 @@
 								</button>
 							{/if}
 						</div>
-						<TimeRangeSlider
-							min={bounds.min * 60}
-							max={bounds.max * 60}
-							start={effStart}
-							end={effEnd}
-							{density}
-							onchange={onWindowChange}
-						/>
+						<!-- px : les poignées débordent de leur rayon aux extrémités (sinon scroll horizontal). -->
+						<div class="px-2.5">
+							<TimeRangeSlider
+								min={bounds.min * 60}
+								max={bounds.max * 60}
+								start={effStart}
+								end={effEnd}
+								{density}
+								onchange={onWindowChange}
+							/>
+						</div>
 					</div>
 				{/if}
-
-				<Switch bind:checked={onlyAvailable} label="Seulement les places libres" />
 
 				<!-- Postes : chips à bascule (aucun = tous) -->
 				{#if positionChips.length > 1}

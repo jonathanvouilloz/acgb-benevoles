@@ -91,7 +91,7 @@
 					<X size={18} />
 				</button>
 			</div>
-			<div class="mt-3 {isSheet ? 'min-h-0 flex-1 overflow-y-auto' : ''}">
+			<div class="mt-3 {isSheet ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-auto' : ''}">
 				{@render children()}
 			</div>
 			{#if footer}
