@@ -91,8 +91,8 @@
 - [ ] Magic link en `npm run dev` : fournir un `baseURL` en dev (déduit de la requête)
 
 ### Ensuite (clarté de `/t/[token]`)
-- [ ] Barre de filtres sticky trop haute (~40 % de l'écran mobile) → jours + bouton « Filtres » ouvrant un sheet
+- [x] Barre de filtres sticky trop haute (~40 % de l'écran mobile) → jours + bouton « Filtres » ouvrant un sheet
 - [ ] Opt-in push déplacé juste après la 1re inscription
-- [ ] Wording : « 2/8 dispo » → « 2 places libres », bouton « Dispo » → « Je prends »
-- [ ] « Peut-être » expliqué (« Ne bloque pas de place — confirme dès que tu sais »)
-- [ ] Champ « Précision » proposé après l'inscription (« + Ajouter une précision »)
+- [x] Wording : « 2/8 dispo » → « 2 places libres », bouton « Dispo » → « Je prends »
+- [x] « Peut-être » expliqué (« Ne bloque pas de place — confirme dès que tu sais »)
+- [x] Champ « Précision » proposé après l'inscription (« + Ajouter une précision »)

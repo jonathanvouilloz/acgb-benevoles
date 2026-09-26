@@ -8,7 +8,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import VolunteerShiftRow from '$lib/components/tournament/VolunteerShiftRow.svelte';
 	import TimeRangeSlider from '$lib/components/tournament/TimeRangeSlider.svelte';
-	import PositionMultiSelect from '$lib/components/tournament/PositionMultiSelect.svelte';
+	import { Modal } from '$lib/components/ui/modal';
 	import EnableNotifications from '$lib/components/push/EnableNotifications.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Switch } from '$lib/components/ui/switch';
@@ -42,6 +42,7 @@
 		Settings,
 		Info,
 		TriangleAlert,
+		SlidersHorizontal,
 		X
 	} from 'lucide-svelte';
 	import type { PageData, ActionData } from './$types';
@@ -245,11 +246,28 @@
 		winEnd = e;
 	}
 
-	function resetFilters() {
-		day = null;
+	/** Filtres rangés dans le sheet (hors jour, visible dans la barre) : pastille du bouton. */
+	const sheetFilterCount = $derived(
+		(windowActive ? 1 : 0) + (selectedPositions.length > 0 ? 1 : 0) + (onlyAvailable ? 1 : 0)
+	);
+	const anyFilter = $derived(day !== null || sheetFilterCount > 0);
+	let filtersOpen = $state(false);
+
+	function togglePosition(id: string) {
+		selectedPositions = selectedPositions.includes(id)
+			? selectedPositions.filter((p) => p !== id)
+			: [...selectedPositions, id];
+	}
+
+	function resetSheetFilters() {
 		resetWindow();
 		selectedPositions = [];
 		onlyAvailable = false;
+	}
+
+	function resetFilters() {
+		day = null;
+		resetSheetFilters();
 	}
 
 	const chipBase =
@@ -393,8 +411,8 @@
 		class="mt-4 flex flex-col gap-3 rounded-lg border border-info/40 bg-info/10 p-4 sm:flex-row sm:items-center sm:justify-between"
 	>
 		<p class="text-sm text-ink">
-			Choisis un créneau et appuie sur <span class="font-medium">Dispo</span> : on te demande ton email,
-			puis ton inscription est enregistrée.
+			Choisis un créneau et appuie sur <span class="font-medium">Je prends</span> : on te demande ton
+			email, puis ton inscription est enregistrée.
 		</p>
 		<a href="{resolve('/login')}?redirect={encodeURIComponent(page.url.pathname)}">
 			<Button size="sm" variant="ghost" class="w-full sm:w-auto"
@@ -472,13 +490,13 @@
 			</div>
 		{/if}
 	{:else if base.length > 0}
-		<!-- Barre de filtres (collante en haut pendant le scroll) -->
+		<!-- Barre de filtres collante : une seule ligne (jours + « Filtres »), le reste dans un sheet
+		     — l'ancienne barre complète mangeait ~40 % de l'écran mobile. -->
 		<section
-			class="sticky top-0 z-10 -mx-4 mt-6 flex flex-col gap-2.5 border-b border-border bg-surface px-4 py-3"
+			class="sticky top-0 z-10 -mx-4 mt-6 flex items-center gap-2 border-b border-border bg-surface px-4 py-2.5"
 		>
-			<!-- Jour (segmenté) — seulement si le tournoi s'étale sur plusieurs jours -->
-			{#if dayOpts.length > 1}
-				<div class="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+			<div class="-mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1 pb-0.5">
+				{#if dayOpts.length > 1}
 					<button class="{chipBase} {day === null ? chipOn : chipOff}" onclick={() => (day = null)}>
 						Tout
 					</button>
@@ -490,74 +508,132 @@
 							{d.label}
 						</button>
 					{/each}
-				</div>
-			{/if}
-
-			<!-- Plage horaire : curseur à deux poignées + histogramme des besoins -->
-			{#if bounds.max - bounds.min >= 2}
-				<div class="flex flex-col gap-1">
-					<div class="flex items-center justify-between">
-						<span class="text-xs font-medium text-ink-muted">Quand peux-tu aider ?</span>
-						{#if windowActive}
-							<button
-								onclick={resetWindow}
-								class="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
-							>
-								<X size={12} /> Toute la journée
-							</button>
-						{/if}
-					</div>
-					<TimeRangeSlider
-						min={bounds.min * 60}
-						max={bounds.max * 60}
-						start={effStart}
-						end={effEnd}
-						{density}
-						onchange={onWindowChange}
-					/>
-				</div>
-			{/if}
-
-			<!-- Bascules (switch) à gauche, multi-select des postes aligné à droite -->
-			<div class="flex items-center justify-between gap-3">
-				<div class="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-					<Switch bind:checked={onlyAvailable} label="Places dispo" />
-				</div>
-				{#if positionChips.length > 1}
-					<PositionMultiSelect positions={positionChips} bind:selected={selectedPositions} />
 				{/if}
 			</div>
+			<button
+				class="{chipBase} shrink-0 {sheetFilterCount > 0 ? chipOn : chipOff}"
+				onclick={() => (filtersOpen = true)}
+			>
+				<SlidersHorizontal size={14} /> Filtres
+				{#if sheetFilterCount > 0}
+					<span
+						class="inline-flex size-5 items-center justify-center rounded-full bg-white text-xs font-semibold text-brand-primary"
+						>{sheetFilterCount}</span
+					>
+				{/if}
+			</button>
+		</section>
 
-			<!-- Compteur + bascule de regroupement -->
-			<div class="flex items-center justify-between gap-2 pt-0.5">
-				<p class="text-xs text-ink-muted">
-					{filtered.length} créneau{filtered.length > 1 ? 'x' : ''} · {remaining} place{remaining >
-					1
-						? 's'
-						: ''} à pourvoir
-				</p>
-				<div class="flex items-center gap-1 rounded-full border border-border p-0.5">
-					<button
-						class="inline-flex min-h-7 items-center gap-1 rounded-full px-2.5 text-xs font-medium transition-colors {groupBy ===
-						'time'
-							? 'bg-brand-primary text-white'
-							: 'text-ink-muted hover:text-ink'}"
-						onclick={() => (groupBy = 'time')}
-					>
-						<Clock size={13} /> Temps
-					</button>
-					<button
-						class="inline-flex min-h-7 items-center gap-1 rounded-full px-2.5 text-xs font-medium transition-colors {groupBy ===
-						'position'
-							? 'bg-brand-primary text-white'
-							: 'text-ink-muted hover:text-ink'}"
-						onclick={() => (groupBy = 'position')}
-					>
-						<LayoutGrid size={13} /> Poste
-					</button>
+		<!-- Compteur (hors barre collante) -->
+		<div class="mt-3 flex items-center justify-between gap-2">
+			<p class="text-xs text-ink-muted">
+				{filtered.length} créneau{filtered.length > 1 ? 'x' : ''} · {remaining} place{remaining > 1
+					? 's'
+					: ''} à pourvoir
+			</p>
+			{#if anyFilter}
+				<button
+					onclick={resetFilters}
+					class="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
+				>
+					<X size={12} /> Réinitialiser
+				</button>
+			{/if}
+		</div>
+
+		<Modal bind:open={filtersOpen} title="Filtres" variant="sheet">
+			<div class="flex flex-col gap-5">
+				<!-- Plage horaire : curseur à deux poignées + histogramme des besoins -->
+				{#if bounds.max - bounds.min >= 2}
+					<div class="flex flex-col gap-1">
+						<div class="flex items-center justify-between">
+							<span class="text-sm font-medium text-ink">Quand peux-tu aider ?</span>
+							{#if windowActive}
+								<button
+									onclick={resetWindow}
+									class="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
+								>
+									<X size={12} /> Toute la journée
+								</button>
+							{/if}
+						</div>
+						<TimeRangeSlider
+							min={bounds.min * 60}
+							max={bounds.max * 60}
+							start={effStart}
+							end={effEnd}
+							{density}
+							onchange={onWindowChange}
+						/>
+					</div>
+				{/if}
+
+				<Switch bind:checked={onlyAvailable} label="Seulement les places libres" />
+
+				<!-- Postes : chips à bascule (aucun = tous) -->
+				{#if positionChips.length > 1}
+					<div class="flex flex-col gap-2">
+						<span class="text-sm font-medium text-ink">Postes</span>
+						<div class="flex flex-wrap gap-1.5">
+							{#each positionChips as p (p.id)}
+								{@const on = selectedPositions.includes(p.id)}
+								<button
+									class="{chipBase} {on ? chipOn : chipOff}"
+									aria-pressed={on}
+									onclick={() => togglePosition(p.id)}
+								>
+									<span
+										class="size-2 shrink-0 rounded-full {on ? 'ring-1 ring-white' : ''}"
+										style="background-color: {p.color}"
+									></span>
+									{p.name}
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Regroupement -->
+				<div class="flex items-center justify-between gap-2">
+					<span class="text-sm font-medium text-ink">Afficher par</span>
+					<div class="flex items-center gap-1 rounded-full border border-border p-0.5">
+						<button
+							class="inline-flex min-h-8 items-center gap-1 rounded-full px-3 text-sm font-medium transition-colors {groupBy ===
+							'position'
+								? 'bg-brand-primary text-white'
+								: 'text-ink-muted hover:text-ink'}"
+							onclick={() => (groupBy = 'position')}
+						>
+							<LayoutGrid size={14} /> Poste
+						</button>
+						<button
+							class="inline-flex min-h-8 items-center gap-1 rounded-full px-3 text-sm font-medium transition-colors {groupBy ===
+							'time'
+								? 'bg-brand-primary text-white'
+								: 'text-ink-muted hover:text-ink'}"
+							onclick={() => (groupBy = 'time')}
+						>
+							<Clock size={14} /> Horaire
+						</button>
+					</div>
 				</div>
 			</div>
-		</section>
+
+			{#snippet footer()}
+				<div class="flex items-center justify-between gap-3">
+					<button
+						onclick={resetSheetFilters}
+						disabled={sheetFilterCount === 0}
+						class="text-sm font-medium text-ink-muted hover:text-ink disabled:opacity-40"
+					>
+						Réinitialiser
+					</button>
+					<Button onclick={() => (filtersOpen = false)}>
+						Voir {filtered.length} créneau{filtered.length > 1 ? 'x' : ''}
+					</Button>
+				</div>
+			{/snippet}
+		</Modal>
 
 		<!-- Liste filtrée et regroupée -->
 		{#if filtered.length === 0}
@@ -672,7 +748,9 @@
 				await update({ reset: false });
 				if (result.type === 'success') {
 					toast.success(
-						intentStatus === 'maybe' ? 'Noté : peut-être disponible' : 'Tu es inscrit — disponible'
+						intentStatus === 'maybe'
+							? 'Noté : peut-être disponible'
+							: "C'est noté, ce créneau est à toi"
 					);
 					tab = 'mine';
 				} else if (result.type === 'failure') {

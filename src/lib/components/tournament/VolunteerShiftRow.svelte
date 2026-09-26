@@ -8,7 +8,7 @@
 	import { toast } from '$lib/toast.svelte';
 	import { confirmAction } from '$lib/confirm.svelte';
 	import type { BusyShift } from '$lib/overlap';
-	import { Check, CircleHelp, ChevronDown, TriangleAlert } from 'lucide-svelte';
+	import { Check, CircleHelp, ChevronDown, Plus, TriangleAlert } from 'lucide-svelte';
 	import type { VolunteerShift } from '$lib/server/services/signup-service';
 
 	let {
@@ -60,8 +60,20 @@
 	// svelte-ignore state_referenced_locally
 	let note = $state(shift.myNote ?? '');
 	const noteDirty = $derived(note.trim() !== (shift.myNote ?? ''));
+	// La précision n'est proposée qu'une fois inscrit : repliée derrière « + Ajouter une précision ».
+	let editingNote = $state(false);
 
-	/** Une action rapide « Je suis dispo » est proposée directement sur la ligne repliée. */
+	/** « 1 place libre » / « 3 places libres ». */
+	function freeLabel(n: number): string {
+		return `${n} place${n > 1 ? 's' : ''} libre${n > 1 ? 's' : ''}`;
+	}
+
+	/** Focus du champ dès qu'on l'ouvre (action Svelte). */
+	function autofocus(el: HTMLTextAreaElement) {
+		el.focus();
+	}
+
+	/** Une action rapide « Je prends » est proposée directement sur la ligne repliée. */
 	const canQuickSignup = $derived(isLoggedIn && !past && shift.myStatus === null && !shift.isFull);
 
 	/** Visiteur non connecté : mêmes actions, mais elles passent par la connexion. */
@@ -123,13 +135,23 @@
 				toast.success(isUnregister && unregisterMsg ? unregisterMsg : defaultMsg);
 			};
 	}
+
+	/** Enregistrement de la précision : toast + repli du champ. */
+	const noteEnhance: SubmitFunction =
+		() =>
+		async ({ update, result }) => {
+			await update({ reset: false });
+			if (result.type !== 'success') return;
+			editingNote = false;
+			toast.success('Précision enregistrée');
+		};
 </script>
 
 <div
 	class="rounded-lg border border-border bg-surface-subtle transition-colors"
 	class:opacity-60={past}
 >
-	<!-- En-tête compact (toujours visible) : déplie le détail. L'action rapide « dispo » est
+	<!-- En-tête compact (toujours visible) : déplie le détail. L'action rapide « Je prends » est
 	     un formulaire frère (jamais imbriqué dans le bouton de dépliage). -->
 	<div class="flex items-center gap-2 p-3">
 		<button
@@ -142,14 +164,20 @@
 				<span class="size-2.5 shrink-0 rounded-full" style="background-color: {positionColor}"
 				></span>
 			{/if}
-			<span class="min-w-0 truncate text-sm text-ink">
-				{#if showPosition && positionName}<span class="font-medium text-ink-strong"
-						>{positionName}</span
-					> ·
-				{/if}{#if showDay}{formatDay(shift.startsAt)} ·
-				{/if}<span class="font-semibold text-ink-strong"
-					>{formatTimeRange(shift.startsAt, shift.endsAt)}</span
-				>
+			<!-- Places libres sous l'horaire : à droite, avec « Je prends », elles tronquaient l'heure. -->
+			<span class="flex min-w-0 flex-col">
+				<span class="truncate text-sm text-ink">
+					{#if showPosition && positionName}<span class="font-medium text-ink-strong"
+							>{positionName}</span
+						> ·
+					{/if}{#if showDay}{formatDay(shift.startsAt)} ·
+					{/if}<span class="font-semibold text-ink-strong"
+						>{formatTimeRange(shift.startsAt, shift.endsAt)}</span
+					>
+				</span>
+				{#if !shift.myStatus && !shift.isFull}
+					<span class="text-xs font-medium text-success">{freeLabel(shift.remaining)}</span>
+				{/if}
 			</span>
 
 			<span class="ml-auto flex shrink-0 items-center gap-2">
@@ -157,10 +185,6 @@
 					<StatusBadge status={shift.myStatus} />
 				{:else if shift.isFull}
 					<StatusBadge status="full" />
-				{:else}
-					<span class="text-xs font-medium text-success whitespace-nowrap">
-						{shift.remaining}/{shift.capacity} dispo
-					</span>
 				{/if}
 				<ChevronDown
 					size={16}
@@ -173,7 +197,7 @@
 			<form
 				method="POST"
 				action="?/signup"
-				use:enhance={signupEnhance('Tu es inscrit — disponible')}
+				use:enhance={signupEnhance("C'est noté, ce créneau est à toi")}
 			>
 				<input type="hidden" name="shiftId" value={shift.id} />
 				<input type="hidden" name="status" value="available" />
@@ -182,7 +206,7 @@
 					onclick={guardOverlap}
 					class="skin-glossy skin-secondary inline-flex min-h-8 shrink-0 items-center gap-1 rounded px-2.5 text-sm font-semibold text-white"
 				>
-					<Check size={15} /> Dispo
+					<Check size={15} /> Je prends
 				</button>
 			</form>
 		{:else if canLoginSignup && !shift.isFull}
@@ -190,7 +214,7 @@
 				href="{resolve('/login')}?redirect={loginTarget('available')}"
 				class="skin-glossy skin-secondary inline-flex min-h-8 shrink-0 items-center gap-1 rounded px-2.5 text-sm font-semibold text-white"
 			>
-				<Check size={15} /> Dispo
+				<Check size={15} /> Je prends
 			</a>
 		{/if}
 	</div>
@@ -224,7 +248,7 @@
 					class:text-error={shift.isFull}
 					class="font-medium"
 				>
-					{shift.remaining}/{shift.capacity} place{shift.capacity > 1 ? 's' : ''}
+					{freeLabel(shift.remaining)} sur {shift.capacity}
 				</span>
 				{#if shift.maybeCount > 0}
 					· {shift.maybeCount} peut-être
@@ -251,29 +275,69 @@
 
 			<!-- Actions -->
 			{#if isLoggedIn && !past}
-				<!-- Note libre (précision / contrainte) -->
-				<label class="flex flex-col gap-1 pt-1 text-xs font-medium text-ink-muted">
-					Précision (optionnel)
-					<textarea
-						bind:value={note}
-						rows="1"
-						maxlength="280"
-						placeholder="ex : dès 18h, scoring uniquement…"
-						class="min-h-8 resize-y rounded border border-surface-border px-2 py-1 text-sm font-normal text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
-					></textarea>
-				</label>
-
-				{#if shift.myStatus !== null && noteDirty}
-					<form method="POST" action="?/setNote" use:enhance={signupEnhance('Note enregistrée')}>
-						<input type="hidden" name="shiftId" value={shift.id} />
-						<input type="hidden" name="note" value={note} />
-						<button
-							type="submit"
-							class="inline-flex min-h-8 items-center gap-1 rounded border border-brand-primary/40 bg-brand-primary/5 px-2.5 text-sm font-medium text-brand-primary hover:bg-brand-primary/10"
+				<!-- Précision (contrainte, remarque) : proposée une fois inscrit, jamais avant — le
+				     premier geste reste « Je prends ». -->
+				{#if shift.myStatus !== null}
+					{#if editingNote}
+						<form
+							method="POST"
+							action="?/setNote"
+							class="flex flex-col gap-1.5 pt-1"
+							use:enhance={noteEnhance}
 						>
-							Enregistrer la note
+							<input type="hidden" name="shiftId" value={shift.id} />
+							<label class="flex flex-col gap-1 text-xs font-medium text-ink-muted">
+								Précision (optionnel)
+								<textarea
+									name="note"
+									bind:value={note}
+									use:autofocus
+									rows="2"
+									maxlength="280"
+									placeholder="ex : dès 18h, scoring uniquement…"
+									class="min-h-8 resize-y rounded border border-surface-border px-2 py-1 text-sm font-normal text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
+								></textarea>
+							</label>
+							<div class="flex gap-2">
+								<button
+									type="submit"
+									disabled={!noteDirty}
+									class="inline-flex min-h-8 items-center gap-1 rounded border border-brand-primary/40 bg-brand-primary/5 px-2.5 text-sm font-medium text-brand-primary hover:bg-brand-primary/10 disabled:pointer-events-none disabled:opacity-50"
+								>
+									Enregistrer
+								</button>
+								<button
+									type="button"
+									onclick={() => {
+										note = shift.myNote ?? '';
+										editingNote = false;
+									}}
+									class="inline-flex min-h-8 items-center rounded px-2.5 text-sm font-medium text-ink-muted hover:bg-surface-muted"
+								>
+									Annuler
+								</button>
+							</div>
+						</form>
+					{:else if shift.myNote}
+						<p class="flex items-start gap-2 text-sm text-ink">
+							<span class="min-w-0 flex-1 whitespace-pre-line italic">« {shift.myNote} »</span>
+							<button
+								type="button"
+								onclick={() => (editingNote = true)}
+								class="shrink-0 text-xs font-medium text-brand-primary hover:underline"
+							>
+								Modifier
+							</button>
+						</p>
+					{:else}
+						<button
+							type="button"
+							onclick={() => (editingNote = true)}
+							class="inline-flex w-fit items-center gap-1 text-sm font-medium text-brand-primary hover:underline"
+						>
+							<Plus size={14} /> Ajouter une précision
 						</button>
-					</form>
+					{/if}
 				{/if}
 
 				<div class="flex flex-wrap gap-2 pt-1">
@@ -281,18 +345,17 @@
 						<form
 							method="POST"
 							action="?/signup"
-							use:enhance={signupEnhance('Tu es inscrit — disponible')}
+							use:enhance={signupEnhance("C'est noté, ce créneau est à toi")}
 						>
 							<input type="hidden" name="shiftId" value={shift.id} />
 							<input type="hidden" name="status" value="available" />
-							<input type="hidden" name="note" value={note} />
 							<button
 								type="submit"
 								onclick={guardOverlap}
 								disabled={shift.isFull}
 								class="skin-glossy skin-secondary inline-flex min-h-9 items-center gap-1 rounded px-3 text-sm font-semibold text-white disabled:pointer-events-none disabled:opacity-50"
 							>
-								<Check size={15} /> Je suis dispo
+								<Check size={15} /> Je prends
 							</button>
 						</form>
 						<form
@@ -302,7 +365,6 @@
 						>
 							<input type="hidden" name="shiftId" value={shift.id} />
 							<input type="hidden" name="status" value="maybe" />
-							<input type="hidden" name="note" value={note} />
 							<button
 								type="submit"
 								onclick={guardOverlap}
@@ -327,7 +389,7 @@
 								disabled={shift.isFull}
 								class="skin-glossy skin-secondary inline-flex min-h-9 items-center gap-1 rounded px-3 text-sm font-semibold text-white disabled:pointer-events-none disabled:opacity-50"
 							>
-								<Check size={15} /> Confirmer dispo
+								<Check size={15} /> Je confirme
 							</button>
 							{@render unregister()}
 						</form>
@@ -351,6 +413,9 @@
 						</form>
 					{/if}
 				</div>
+				{#if shift.myStatus !== 'available'}
+					{@render maybeHint()}
+				{/if}
 				{#if formError}
 					<p class="text-sm text-error">{formError}</p>
 				{/if}
@@ -362,7 +427,7 @@
 							href="{resolve('/login')}?redirect={loginTarget('available')}"
 							class="skin-glossy skin-secondary inline-flex min-h-9 items-center gap-1 rounded px-3 text-sm font-semibold text-white"
 						>
-							<Check size={15} /> Je suis dispo
+							<Check size={15} /> Je prends
 						</a>
 					{/if}
 					<a
@@ -372,6 +437,7 @@
 						<CircleHelp size={15} /> Peut-être
 					</a>
 				</div>
+				{@render maybeHint()}
 			{/if}
 		</div>
 	{/if}
@@ -385,4 +451,10 @@
 	>
 		Me retirer
 	</button>
+{/snippet}
+
+{#snippet maybeHint()}
+	<p class="text-xs text-ink-muted">
+		« Peut-être » ne bloque pas de place — confirme dès que tu sais.
+	</p>
 {/snippet}
