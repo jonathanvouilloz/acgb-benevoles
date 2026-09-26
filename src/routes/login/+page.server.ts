@@ -8,7 +8,8 @@ import { safeRedirect } from '$lib/server/auth-guard';
 import { isPrototype, takePrototypeLink } from '$lib/server/prototype';
 import { isManagedEmail } from '$lib/server/services/email';
 import { consumeRateLimit } from '$lib/server/services/rate-limit';
-import { stashPendingPhone } from '$lib/server/services/pending-phone';
+import { stashPendingProfile } from '$lib/server/services/pending-profile';
+import { stashLoginCode } from '$lib/server/services/login-code';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
@@ -44,11 +45,18 @@ async function throttleMagicLink(ip: string, email: string): Promise<string | nu
 	return null;
 }
 
-/** Déjà connecté → pas de raison de rester sur /login (on rejoint la cible éventuelle). */
+/**
+ * Déjà connecté → pas de raison de rester sur /login (on rejoint la cible éventuelle).
+ * `email` pré-remplit le champ (renvoi depuis « lien envoyé »).
+ */
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const redirectTo = safeRedirect(url.searchParams.get('redirect'));
 	if (locals.user) throw redirect(303, redirectTo ?? '/');
-	return { redirect: redirectTo, prototype: isPrototype };
+	return {
+		redirect: redirectTo,
+		email: url.searchParams.get('email') ?? '',
+		prototype: isPrototype
+	};
 };
 
 type Step = 'email' | 'details';
@@ -77,22 +85,27 @@ const emptyValues = (over: Partial<Values> = {}): Values => ({
 });
 
 /**
- * Génère le magic link. Comportement normal : email envoyé → on retourne `null`
- * (le flux continue vers « lien envoyé »). En mode prototype : aucun email, on retourne
+ * Génère le magic link et le code à 6 chiffres, envoyés dans un seul email. Comportement
+ * normal : email envoyé → on retourne `null` (le flux continue vers « lien envoyé »). En mode prototype : aucun email, on retourne
  * l'URL de vérification capturée pour la suivre tout de suite (connexion instantanée).
  */
 async function sendLink(
 	headers: Headers,
 	email: string,
 	redirectTo: string,
-	extra: { name?: string; phone?: string } = {}
+	profile?: { name: string; phone: string }
 ): Promise<string | null> {
-	// Le plugin magic link ignore `phone` : relais appliqué à la création (cf. pending-phone).
-	if (extra.phone) await stashPendingPhone(email, extra.phone);
+	// Ni le lien ni le code ne transmettent le profil : relais appliqué à la création.
+	if (profile) await stashPendingProfile(email, profile);
+	if (!isPrototype) {
+		// Code créé sans envoi, puis glissé dans l'email du lien (cf. services/login-code).
+		const code = await auth.api.createVerificationOTP({ body: { email, type: 'sign-in' } });
+		stashLoginCode(email, code);
+	}
 	await auth.api.signInMagicLink({
 		body: {
 			email,
-			...(extra.name ? { name: extra.name } : {}),
+			...(profile ? { name: profile.name } : {}),
 			callbackURL: redirectTo,
 			// Query de la cible retirée : Better Auth re-décode errorCallbackURL à la vérification,
 			// un `?` imbriqué (ex. `/t/x?prendre=…`) échoue alors sa validation et invalide tout le
@@ -112,6 +125,12 @@ async function sendLink(
 	} catch {
 		return link;
 	}
+}
+
+/** Écran « vérifie ta boîte » : porte l'email et la cible, pour le code et le renvoi. */
+function sentUrl(email: string, redirectTo: string): string {
+	const q = new URLSearchParams({ email, redirect: redirectTo });
+	return `/login/sent?${q}`;
 }
 
 export const actions: Actions = {
@@ -177,7 +196,7 @@ export const actions: Actions = {
 				});
 			}
 			// Prototype : connexion instantanée (suivi du lien) ; sinon écran « lien envoyé ».
-			throw redirect(303, link ?? `/login/sent?email=${encodeURIComponent(email)}`);
+			throw redirect(303, link ?? sentUrl(email, redirectTo));
 		}
 
 		// --- Étape 2 (email inconnu) : prénom + nom + tél, email repris de l'étape 1 ---
@@ -252,6 +271,6 @@ export const actions: Actions = {
 		}
 
 		// Prototype : connexion instantanée (suivi du lien) ; sinon écran « lien envoyé ».
-		throw redirect(303, link ?? `/login/sent?email=${encodeURIComponent(email)}`);
+		throw redirect(303, link ?? sentUrl(email, redirectTo));
 	}
 };

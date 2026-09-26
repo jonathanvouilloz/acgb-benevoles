@@ -36,8 +36,11 @@
 | `src/routes/t/[token]/+page.svelte` | Bannière téléphone inline en tête, lecture de `?prendre`/`?statut`, soumission automatique de l'intention (form caché + garde chevauchement) |
 | `src/routes/t/[token]/+page.server.ts` | Action `savePhone` ; message `needsPhone` pointant vers la bannière |
 | `src/lib/components/tournament/VolunteerShiftRow.svelte` | Actions visibles non connecté : liens vers `/login` qui portent l'intention |
-| `src/lib/server/services/pending-phone.ts` | Relais du téléphone entre formulaire de création et création du compte (table `verification`) |
-| `src/lib/server/auth.ts` | Hook `databaseHooks.user.create.before` qui applique le téléphone en attente |
+| `src/lib/server/services/pending-profile.ts` | Relais nom + téléphone entre formulaire de création et création du compte (table `verification`) ; `peek` pour la connexion par code |
+| `src/lib/server/services/login-code.ts` | Relais en mémoire du code OTP vers l'email du magic link (même requête) |
+| `src/routes/login/sent/` | Saisie du code (`signInEmailOTP`), renvoi qui garde email + cible |
+| `src/lib/server/services/email.ts` | Email de connexion : bouton + code à 6 chiffres |
+| `src/lib/server/auth.ts` | Plugins `magicLink` + `emailOTP` + `sveltekitCookies` ; hook `user.create.before` qui applique le profil en attente |
 | `src/routes/login/+page.server.ts` | Email-first (`step` email → details), stash du téléphone avant envoi du lien ; `errorCallbackURL` sans query |
 | `src/routes/login/+page.svelte` | Étape email puis « Bienvenue ! » (prénom, nom, tél), bouton « changer » |
 | `src/routes/layout.css` | Règle non-layered : champs à 16px sous 640px |
@@ -58,8 +61,8 @@
 ### D'abord (friction au premier passage)
 - [x] Login email-first : un seul champ, branchement serveur, ton neutre pour un nouveau compte
 - [x] Champs à 16px sur mobile (zoom iOS au focus) — règle globale dans `layout.css`
-- [ ] Code OTP 6 chiffres dans le mail en plus du lien (plugin `emailOTP`) — session PWA iOS isolée de Safari
-- [ ] `login/sent` : « renvoie-toi un lien » garde email + `redirect`
+- [x] Code OTP 6 chiffres dans le mail en plus du lien (plugin `emailOTP`) — session PWA iOS isolée de Safari
+- [x] `login/sent` : « renvoie-toi un lien » garde email + `redirect`
 - [ ] Magic link en `npm run dev` : fournir un `baseURL` en dev (déduit de la requête)
 
 ### Ensuite (clarté de `/t/[token]`)

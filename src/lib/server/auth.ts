@@ -1,16 +1,24 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { magicLink } from 'better-auth/plugins';
+import { emailOTP, magicLink } from 'better-auth/plugins';
+import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { dev } from '$app/environment';
+import { getRequestEvent } from '$app/server';
 import { env } from '$env/dynamic/private';
 import { db } from './db';
 import * as schema from './db/schema';
 import { sendMagicLinkEmail } from './services/email';
 import { isPrototype, stashPrototypeLink } from './prototype';
-import { takePendingPhone } from './services/pending-phone';
+import { takePendingProfile } from './services/pending-profile';
+import { takeLoginCode } from './services/login-code';
+
+/** Lien et code de connexion valables 15 min. */
+const CODE_TTL_SEC = 60 * 15;
 
 /**
  * Instance Better Auth — auth sans mot de passe par magic link (cf. docs/features/02-auth.md).
+ * L'email porte aussi un code à 6 chiffres (plugin `emailOTP`) : la PWA installée sur iOS a
+ * son propre stockage, un lien ouvert dans Safari n'y connecte pas — le code, si (epic 17).
  *
  * - `role` est un champ additionnel en lecture seule côté client (`input: false`) :
  *   la promotion `volunteer → organizer` passe par une demande validée par un super admin
@@ -28,6 +36,9 @@ export const auth = betterAuth({
 	// Ports de dev Vite courants : tous fiables en local, pour que la connexion passe quel que
 	// soit le port choisi (utile aussi pour la redirection de vérification du magic link).
 	trustedOrigins: dev ? ['5173', '5174', '5175', '5176'].map((p) => `http://localhost:${p}`) : [],
+	// Le code n'est émis que par l'action /login (throttlée) : la route publique d'envoi
+	// contournerait les quotas et invaliderait le code en cours d'un autre.
+	disabledPaths: ['/email-otp/send-verification-otp'],
 	user: {
 		additionalFields: {
 			// Rôle applicatif (volunteer | organizer | super_admin). Enum typé en `string`
@@ -40,10 +51,12 @@ export const auth = betterAuth({
 	databaseHooks: {
 		user: {
 			create: {
-				// Le magic link ne transmet pas `phone` : on applique celui mis de côté par /login.
+				// Ni le lien ni le code ne transmettent `phone` (le code, pas même `name`) : on
+				// applique le profil mis de côté par /login.
 				before: async (u) => {
-					const phone = await takePendingPhone(u.email);
-					return phone ? { data: { ...u, phone } } : undefined;
+					const profile = await takePendingProfile(u.email);
+					if (!profile) return undefined;
+					return { data: { ...u, name: u.name || profile.name, phone: profile.phone } };
 				}
 			}
 		}
@@ -54,7 +67,7 @@ export const auth = betterAuth({
 	},
 	plugins: [
 		magicLink({
-			expiresIn: 60 * 15, // lien valable 15 min
+			expiresIn: CODE_TTL_SEC,
 			sendMagicLink: async ({ email, url }) => {
 				// Mode prototype : on n'envoie aucun email, on capture le lien pour le suivre
 				// immédiatement côté serveur (connexion instantanée). Voir lib/server/prototype.ts.
@@ -62,13 +75,14 @@ export const auth = betterAuth({
 					stashPrototypeLink(email, url);
 					return;
 				}
+				const code = takeLoginCode(email);
 				// En dev : log le lien dans la console pour tester sans domaine Resend vérifié,
 				// et on tolère un échec d'envoi (Resend n'autorise que l'email du compte).
 				if (dev) {
-					console.log(`\n🔗 [magic link] ${email}\n   ${url}\n`);
+					console.log(`\n🔗 [magic link] ${email}\n   ${url}\n   code : ${code ?? '—'}\n`);
 				}
 				try {
-					await sendMagicLinkEmail(email, url);
+					await sendMagicLinkEmail(email, url, code);
 				} catch (err) {
 					if (!dev) throw err;
 					console.warn(
@@ -77,6 +91,16 @@ export const auth = betterAuth({
 					);
 				}
 			}
-		})
+		}),
+		emailOTP({
+			expiresIn: CODE_TTL_SEC,
+			storeOTP: 'hashed',
+			allowedAttempts: 5,
+			// Jamais appelé : le code part dans l'email du magic link (cf. services/login-code).
+			sendVerificationOTP: async () => {}
+		}),
+		// Dernier plugin : reporte sur la réponse SvelteKit les cookies de session posés par un
+		// `auth.api.*` appelé depuis une action (connexion par code).
+		sveltekitCookies(getRequestEvent)
 	]
 });

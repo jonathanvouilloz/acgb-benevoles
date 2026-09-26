@@ -125,7 +125,7 @@
 				type="email"
 				autocomplete="email"
 				inputmode="email"
-				value={form?.values?.email ?? ''}
+				value={form?.values?.email ?? data.email}
 				class={inputClass}
 			/>
 			{#if form?.errors?.email}<span class="text-xs text-error">{form.errors.email[0]}</span>{/if}

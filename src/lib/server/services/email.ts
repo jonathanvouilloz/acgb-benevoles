@@ -38,7 +38,7 @@ function client(): Resend {
  * Envoie le magic link de connexion. La logique d'auth vit dans Better Auth ; ce service
  * ne fait que la mise en forme et l'envoi (cf. conventions docs/STYLEGUIDE.md).
  */
-export async function sendMagicLinkEmail(email: string, url: string): Promise<void> {
+export async function sendMagicLinkEmail(email: string, url: string, code?: string): Promise<void> {
 	// Garde dure : une fiche bénévole n'a pas de boîte réelle. On abandonne silencieusement
 	// (pas d'exception) — un envoi impossible ne doit jamais faire échouer le flux appelant.
 	if (isManagedEmail(email)) {
@@ -50,7 +50,7 @@ export async function sendMagicLinkEmail(email: string, url: string): Promise<vo
 		from: FROM,
 		to: email,
 		subject: 'Ton lien de connexion — Bénévoles ACGB',
-		html: magicLinkHtml(url)
+		html: magicLinkHtml(url, code)
 	});
 
 	if (error) {
@@ -78,11 +78,15 @@ export function esc(value: string): string {
 		.replace(/"/g, '&quot;');
 }
 
-/** Enveloppe commune à tous les emails : en-tête de marque, corps, bouton d'action optionnel. */
+/**
+ * Enveloppe commune à tous les emails : en-tête de marque, corps, bouton d'action optionnel,
+ * bloc sous le bouton optionnel (`afterCtaHtml`, ex. le code de connexion), pied de page.
+ */
 export function emailLayout(
 	bodyHtml: string,
 	cta?: { url: string; label: string },
-	footerHtml?: string
+	footerHtml?: string,
+	afterCtaHtml = ''
 ): string {
 	const button = cta
 		? `<a href="${cta.url}"
@@ -99,17 +103,32 @@ export function emailLayout(
 		<h1 style="font-size: 20px; color: ${BRAND}; margin: 0 0 16px;">Bénévoles ACGB</h1>
 		${bodyHtml}
 		${button}
+		${afterCtaHtml}
 		${footer}
 	</div>`;
 }
 
-function magicLinkHtml(url: string): string {
+/**
+ * Lien + code : le code sert quand le lien s'ouvrirait ailleurs que là où on se connecte
+ * (app installée sur iPhone, autre appareil). Gros chiffres espacés, faciles à recopier.
+ */
+function magicLinkHtml(url: string, code?: string): string {
+	const codeBlock = code
+		? `<p style="font-size: 15px; line-height: 1.5; margin: 24px 0 8px;">
+			Dans l'app installée sur ton téléphone ? Tape plutôt ce code :
+		</p>
+		<p style="font-size: 28px; font-weight: 700; letter-spacing: 6px; color: ${BRAND}; margin: 0;">
+			${esc(code)}
+		</p>`
+		: '';
 	return emailLayout(
 		`<p style="font-size: 15px; line-height: 1.5; margin: 0 0 24px;">
-			Clique sur le bouton ci-dessous pour te connecter. Ce lien est valable 15 minutes.
+			Clique sur le bouton ci-dessous pour te connecter.
+			${code ? 'Le lien et le code sont valables 15 minutes.' : 'Ce lien est valable 15 minutes.'}
 		</p>`,
 		{ url, label: 'Me connecter' },
-		"Si tu n'es pas à l'origine de cette demande, tu peux ignorer cet email."
+		"Si tu n'es pas à l'origine de cette demande, tu peux ignorer cet email.",
+		codeBlock
 	);
 }
 

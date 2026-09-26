@@ -32,3 +32,12 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export function fullName(input: Pick<LoginInput, 'prenom' | 'nom'>): string {
 	return `${input.prenom} ${input.nom}`;
 }
+
+/** Connexion par le code à 6 chiffres reçu par email (espaces tolérés au collage). */
+export const codeLoginSchema = z.object({
+	email: emailField,
+	code: z
+		.string()
+		.transform((v) => v.replace(/\s+/g, ''))
+		.pipe(z.string().regex(/^\d{6}$/, 'Le code fait 6 chiffres'))
+});
