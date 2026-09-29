@@ -32,6 +32,11 @@ export type VolunteerSignup = {
 	name: string;
 	status: SignupStatus;
 	phone: string | null;
+	/**
+	 * Email réel du bénévole, **uniquement** en vue organisateur (copie groupée, export).
+	 * `null` côté bénévole et pour une fiche sans vrai email (adresse générée non routable).
+	 */
+	email: string | null;
 	note: string | null;
 	/**
 	 * Fiche créée par un organisateur, sans email réel : ne se connecte pas, ne reçoit aucun
@@ -120,6 +125,7 @@ function findTournamentRow(where: SQL) {
 											id: true,
 											name: true,
 											phone: true,
+											email: true,
 											emailPlaceholder: true,
 											createdBy: true
 										}
@@ -178,6 +184,7 @@ function mapTournamentRow(
 					name: su.user.name,
 					status: su.status,
 					phone: organizerView ? su.user.phone : null,
+					email: organizerView && !su.user.emailPlaceholder ? su.user.email : null,
 					// Note : visible pour l'orga (toutes) ou pour son propriétaire (vue publique).
 					note: organizerView || su.userId === userId ? su.note : null,
 					// Détail d'organisation : les bénévoles n'ont pas à savoir qui utilise l'app.

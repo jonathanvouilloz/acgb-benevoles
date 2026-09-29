@@ -12,6 +12,7 @@
 		Search,
 		Printer,
 		ChevronDown,
+		Mail,
 		UserPlus
 	} from 'lucide-svelte';
 
@@ -27,7 +28,8 @@
 		dayFilterOptions,
 		onExport,
 		onPrint,
-		onAssign
+		onAssign,
+		onCopyEmails
 	}: {
 		search?: string;
 		positionFilter?: string;
@@ -40,6 +42,8 @@
 		onPrint: (format: 'poste' | 'matrix') => void;
 		/** Ouvre la modale d'inscription sans pré-sélection (organisateur uniquement). */
 		onAssign?: () => void;
+		/** Copie les emails des bénévoles disponibles (organisateur uniquement). */
+		onCopyEmails?: () => void;
 	} = $props();
 
 	const views: { value: View; label: string; icon: typeof Table2 }[] = [
@@ -117,6 +121,19 @@
 		<Button type="button" variant="ghost" size="sm" onclick={onExport} class="shrink-0">
 			<FileSpreadsheet size={15} /> Excel
 		</Button>
+
+		{#if onCopyEmails}
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				onclick={onCopyEmails}
+				class="shrink-0"
+				title="Copier les emails des bénévoles disponibles"
+			>
+				<Mail size={15} /> Emails
+			</Button>
+		{/if}
 
 		{#if onAssign}
 			<Button type="button" size="sm" onclick={onAssign} class="shrink-0">

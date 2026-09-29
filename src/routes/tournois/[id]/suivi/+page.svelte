@@ -24,6 +24,8 @@
 	import { formatDateRange, toDateInputValue } from '$lib/format';
 	import { flattenTournament, planningByPoste } from '$lib/recap';
 	import { dayOptions } from '$lib/time-options';
+	import { collectAvailableEmails } from '$lib/volunteer-emails';
+	import { toast } from '$lib/toast.svelte';
 	import { ArrowLeft, MapPin, CalendarDays } from 'lucide-svelte';
 	import type { PageData } from './$types';
 
@@ -136,6 +138,28 @@
 	/** Ouverture de la modale d'export Excel (choix du format). */
 	let exportOpen = $state(false);
 
+	/** Copie les emails des bénévoles disponibles, prêts à coller en Cci. */
+	async function copyEmails() {
+		const { emails, missing } = collectAvailableEmails(t);
+		if (emails.length === 0) {
+			toast.info('Aucun bénévole disponible avec une adresse email.');
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(emails.join(', '));
+		} catch (err) {
+			console.error(err);
+			toast.error('Impossible de copier dans le presse-papier.');
+			return;
+		}
+		const copied = `${emails.length} adresse${emails.length > 1 ? 's' : ''} copiée${emails.length > 1 ? 's' : ''}`;
+		if (missing.length > 0) {
+			toast.warning(`${copied} — sans email : ${missing.join(', ')}.`);
+		} else {
+			toast.success(copied);
+		}
+	}
+
 	let printFormat = $state<'poste' | 'matrix'>('poste');
 
 	/** Choisit la mise en page d'impression puis ouvre le dialogue navigateur (→ « Enregistrer en PDF »). */
@@ -214,6 +238,7 @@
 				{positionOptions}
 				{dayFilterOptions}
 				onExport={() => (exportOpen = true)}
+				onCopyEmails={copyEmails}
 				onPrint={print}
 				onAssign={openAssign}
 			/>

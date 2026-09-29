@@ -30,7 +30,7 @@ export const XLSX_FORMATS: { value: XlsxFormat; label: string; description: stri
 	{
 		value: 'contacts',
 		label: 'Bénévoles & contacts',
-		description: 'Liste des bénévoles avec téléphone et nombre de créneaux.'
+		description: 'Liste des bénévoles avec téléphone, email et nombre de créneaux.'
 	}
 ];
 
@@ -186,25 +186,26 @@ function buildShift(wb: Workbook, t: VolunteerTournament) {
 	ws.views = [{ state: 'frozen', ySplit: 1 }];
 }
 
-/** Format « Bénévoles & contacts » : une ligne par bénévole avec téléphone. */
+/** Format « Bénévoles & contacts » : une ligne par bénévole avec téléphone et email. */
 function buildContacts(wb: Workbook, t: VolunteerTournament) {
 	const ws = wb.addWorksheet('Bénévoles');
 	ws.columns = [
 		{ header: 'Bénévole', width: 28 },
 		{ header: 'Téléphone', width: 18 },
+		{ header: 'Email', width: 32 },
 		{ header: 'Créneaux', width: 10 },
 		{ header: 'Détail des créneaux', width: 50 }
 	];
 	styleHeaderRow(ws, 1);
 
-	type Vol = { name: string; phone: string | null; shifts: string[] };
+	type Vol = { name: string; phone: string | null; email: string | null; shifts: string[] };
 	const map = new Map<string, Vol>();
 	for (const p of t.positions) {
 		for (const s of p.shifts) {
 			for (const su of s.signups) {
 				let v = map.get(su.userId);
 				if (!v) {
-					v = { name: su.name, phone: su.phone, shifts: [] };
+					v = { name: su.name, phone: su.phone, email: su.email, shifts: [] };
 					map.set(su.userId, v);
 				}
 				const tag = su.status === 'maybe' ? ' (peut-être)' : '';
@@ -215,7 +216,7 @@ function buildContacts(wb: Workbook, t: VolunteerTournament) {
 	}
 	const vols = [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
 	for (const v of vols) {
-		ws.addRow([v.name, v.phone ?? '', v.shifts.length, v.shifts.join(' · ')]);
+		ws.addRow([v.name, v.phone ?? '', v.email ?? '', v.shifts.length, v.shifts.join(' · ')]);
 	}
 	ws.views = [{ state: 'frozen', ySplit: 1 }];
 }
