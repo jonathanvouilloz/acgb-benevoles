@@ -38,7 +38,9 @@ export const auth = betterAuth({
 	trustedOrigins: dev ? ['5173', '5174', '5175', '5176'].map((p) => `http://localhost:${p}`) : [],
 	// Le code n'est émis que par l'action /login (throttlée) : la route publique d'envoi
 	// contournerait les quotas et invaliderait le code en cours d'un autre.
-	disabledPaths: ['/email-otp/send-verification-otp'],
+	// Idem pour l'envoi public du lien (quota de /login contourné, emails en masse à des tiers) et pour
+	// la mise à jour du profil hors des actions validées de /compte.
+	disabledPaths: ['/email-otp/send-verification-otp', '/sign-in/magic-link', '/update-user'],
 	user: {
 		additionalFields: {
 			// Rôle applicatif (volunteer | organizer | super_admin). Enum typé en `string`

@@ -10,7 +10,9 @@ import { env } from '$env/dynamic/private';
  *
  * À NE JAMAIS activer en prod réelle : court-circuite la vérification par email.
  */
-export const isPrototype = env.PROTOTYPE_MODE === '1' || env.PROTOTYPE_MODE === 'true';
+export const isPrototype =
+	// Jamais sur le déploiement de production de Vercel, même si la variable y est posée par erreur.
+	env.VERCEL_ENV !== 'production' && (env.PROTOTYPE_MODE === '1' || env.PROTOTYPE_MODE === 'true');
 
 /**
  * Dernier magic link généré par email, en attente d'être suivi dans la même requête.

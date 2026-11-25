@@ -257,13 +257,21 @@ export async function updateManagedVolunteer(
 			createdBy: user.createdBy,
 			name: user.name,
 			phone: user.phone,
-			emailPlaceholder: user.emailPlaceholder
+			emailPlaceholder: user.emailPlaceholder,
+			email: user.email,
+			emailVerified: user.emailVerified,
+			role: user.role
 		})
 		.from(user)
 		.where(eq(user.id, userId))
 		.limit(1);
 	if (rows.length === 0) throw new Error('NOT_FOUND');
 	if (rows[0].createdBy !== organizerId) throw new Error('NOT_MANAGED');
+	// Une fois la personne connectée (email vérifié) ou promue, changer son email reviendrait à
+	// prendre son compte : la faute de frappe se corrige avant, pas après.
+	if (email && email !== rows[0].email && (rows[0].emailVerified || rows[0].role !== 'volunteer')) {
+		throw new Error('NOT_MANAGED');
+	}
 
 	if (email) {
 		const taken = await db.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1);
