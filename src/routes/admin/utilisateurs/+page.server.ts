@@ -11,7 +11,8 @@ import {
 import { createOrganizerSchema, roleSchema } from '$lib/schemas/admin';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
+	requireSuperAdmin(locals);
 	const [users, requests] = await Promise.all([listUsers(), listOrganizerRequests('pending')]);
 	return { users, requests };
 };

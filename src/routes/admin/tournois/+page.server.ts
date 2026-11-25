@@ -3,7 +3,8 @@ import { requireSuperAdmin } from '$lib/server/auth-guard';
 import { deleteTournamentAsAdmin, listAllTournaments } from '$lib/server/services/admin-service';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
+	requireSuperAdmin(locals);
 	const tournaments = await listAllTournaments();
 	return { tournaments };
 };
